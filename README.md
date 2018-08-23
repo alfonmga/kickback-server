@@ -1,6 +1,6 @@
-[![Build Status](https://travis-ci.org/noblocknoparty/server.svg?branch=master)](https://travis-ci.org/noblocknoparty/server)
-
 # BlockParty backend server
+
+[![Build Status](https://travis-ci.org/noblocknoparty/server.svg?branch=master)](https://travis-ci.org/noblocknoparty/server)
 
 * Development deployment: https://blockparty-dev.now.sh
 * Production deployment: https://blockparty-live.now.sh
