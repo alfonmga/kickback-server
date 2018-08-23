@@ -12,3 +12,6 @@ before_script:
   - yarn build
 script:
   - yarn release
+notifications:
+  email:
+    - dev-notifications@noblockno.party
