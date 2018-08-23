@@ -29,7 +29,7 @@ openssl aes-256-cbc -K $CONFIG_ENCRYPTION_KEY -iv $CONFIG_ENCRYPTION_IV -in .goo
 openssl aes-256-cbc -K $CONFIG_ENCRYPTION_KEY -iv $CONFIG_ENCRYPTION_IV -in .googlecloud/dev.production.enc -out .googlecloud/production.json -d
 ```
 
-_The env var `CONFIG_ENCRYPTION_KEY` value can be found in our password vault_.
+_The env vars `CONFIG_ENCRYPTION_KEY` and `CONFIG_ENCRYPTION_IV` can be found in our password vault_.
 
 Now you can run the server:
 
