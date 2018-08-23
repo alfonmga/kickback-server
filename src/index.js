@@ -13,15 +13,15 @@ const {
   FIREBASE_API_KEY,
   FIREBASE_MSG_SENDER_ID,
   COUCHDB_PASSWORD,
-  MODE
+  MODE,
+  NODE_ENV
 } = process.env
 
 const port = parseInt(PORT, 10) || 3001
 
 const mode = (MODE !== 'production') ? 'development' : MODE
-const inDevMode = (MODE === 'development')
 
-const app = next({ dev: inDevMode })
+const app = next({ dev: NODE_ENV !== 'production' })
 
 const handle = app.getRequestHandler()
 
