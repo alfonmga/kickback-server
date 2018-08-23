@@ -1,0 +1,5 @@
+.next
+yarn-error.log
+node_modules
+
+.googlecloud/*.json

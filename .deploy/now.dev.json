@@ -1,0 +1,14 @@
+{
+  "name": "blockparty-server",
+  "alias": "dev.noblockno.party",
+  "scale": {
+    "bru1": {
+      "min": 1,
+      "max": 1
+    }
+  },
+  "env": {
+    "NODE_ENV": "production",
+    "MODE": "development"
+  }
+}
