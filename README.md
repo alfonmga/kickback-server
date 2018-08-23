@@ -2,10 +2,10 @@
 
 # BlockParty backend server
 
-* Development deployment: https://dev-server.noblockno.party (in-memory db)
-* Production deployment: https://live-server.noblockno.party (persisted db)
+* Development deployment: https://blockparty-dev.now.sh
+* Production deployment: https://blockparty-live.now.sh
 
-Google Firestore is used as the backend storage.
+Google Firestore is used as the backend storage, with separate storage databases for dev and live.
 
 ## Branches
 
