@@ -13,8 +13,7 @@ const {
   FIREBASE_API_KEY,
   FIREBASE_MSG_SENDER_ID,
   COUCHDB_PASSWORD,
-  MODE,
-  NODE_ENV
+  MODE
 } = process.env
 
 const port = parseInt(PORT, 10) || 3001
