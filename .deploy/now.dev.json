@@ -1,6 +1,6 @@
 {
   "name": "blockparty-server",
-  "alias": "blockparty-dev.now.sh",
+  "alias": "dev.server.noblockno.party",
   "scale": {
     "bru1": {
       "min": 1,

@@ -2,8 +2,8 @@
 
 [![Build Status](https://travis-ci.org/noblocknoparty/server.svg?branch=master)](https://travis-ci.org/noblocknoparty/server)
 
-* Development deployment: https://blockparty-dev.now.sh
-* Production deployment: https://blockparty-live.now.sh
+* Development deployment: https://dev.server.noblockno.party
+* Production deployment: https://live.server.noblockno.party
 
 Google Firestore is used as the backend storage, with separate storage databases for dev and live.
 
