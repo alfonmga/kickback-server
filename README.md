@@ -62,6 +62,11 @@ Now you can run the server:
 $ yarn start
 ```
 
+**Test contract deployment and interaction**
+
+_TODO_
+Clone our [frontend repo]() and use it to test out the contracts.
+
 ## Deployments
 
 On CI we deploy to Zeit using [now](https://zeit.co/docs/getting-started/five-minute-guide-to-now).

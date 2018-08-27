@@ -27,6 +27,8 @@ const init = async () => {
   const server = new Koa()
   const router = new Router()
 
+  await app.prepare()
+
   server.use(cors({
     origin: true,
     credentials: true,
@@ -53,8 +55,6 @@ const init = async () => {
 
     log.info(`> Ready on http://localhost:${config.env.PORT}`)
   })
-
-  await app.prepare()
 }
 
 init().catch(err => {
