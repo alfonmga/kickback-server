@@ -2,61 +2,62 @@ const Koa = require('koa')
 const cors = require('@koa/cors')
 const Router = require('koa-router')
 const next = require('next')
-const Firestore = require('@google-cloud/firestore')
 
-const { FIREBASE } = require('./constants')
+const config = require('./config')
+const log = require('./log')(config)
+const connectDb = require('./db')
+const connectEthereum = require('./ethereum')
+const createBlockProcessor = require('./blockProcessor')
 
-const {
-  PORT,
-  DEBUG,
-  NODE_ENV,
-  FIREBASE_API_KEY,
-  FIREBASE_MSG_SENDER_ID,
-  COUCHDB_PASSWORD,
-  MODE
-} = process.env
+const init = async () => {
+  const app = next({ dev: config.env.isDev })
 
-const port = parseInt(PORT, 10) || 3001
+  const handle = app.getRequestHandler()
 
-const mode = (MODE !== 'production') ? 'development' : MODE
+  log.info(`App mode: ${config.env.APP_MODE}`)
 
-const app = next({ dev: NODE_ENV !== 'production' })
+  const db = connectDb(config, log)
+  if (!db) {
+    throw new Error('Database could not be connected')
+  }
 
-const handle = app.getRequestHandler()
+  const ethereum = await connectEthereum(config, log, db)
+  const blockProcessor = await createBlockProcessor(config, log, ethereum, db)
 
-const firestore = new Firestore({
-  /* These values come from the Google cloud console */
-  projectId: FIREBASE[mode].projectId,
-  /* This file should NOT be checked into version control */
-  keyFilename: FIREBASE[mode].configPath
-})
+  const server = new Koa()
+  const router = new Router()
 
-app.prepare()
-  .then(() => {
-    const server = new Koa()
-    const router = new Router()
+  server.use(cors({
+    origin: true,
+    credentials: true,
+  }))
 
-    server.use(cors({
-      origin: true,
-      credentials: true,
-    }))
-
-    router.get('*', async ctx => {
-      await handle(ctx.req, ctx.res)
-      ctx.respond = false
-    })
-
-    server.use(async (ctx, next) => {
-      // Koa doesn't seems to set the default statusCode.
-      // So, this middleware does that
-      ctx.res.statusCode = 200
-      await next()
-    })
-
-    server.use(router.routes())
-
-    server.listen(port, (err) => {
-      if (err) throw err
-      console.log(`> Ready on http://localhost:${port}`)
-    })
+  router.get('*', async ctx => {
+    await handle(ctx.req, ctx.res)
+    ctx.respond = false
   })
+
+  server.use(async (ctx, nextHandler) => {
+    // Koa doesn't seems to set the default statusCode.
+    // So, this middleware does that
+    ctx.res.statusCode = 200
+    await nextHandler()
+  })
+
+  server.use(router.routes())
+
+  server.listen(config.env.PORT, err => {
+    if (err) {
+      throw err
+    }
+
+    log.info(`> Ready on http://localhost:${config.env.PORT}`)
+  })
+
+  await app.prepare()
+}
+
+init().catch(err => {
+  log.error(err)
+  process.exit(-1)
+})
