@@ -1,9 +1,9 @@
-const TruffleContract = require('truffle-contract')
 const Web3 = require('web3')
 const promisify = require('es6-promisify')
+const Conference = require('@noblocknoparty/contracts/build/contracts/Conference.json')
+const Deployer = require('@noblocknoparty/contracts/build/contracts/Deployer.json')
 
-const Overlord = require('./Overlord.json')
-const Deployer = require('./Deployer.json')
+const { getContract } = require('./utils')
 
 
 class EventWatcher {
@@ -43,10 +43,7 @@ class EventWatcher {
 
   async shutdown () {
     this.listeners = []
-
-    if (this.eventWatcher.shutdown) {
-      await promisify(this.eventWatcher.shutdown, this.eventWatcher)()
-    }
+    this.eventEmitter.removeAllListeners()
   }
 }
 
@@ -59,33 +56,26 @@ class Manager {
 
   async init () {
     this.wsWeb3 = new Web3(
-      new Web3.providers.WebsocketProvider(this.config.ETHEREUM_ENDPOINT_WS)
+      this.config.provider || new Web3.providers.WebsocketProvider(this.config.ETHEREUM_ENDPOINT_WS)
     )
 
     this.httpWeb3 = new Web3(
-      new Web3.providers.HttpProvider(this.config.ETHEREUM_ENDPOINT_RPC)
+      this.config.provider || new Web3.providers.HttpProvider(this.config.ETHEREUM_ENDPOINT_RPC)
     )
 
     this.log.info(`Ethereum connected to '${this.config.NETWORK}', real network id: ${await this.httpWeb3.eth.net.getId()}`)
 
-    this.overlord = await this._getContract(Overlord, this.httpWeb3)
-      .at(this.config.env.OVERLORD_CONTRACT_ADDRESS)
-
-    this.deployerAddress = await this.overlord.getDeployer()
-
-    this.log.info(`Deployer address: ${this.deployerAddress}`)
-
-    this.deployer = await this._getContract(Deployer, this.wsWeb3)
-      .at(this.deployerAddress)
+    this.deployer = await getContract(Deployer, this.httpWeb3)
+      .at(this.config.env.DEPLOYER_CONTRACT_ADDRESS)
 
     this.blockWatcher = await this._subscribe('newBlockHeaders')
-    this.newPartyWatcher = await this._watchEvent(this.deployer, 'Deployed')
+    this.newPartyWatcher = await this._watchEvent(this.deployer, 'NewParty')
   }
 
   async shutdown () {
     await Promise.all([
-      this.blockWatcher.shutdown(),
-      this.newPartyWatcher.shutdown()
+      (this.blockWatcher ? this.blockWatcher.shutdown() : Promise.resolve()),
+      (this.newPartyWatcher ? this.newPartyWatcher.shutdown() : Promise.resolve())
     ])
   }
 
@@ -99,6 +89,10 @@ class Manager {
 
   getWeb3 () {
     return this.httpWeb3
+  }
+
+  async loadConferenceAt (address) {
+    return getContract(Conference, this.httpWeb3).at(address)
   }
 
   async _subscribe (filterName, ...filterArgs) {
@@ -129,14 +123,6 @@ class Manager {
     })
 
     return new EventWatcher(this.log, eventName, eventWatcher, responseProcessor)
-  }
-
-  _getContract (contractDefinition, web3) {
-    const Contract = TruffleContract(contractDefinition)
-
-    Contract.setProvider(web3.currentProvider)
-
-    return Contract
   }
 }
 

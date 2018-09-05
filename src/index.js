@@ -7,7 +7,7 @@ const config = require('./config')
 const log = require('./log')(config)
 const connectDb = require('./db')
 const connectEthereum = require('./ethereum')
-const createBlockProcessor = require('./blockProcessor')
+const createBlockchainProcessor = require('./blockchainProcessor')
 
 const init = async () => {
   const app = next({ dev: config.env.isDev })
@@ -22,7 +22,7 @@ const init = async () => {
   }
 
   const ethereum = await connectEthereum(config, log, db)
-  const blockProcessor = await createBlockProcessor(config, log, ethereum, db)
+  const blockchainProcessor = await createBlockchainProcessor(config, log, ethereum, db)
 
   const server = new Koa()
   const router = new Router()

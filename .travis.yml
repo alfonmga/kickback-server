@@ -9,6 +9,7 @@ branches:
 before_script:
   - openssl aes-256-cbc -K $CONFIG_ENCRYPTION_KEY -iv $CONFIG_ENCRYPTION_IV -in .googlecloud/dev.json.enc -out .googlecloud/dev.json -d
   - openssl aes-256-cbc -K $CONFIG_ENCRYPTION_KEY -iv $CONFIG_ENCRYPTION_IV -in .googlecloud/production.json.enc -out .googlecloud/production.json -d
+  - yarn test
   - yarn build
 script:
   - yarn release

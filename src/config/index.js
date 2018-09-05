@@ -8,7 +8,7 @@ const env = envalid.cleanEnv(process.env, {
   NODE_ENV: str({ default: 'development' }),
   APP_MODE: str({ default: 'local' }),
   LOG: str({ default: 'debug' }),
-  OVERLORD_CONTRACT_ADDRESS: str()
+  DEPLOYER_CONTRACT_ADDRESS: str()
 }, {
   dotEnvPath: '.env'
 })
