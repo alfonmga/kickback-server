@@ -35,10 +35,7 @@ describe('ethereum', () => {
 
     config = {
       provider,
-      NETWORK: 'test',
-      env: {
-        DEPLOYER_CONTRACT_ADDRESS: deployer.address
-      }
+      NETWORK: 'test'
     }
   })
 

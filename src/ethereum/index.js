@@ -1,7 +1,5 @@
 const Web3 = require('web3')
-const promisify = require('es6-promisify')
-const Conference = require('@noblocknoparty/contracts/build/contracts/Conference.json')
-const Deployer = require('@noblocknoparty/contracts/build/contracts/Deployer.json')
+const { Deployer } = require('@noblocknoparty/contracts')
 
 const { getContract } = require('./utils')
 
@@ -65,8 +63,12 @@ class Manager {
 
     this.log.info(`Ethereum connected to '${this.config.NETWORK}', real network id: ${await this.httpWeb3.eth.net.getId()}`)
 
-    this.deployer = await getContract(Deployer, this.httpWeb3)
-      .at(this.config.env.DEPLOYER_CONTRACT_ADDRESS)
+    const contract = getContract(Deployer, this.httpWeb3)
+    if (this.config.env.DEPLOYER_CONTRACT_ADDRESS) {
+      this.deployer = await contract.at(this.config.env.DEPLOYER_CONTRACT_ADDRESS)
+    } else {
+      this.deployer = await contract.deployed()
+    }
 
     this.blockWatcher = await this._subscribe('newBlockHeaders')
     this.newPartyWatcher = await this._watchEvent(this.deployer, 'NewParty')
@@ -89,10 +91,6 @@ class Manager {
 
   getWeb3 () {
     return this.httpWeb3
-  }
-
-  async loadConferenceAt (address) {
-    return getContract(Conference, this.httpWeb3).at(address)
   }
 
   async _subscribe (filterName, ...filterArgs) {
