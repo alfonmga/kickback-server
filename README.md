@@ -48,10 +48,10 @@ Clone our [contracts repo](https://github.com/noblocknoparty/contracts) and foll
 contracts to a local test network. The network RPC endpoint should match what's
 in `src/config/local.js` in this repo.
 
-Find the deployed address of the `Overlord` contract and enter it the `.env` file:
+Find the deployed address of the `Deployer` contract and enter it the `.env` file:
 
 ```
-OVERLORD_CONTRACT_ADDRESS=<...address...>
+DEPLOYER_CONTRACT_ADDRESS=<...address...>
 ```
 
 **Run server**
