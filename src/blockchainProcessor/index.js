@@ -3,7 +3,7 @@ module.exports = async (config, log, ethereum, db) => {
     log.debug(`New Block: ${blockHeader.hash}`)
   })
 
-  ethereum.onDeploy(data => {
+  ethereum.onNewParty(data => {
     const { returnValues: { deployedAddress } } = data
 
     log.info(`New deployment at: ${deployedAddress}`)

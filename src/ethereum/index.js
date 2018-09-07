@@ -5,11 +5,12 @@ const { getContract } = require('./utils')
 
 
 class EventWatcher {
-  constructor (log, eventName, eventEmitter) {
+  constructor (log, eventName, eventEmitter, responseProcessor) {
     this.eventName = eventName
     this.log = log
     this.eventEmitter = eventEmitter
     this.listeners = []
+    this.responseProcessor = responseProcessor
 
     this.eventEmitter.on('data', this._onData.bind(this))
     this.eventEmitter.on('error', this._onError.bind(this))
@@ -25,6 +26,10 @@ class EventWatcher {
 
   _onData (data) {
     this.log.trace(`${this.eventName} subscription event`, data)
+
+    if (this.responseProcessor) {
+      data = this.responseProcessor(data)
+    }
 
     this.listeners.forEach(fn => {
       try {
@@ -71,7 +76,9 @@ class Manager {
     }
 
     this.blockWatcher = await this._subscribe('newBlockHeaders')
-    this.newPartyWatcher = await this._watchEvent(this.deployer, 'NewParty')
+    this.newPartyWatcher = await this._watchEvent(this.deployer, 'NewParty', {}, ({ returnValues }) => ({
+      ...returnValues
+    }))
   }
 
   async shutdown () {
@@ -85,7 +92,7 @@ class Manager {
     this.blockWatcher.addListener(cb)
   }
 
-  onDeploy (cb) {
+  onNewParty (cb) {
     this.newPartyWatcher.addListener(cb)
   }
 

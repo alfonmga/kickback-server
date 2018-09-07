@@ -10,6 +10,7 @@ describe('ethereum', () => {
   let provider
   let accounts
   let web3
+  let deployerContract
   let deployer
   let config
   let log
@@ -17,7 +18,7 @@ describe('ethereum', () => {
 
   beforeAll(async () => {
     log = new Log({
-      minLevel: 'debug'
+      minLevel: 'warn'
     })
 
     provider = Ganache.provider({
@@ -29,7 +30,8 @@ describe('ethereum', () => {
 
     web3 = new Web3(provider)
 
-    deployer = await getContract(Deployer, web3, { from: accounts[0] }).new()
+    deployerContract = getContract(Deployer, web3, { from: accounts[0] })
+    deployer = await deployerContract.new()
 
     log.info(`Deployer contract at: ${deployer.address}`)
 
@@ -52,5 +54,47 @@ describe('ethereum', () => {
     ethereum = await initEthereum(config, log)
 
     expect(ethereum).toBeDefined()
+  })
+
+  it('will emit new blocks when they arrive', async () => {
+    ethereum = await initEthereum(config, log)
+
+    const spy = jest.fn()
+
+    ethereum.onBlock(spy)
+
+    await deployerContract.new()
+
+    expect(spy).toHaveBeenCalled()
+
+    const block = spy.mock.calls[0][0]
+
+    expect(block).toBeDefined()
+
+    const web3Block = await web3.eth.getBlock('latest')
+
+    // size key doesn't match, so remove it
+    delete block.size
+    delete web3Block.size
+
+    // ensure the rest matches up
+    expect(web3Block).toMatchObject(block)
+  })
+
+  it('will emit new parties when they are created', async () => {
+    ethereum = await initEthereum(config, log)
+
+    const spy = jest.fn()
+
+    ethereum.onNewParty(spy)
+
+    await deployer.deploy('My event', 0, 0, 0, 'key')
+
+    expect(spy).toHaveBeenCalled()
+
+    const { deployer: deployerAddress, deployedAddress } = spy.mock.calls[0][0]
+
+    expect((deployerAddress || '').toLowerCase()).toEqual(accounts[0].toLowerCase())
+    expect(deployedAddress).toBeDefined()
   })
 })
