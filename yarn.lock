@@ -881,9 +881,9 @@
     call-me-maybe "^1.0.1"
     glob-to-regexp "^0.3.0"
 
-"@noblocknoparty/contracts@^0.11.5":
-  version "0.11.5"
-  resolved "https://registry.yarnpkg.com/@noblocknoparty/contracts/-/contracts-0.11.5.tgz#7fe4403baffaab03ab4ea67366924bf2f4d696c0"
+"@noblocknoparty/contracts@^0.11.6":
+  version "0.11.6"
+  resolved "https://registry.yarnpkg.com/@noblocknoparty/contracts/-/contracts-0.11.6.tgz#2b512ceb5ca718c44e8780b1932761c6573c9c08"
 
 "@nodelib/fs.stat@^1.0.1":
   version "1.1.1"
@@ -3880,7 +3880,7 @@ eventemitter3@1.1.1:
   version "1.1.1"
   resolved "https://registry.yarnpkg.com/eventemitter3/-/eventemitter3-1.1.1.tgz#47786bdaa087caf7b1b75e73abc5c7d540158cd0"
 
-eventemitter3@^3.0.0:
+eventemitter3@^3.0.0, eventemitter3@^3.1.0:
   version "3.1.0"
   resolved "https://registry.yarnpkg.com/eventemitter3/-/eventemitter3-3.1.0.tgz#090b4d6cdbd645ed10bf750d4b5407942d7ba163"
 

@@ -1,19 +1,20 @@
+const EventEmitter = require('eventemitter3')
 const Web3 = require('web3')
-const { Deployer } = require('@noblocknoparty/contracts')
+const { Deployer, Conference } = require('@noblocknoparty/contracts')
 
 const { getContract } = require('./utils')
+const { BLOCK, NEW_PARTY } = require('../constants/events')
 
 
 class EventWatcher {
-  constructor (log, eventName, eventEmitter, responseProcessor) {
+  constructor (log, eventName, lowLevelEmitter, callback) {
     this.eventName = eventName
     this.log = log
-    this.eventEmitter = eventEmitter
-    this.listeners = []
-    this.responseProcessor = responseProcessor
+    this.lowLevelEmitter = lowLevelEmitter
+    this.callback = callback
 
-    this.eventEmitter.on('data', this._onData.bind(this))
-    this.eventEmitter.on('error', this._onError.bind(this))
+    this.lowLevelEmitter.on('data', this._onData.bind(this))
+    this.lowLevelEmitter.on('error', this._onError.bind(this))
   }
 
   addListener (cb) {
@@ -27,17 +28,7 @@ class EventWatcher {
   _onData (data) {
     this.log.trace(`${this.eventName} subscription event`, data)
 
-    if (this.responseProcessor) {
-      data = this.responseProcessor(data)
-    }
-
-    this.listeners.forEach(fn => {
-      try {
-        fn(data)
-      } catch (err) {
-        this.log.warn(`${this.eventName} subscription callback error`, err)
-      }
-    })
+    this.callback(data)
   }
 
   _onError (err) {
@@ -45,14 +36,14 @@ class EventWatcher {
   }
 
   async shutdown () {
-    this.listeners = []
-    this.eventEmitter.removeAllListeners()
+    this.lowLevelEmitter.removeAllListeners()
   }
 }
 
 
-class Manager {
+class Manager extends EventEmitter {
   constructor (config, log) {
+    super()
     this.config = config
     this.log = log
   }
@@ -75,10 +66,13 @@ class Manager {
       this.deployer = await contract.deployed()
     }
 
-    this.blockWatcher = await this._subscribe('newBlockHeaders')
-    this.newPartyWatcher = await this._watchEvent(this.deployer, 'NewParty', {}, ({ returnValues }) => ({
-      ...returnValues
-    }))
+    this.blockWatcher = await this._subscribe(
+      'newBlockHeaders', {}, this._onBlock.bind(this)
+    )
+
+    this.newPartyWatcher = await this._watchEvent(
+      this.deployer, 'NewParty', {}, this._onNewParty.bind(this)
+    )
   }
 
   async shutdown () {
@@ -88,19 +82,41 @@ class Manager {
     ])
   }
 
-  onBlock (cb) {
-    this.blockWatcher.addListener(cb)
-  }
-
-  onNewParty (cb) {
-    this.newPartyWatcher.addListener(cb)
-  }
-
   getWeb3 () {
     return this.httpWeb3
   }
 
-  async _subscribe (filterName, ...filterArgs) {
+  _onBlock (data) {
+    this.emit(BLOCK, data)
+  }
+
+  _onNewParty ({ returnValues: { deployedAddress } }) {
+    const contract = getContract(Conference, this.httpWeb3)
+
+    contract.at(deployedAddress)
+      .then(contractInstance => (
+        Promise.all([
+          contractInstance.name(),
+          contractInstance.deposit(),
+          contractInstance.limitOfParticipants(),
+          contractInstance.coolingPeriod()
+        ])
+          .then(([ name, deposit, limitOfParticipants, coolingPeriod ]) => {
+            this.emit(NEW_PARTY, {
+              address: contractInstance.address,
+              name,
+              deposit,
+              limitOfParticipants,
+              coolingPeriod
+            })
+          })
+      ))
+      .catch(err => {
+        this.log.error(`Error processing party at ${deployedAddress}`, err)
+      })
+  }
+
+  async _subscribe (filterName, filterArgs, callback) {
     const sub = await new Promise((resolve, reject) => {
       const e = this.wsWeb3.eth.subscribe(filterName, ...filterArgs, err => {
         if (err) {
@@ -112,10 +128,10 @@ class Manager {
       setTimeout(() => resolve(e), 250)
     })
 
-    return new EventWatcher(this.log, filterName, sub)
+    return new EventWatcher(this.log, filterName, sub, callback)
   }
 
-  async _watchEvent (truffleContract, eventName, filterArgs, responseProcessor) {
+  async _watchEvent (truffleContract, eventName, filterArgs, callback) {
     const eventWatcher = await new Promise((resolve, reject) => {
       const e = truffleContract.contract.events[eventName](filterArgs, err => {
         if (err) {
@@ -127,7 +143,7 @@ class Manager {
       setTimeout(() => resolve(e), 250)
     })
 
-    return new EventWatcher(this.log, eventName, eventWatcher, responseProcessor)
+    return new EventWatcher(this.log, eventName, eventWatcher, callback)
   }
 }
 

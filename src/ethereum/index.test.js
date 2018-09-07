@@ -1,8 +1,9 @@
 import Ganache from 'ganache-core'
 import Web3 from 'web3'
-import Deployer from '@noblocknoparty/contracts/build/contracts/Deployer.json'
+import { Conference, Deployer } from '@noblocknoparty/contracts'
 import Log from 'logarama'
 
+import { BLOCK, NEW_PARTY } from '../constants/events'
 import { getContract } from './utils'
 import initEthereum from './'
 
@@ -61,7 +62,7 @@ describe('ethereum', () => {
 
     const spy = jest.fn()
 
-    ethereum.onBlock(spy)
+    ethereum.on(BLOCK, spy)
 
     await deployerContract.new()
 
@@ -86,15 +87,35 @@ describe('ethereum', () => {
 
     const spy = jest.fn()
 
-    ethereum.onNewParty(spy)
+    ethereum.on(NEW_PARTY, spy)
 
     await deployer.deploy('My event', 0, 0, 0, 'key')
 
     expect(spy).toHaveBeenCalled()
 
-    const { deployer: deployerAddress, deployedAddress } = spy.mock.calls[0][0]
+    const party = spy.mock.calls[0][0]
 
-    expect((deployerAddress || '').toLowerCase()).toEqual(accounts[0].toLowerCase())
-    expect(deployedAddress).toBeDefined()
+    expect(party).toBeDefined()
+
+    const { address } = party
+
+    const partyInstance = await getContract(Conference, web3).at(address)
+
+    const owner = await partyInstance.owner()
+    expect(owner.toLowerCase()).toEqual(accounts[0].toLowerCase())
+
+    const [ name, deposit, limitOfParticipants, coolingPeriod ] = await Promise.all([
+      partyInstance.name(),
+      partyInstance.deposit(),
+      partyInstance.limitOfParticipants(),
+      partyInstance.coolingPeriod()
+    ])
+
+    expect(party).toMatchObject({
+      name,
+      deposit,
+      limitOfParticipants,
+      coolingPeriod
+    })
   })
 })

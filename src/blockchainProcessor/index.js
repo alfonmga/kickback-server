@@ -1,12 +1,9 @@
-module.exports = async (config, log, ethereum, db) => {
-  ethereum.onBlock(blockHeader => {
-    log.debug(`New Block: ${blockHeader.hash}`)
-  })
+const { NEW_PARTY } = require('../constants/events')
 
-  ethereum.onNewParty(data => {
-    const { returnValues: { deployedAddress } } = data
+module.exports = async (config, log, blockChain, db) => {
+  blockChain.on(NEW_PARTY, contractInstance => {
+    log.info(`New deployment at: ${contractInstance.address}`)
 
-    log.info(`New deployment at: ${deployedAddress}`)
 
     // now let's load the contract and fetch its values
   })
