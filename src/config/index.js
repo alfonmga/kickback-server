@@ -7,6 +7,7 @@ const env = envalid.cleanEnv(process.env, {
   DEBUG: bool({ default: false }),
   NODE_ENV: str({ default: 'development' }),
   APP_MODE: str({ default: 'local' }),
+  MEM_DB: bool({ default: false }),
   LOG: str({ default: 'debug' }),
   DEPLOYER_CONTRACT_ADDRESS: str()
 }, {

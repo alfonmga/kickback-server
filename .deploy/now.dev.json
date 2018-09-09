@@ -9,6 +9,6 @@
   },
   "env": {
     "NODE_ENV": "production",
-    "MODE": "development"
+    "APP_MODE": "development"
   }
 }

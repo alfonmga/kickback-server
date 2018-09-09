@@ -1,17 +1,43 @@
-const FirebaseAdmin = require('firebase-admin')
+const setupCloudDb = require('./cloud')
+const setupMemDb = require('./mem')
+
+class Db {
+  constructor (nativeDb, log) {
+    this.nativeDb = nativeDb
+    this.log = log
+  }
+
+  async addParty (partyInstance) {
+    const existing = await this.nativeDb.get(partyInstance.address)
+
+    if (existing) {
+      return this.log.warn('Party already exists in db!')
+    }
+
+    // fetch data from contract
+    const [ name, deposit, limitOfParticipants, coolingPeriod ] = await Promise.all([
+      partyInstance.name(),
+      partyInstance.deposit(),
+      partyInstance.limitOfParticipants(),
+      partyInstance.coolingPeriod()
+    ])
+
+    await this.nativeDb.
 
 
-module.exports = ({ FIREBASE }, log) => {
-  // eslint-disable-next-line import/no-dynamic-require
-  const serviceAccount = require(FIREBASE.keyFilename)
 
-  FirebaseAdmin.initializeApp({
-    credential: FirebaseAdmin.credential.cert(serviceAccount)
-  })
 
-  const db = FirebaseAdmin.firestore()
+    address: contractInstance.address,
+    name,
+    deposit,
+    limitOfParticipants,
+    coolingPeriod
 
-  log.info('Firestore connected')
+  }
+}
 
-  return db
+module.exports = (config, log) => {
+  const nativeDb = config.MEM_DB ? setupMemDb(config, log) : setupCloudDb(config, log)
+
+  return new Db(nativeDb, log)
 }

@@ -4,7 +4,8 @@ module.exports = async (config, log, blockChain, db) => {
   blockChain.on(NEW_PARTY, contractInstance => {
     log.info(`New deployment at: ${contractInstance.address}`)
 
-
-    // now let's load the contract and fetch its values
+    db.addParty(contractInstance).catch(err => {
+      log.error('Error adding new party to db', err)
+    })
   })
 }
