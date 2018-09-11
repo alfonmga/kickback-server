@@ -1,3 +1,5 @@
+const { toHex, hexToNumber } = require('web3-utils')
+
 const setupCloudDb = require('./cloud')
 const setupMemDb = require('./mem')
 
@@ -8,9 +10,9 @@ class Db {
   }
 
   async addParty (partyInstance) {
-    const existing = await this.nativeDb.get(partyInstance.address)
+    const doc = await this.nativeDb.get(`party/${partyInstance.address}`)
 
-    if (existing) {
+    if (doc.exists) {
       return this.log.warn('Party already exists in db!')
     }
 
@@ -22,17 +24,14 @@ class Db {
       partyInstance.coolingPeriod()
     ])
 
-    await this.nativeDb.
+    await doc.set({
+      name,
+      deposit: toHex(deposit),
+      limitOfParticipants: hexToNumber(toHex(limitOfParticipants)),
+      coolingPeriod: toHex(coolingPeriod),
+    })
 
-
-
-
-    address: contractInstance.address,
-    name,
-    deposit,
-    limitOfParticipants,
-    coolingPeriod
-
+    return doc
   }
 }
 
