@@ -7,7 +7,13 @@ module.exports = ({ log: parentLog, blockChain, db }) => {
     try {
       const contract = blockChain.getPartyContract()
 
-      // fetch all active parties, 1000 at a time, and ensure we update stalest first
+      /*
+      Fetch all active parties, 1000 at a time (to avoid the task running too
+      long), and ensure we update stalest first.
+
+      Because we set "lastUpdated" inside db.updateParty() it means we will
+      end up updating a different batch of parties during each run of this task.
+       */
       const docs = await db.getActiveParties({ stalestFirst: true, limit: 1000 })
 
       await Promise.all(docs.map(async doc => (
