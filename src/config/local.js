@@ -5,7 +5,7 @@ module.exports = {
   ETHEREUM_ENDPOINT_RPC: 'http://localhost:8545/',
   NETWORK: 'local',
   FIREBASE: {
-    projectId: 'blockparty-dev-214214',
-    keyFilename: path.join(__dirname, '..', '..', '.googlecloud', 'dev.json'),
+    projectId: 'blockparty-local',
+    keyFilename: path.join(__dirname, '..', '..', '.googlecloud', 'local.json'),
   }
 }

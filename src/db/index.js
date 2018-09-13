@@ -32,6 +32,7 @@ class Db {
       attendees: 0,
       coolingPeriod: toHex(coolingPeriod),
       ended,
+      created: Date.now(),
       lastUpdated: Date.now()
     })
 
@@ -54,19 +55,31 @@ class Db {
       partyInstance.ended()
     ])
 
-    await doc.set({
+    await doc.update({
       attendeeLimit: hexToNumber(toHex(limitOfParticipants)),
       attendees: hexToNumber(toHex(registered)),
-      ended
+      ended,
+      lastUpdated: Date.now()
     })
 
     return doc
   }
 
-  async getActiveParties () {
-    const querySnapshot = await this._nativeDb.collection('party').where('ended', '==', false).get()
+  async getActiveParties ({ stalestFirst = false, limit = undefined } = {}) {
+    let query = this._nativeDb.collection('party')
+      .where('ended', '==', false)
 
-    return querySnapshot.docs.map(doc => {
+    if (stalestFirst) {
+      query = query.orderBy('lastUpdated', 'asc')
+    } else {
+      query = query.orderBy('created', 'desc')
+    }
+
+    if (limit) {
+      query = query.limit(limit)
+    }
+
+    return (await query.get()).docs.map(doc => {
       const m = doc.data()
       m.address = doc.id
       m.id = doc.id

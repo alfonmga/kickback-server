@@ -8,6 +8,9 @@ type Address {
 type Party {
   name: String!
   address: Address!
+  deposit: String!
+  attendeeLimit: Int!
+  attendees: Int!
 }
 
 type Query {

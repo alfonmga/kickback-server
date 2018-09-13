@@ -32,13 +32,22 @@ The server has 3 running modes (can be set using the `APP_MODE` var in `.env` fi
 
 **Setup Firestore database credentials**
 
+There are 3 databases in Google cloud:
+
+* `blockparty-local` - used for when running the dev server locally and testing
+* `blockparty-dev` - used for the server running on the dev site against Ropsten
+* `blockparty-live` - used for the server running on the production site against Maininet
+
 The Google Cloud JSON config files in `.googlecloud/` need to be decrypted using
 the commands:
 
 ```shell
+openssl aes-256-cbc -K $CONFIG_ENCRYPTION_KEY -iv $CONFIG_ENCRYPTION_IV -in .googlecloud/local.json.enc -out .googlecloud/local.json -d
 openssl aes-256-cbc -K $CONFIG_ENCRYPTION_KEY -iv $CONFIG_ENCRYPTION_IV -in .googlecloud/dev.json.enc -out .googlecloud/dev.json -d
 openssl aes-256-cbc -K $CONFIG_ENCRYPTION_KEY -iv $CONFIG_ENCRYPTION_IV -in .googlecloud/dev.production.enc -out .googlecloud/production.json -d
 ```
+
+
 
 _The env vars `CONFIG_ENCRYPTION_KEY` and `CONFIG_ENCRYPTION_IV` can be found in our password vault_.
 
