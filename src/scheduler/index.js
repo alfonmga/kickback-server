@@ -1,6 +1,6 @@
 const randStr = require('randomstring')
 
-const _idn = (id, name) => `${name} (${id})`
+const _idn = (id, name) => `${name}-${id}`
 
 class Scheduler {
   constructor (log, eventQueue) {
@@ -13,9 +13,9 @@ class Scheduler {
   }
 
   addJob (name, interval, callback) {
-    const id = randStr(5)
+    const id = _idn(randStr(5), name)
 
-    this._log.info(`Add job ${_idn(id, name)} to run every ${interval} seconds`)
+    this._log.info(`Add job ${id} to run every ${interval} seconds`)
 
     this._jobs[id] = {
       name,
@@ -30,9 +30,7 @@ class Scheduler {
   }
 
   removeJob (id) {
-    const { name } = this._jobs[id]
-
-    this._log.info(`Remove job ${_idn(id, name)}`)
+    this._log.info(`Remove job ${id}`)
 
     delete this._jobs[id]
   }
@@ -62,16 +60,16 @@ class Scheduler {
 
     Object.keys(this._jobs).forEach(id => {
       const job = this._jobs[id]
-      const { name, lastRun, intervalMs, callback } = job
+      const { lastRun, intervalMs, callback } = job
       const now = Date.now()
 
       if (now - lastRun >= intervalMs) {
-        this._log.debug(`Adding job to queue: ${_idn(id, name)} ...`)
+        this._log.debug(`Adding job to queue: ${id} ...`)
 
         job.lastRun = now
 
         this._eventQueue.add(async () => callback(), {
-          name: `Scheduled job: ${name}`
+          name: `Scheduled job: ${id}`
         })
       }
     })
