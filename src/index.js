@@ -10,6 +10,7 @@ const log = require('./log')(config)
 const connectDb = require('./db')
 const connectEthereum = require('./ethereum')
 const createProcessor = require('./processor')
+const setupGraphQLEndpoint = require('./graphql')
 
 const init = async () => {
   const app = next({ dev: config.env.isDev })
@@ -18,7 +19,7 @@ const init = async () => {
 
   log.info(`App mode: ${config.env.APP_MODE}`)
 
-  const db = connectDb({ config, log })
+  const db = await connectDb({ config, log })
   if (!db) {
     throw new Error('Database could not be connected')
   }
@@ -34,7 +35,7 @@ const init = async () => {
   await app.prepare()
 
   server.use(cors({
-    origin: true,
+    origin: '*',
     credentials: true,
   }))
 
@@ -49,6 +50,8 @@ const init = async () => {
     ctx.res.statusCode = 200
     await nextHandler()
   })
+
+  setupGraphQLEndpoint({ db, server })
 
   server.use(router.routes())
 

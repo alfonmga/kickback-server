@@ -64,8 +64,13 @@ $ yarn start
 
 **Test contract deployment and interaction**
 
-Clone our [frontend repo](https://github.com/noblocknoparty/app) and use it to test out the contracts.
+If you wish to deploy a new Party run:
 
+```shell
+scripts/deployPartyLocally.js
+```
+
+Alternatively, you can deploy and interact with parties using our [frontend](https://github.com/noblocknoparty/app).
 
 ## Deployments
 

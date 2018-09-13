@@ -68,7 +68,7 @@ class Manager extends EventEmitter {
     }
 
     this.blockWatcher = await this._subscribe(
-      'newBlockHeaders', {}, this._onBlock.bind(this)
+      'newBlockHeaders', this._onBlock.bind(this)
     )
 
     this.newPartyWatcher = await this._watchEvent(
@@ -99,48 +99,19 @@ class Manager extends EventEmitter {
     this.emit(BLOCK, data)
   }
 
-  _onNewParty ({ returnValues: { deployedAddress } }) {
-    const contract = this.getPartyContract()
-
-    contract.at(deployedAddress)
-      .then(contractInstance => (
-        Promise.all([
-          contractInstance.name(),
-          contractInstance.deposit(),
-          contractInstance.limitOfParticipants(),
-          contractInstance.coolingPeriod()
-        ])
-          .then(([ name, deposit, limitOfParticipants, coolingPeriod ]) => {
-            this.emit(NEW_PARTY, {
-              address: contractInstance.address,
-              name,
-              deposit,
-              limitOfParticipants,
-              coolingPeriod
-            })
-          })
-      ))
-      .catch(err => {
-        this.log.error(`Error processing party at ${deployedAddress}`, err)
-      })
+  async _onNewParty ({ returnValues: { deployedAddress } }) {
+    try {
+      this.emit(NEW_PARTY, await this.getPartyContract().at(deployedAddress))
+    } catch (err) {
+      this.log.error(`Error processing party at ${deployedAddress}`, err)
+    }
   }
 
-  async _subscribe (filterName, filterArgs, callback) {
-    const sub = await new Promise((resolve, reject) => {
-      const e = this.wsWeb3.eth.subscribe(filterName, filterArgs, err => {
-        if (err) {
-          reject(err)
-        }
-      })
-
-      // if not yet errored then must be ok!
-      setTimeout(() => resolve(e), 250)
-    })
-
+  async _subscribe (filterName, callback) {
     return new EventWatcher({
       log: this.log,
       eventName: filterName,
-      lowLevelEmitter: sub,
+      lowLevelEmitter: this.wsWeb3.eth.subscribe(filterName),
       callback
     })
   }

@@ -75,4 +75,4 @@ class MemDb {
 }
 
 
-module.exports = ({ log }) => new MemDb(log)
+module.exports = async ({ log }) => new MemDb(log)

@@ -8,12 +8,10 @@ module.exports = ({ log: parentLog, blockChain, db }) => {
       const contract = blockChain.getPartyContract()
 
       // fetch all active parties
-      const query = db.collection('party').where('ended', '==', false)
+      const docs = await db.getActiveParties()
 
-      const querySnapshot = await query.get()
-
-      await Promise.all(querySnapshot.map(async docSnapshot => {
-        await db.updateParty(contract.at(docSnapshot.id))
+      await Promise.all(docs.map(async doc => {
+        await db.updateParty(contract.at(doc.id))
       }))
     } catch (err) {
       log.error('Failed', err)

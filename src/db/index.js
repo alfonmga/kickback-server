@@ -5,15 +5,15 @@ const setupMemDb = require('./mem')
 
 class Db {
   constructor ({ nativeDb, log }) {
-    this.nativeDb = nativeDb
-    this.log = log
+    this._nativeDb = nativeDb
+    this._log = log
   }
 
   async addParty (partyInstance) {
-    const doc = await this.nativeDb.get(`party/${partyInstance.address}`)
+    const doc = await this._nativeDb.doc(`party/${partyInstance.address}`)
 
     if (doc.exists) {
-      return this.log.warn('Party already exists in db!')
+      return this._log.warn('Party already exists in db!')
     }
 
     // fetch data from contract
@@ -31,17 +31,20 @@ class Db {
       attendeeLimit: hexToNumber(toHex(limitOfParticipants)),
       attendees: 0,
       coolingPeriod: toHex(coolingPeriod),
-      ended
+      ended,
+      lastUpdated: Date.now()
     })
+
+    this._log.info(`New party added to db: ${doc.id}`)
 
     return doc
   }
 
   async updateParty (partyInstance) {
-    const doc = await this.nativeDb.get(`party/${partyInstance.address}`)
+    const doc = await this._nativeDb.get(`party/${partyInstance.address}`)
 
     if (!doc.exists) {
-      return this.log.error('Party does not exist in db!')
+      return this._log.error('Party does not exist in db!')
     }
 
     // fetch data from contract
@@ -59,10 +62,23 @@ class Db {
 
     return doc
   }
+
+  async getActiveParties () {
+    const querySnapshot = await this._nativeDb.collection('party').where('ended', '==', false).get()
+
+    return querySnapshot.docs.map(doc => {
+      const m = doc.data()
+      m.address = doc.id
+      m.id = doc.id
+      return m
+    })
+  }
 }
 
-module.exports = ({ config, log }) => {
-  const nativeDb = config.MEM_DB ? setupMemDb({ config, log }) : setupCloudDb({ config, log })
+module.exports = async ({ config, log }) => {
+  const nativeDb = config.MEM_DB
+    ? await setupMemDb({ config, log })
+    : await setupCloudDb({ config, log })
 
   return new Db({ nativeDb, log })
 }
