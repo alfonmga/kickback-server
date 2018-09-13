@@ -75,6 +75,4 @@ class MemDb {
 }
 
 
-module.exports = (config, log) => {
-  return new MemDb(log)
-}
+module.exports = (config, log) => new MemDb(log)

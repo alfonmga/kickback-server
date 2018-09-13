@@ -4,6 +4,8 @@ const Router = require('koa-router')
 const next = require('next')
 
 const config = require('./config')
+const setupEventQueue = require('./eventQueue')
+const setupScheduler = require('./scheduler')
 const log = require('./log')(config)
 const connectDb = require('./db')
 const connectEthereum = require('./ethereum')
@@ -21,6 +23,8 @@ const init = async () => {
     throw new Error('Database could not be connected')
   }
 
+  const eventQueue = setupEventQueue(log)
+  const scheduler = setupScheduler(log, eventQueue)
   const ethereum = await connectEthereum(config, log, db)
   const blockchainProcessor = await createBlockchainProcessor(config, log, ethereum, db)
 
