@@ -1,7 +1,6 @@
 const { toHex, hexToNumber } = require('web3-utils')
 
-const setupCloudDb = require('./cloud')
-const setupMemDb = require('./mem')
+const setupFirestoreDb = require('./firestore')
 
 class Db {
   constructor ({ nativeDb, log }) {
@@ -10,10 +9,14 @@ class Db {
   }
 
   async addParty (partyInstance) {
-    const doc = await this._nativeDb.doc(`party/${partyInstance.address}`)
+    const { address } = partyInstance
 
-    if (doc.exists) {
-      return this._log.warn('Party already exists in db!')
+    const doc = this._nativeDb.doc(`party/${address}`)
+
+    if ((await doc.get()).exists) {
+      this._log.error(`Party already exists in db: ${address}`)
+
+      return
     }
 
     // fetch data from contract
@@ -37,15 +40,17 @@ class Db {
     })
 
     this._log.info(`New party added to db: ${doc.id}`)
-
-    return doc
   }
 
   async updateParty (partyInstance) {
-    const doc = await this._nativeDb.get(`party/${partyInstance.address}`)
+    const { address } = partyInstance
 
-    if (!doc.exists) {
-      return this._log.error('Party does not exist in db!')
+    const doc = this._nativeDb.doc(`party/${address}`)
+
+    if (!(await doc.get()).exists) {
+      this._log.error(`Party does not exist in db: ${address}`)
+
+      return
     }
 
     // fetch data from contract
@@ -61,8 +66,6 @@ class Db {
       ended,
       lastUpdated: Date.now()
     })
-
-    return doc
   }
 
   async getActiveParties ({ stalestFirst = false, limit = undefined } = {}) {
@@ -82,16 +85,14 @@ class Db {
     return (await query.get()).docs.map(doc => {
       const m = doc.data()
       m.address = doc.id
-      m.id = doc.id
+      m.ref = doc.ref.path
       return m
     })
   }
 }
 
 module.exports = async ({ config, log }) => {
-  const nativeDb = config.MEM_DB
-    ? await setupMemDb({ config, log })
-    : await setupCloudDb({ config, log })
+  const nativeDb = await setupFirestoreDb({ config, log })
 
   return new Db({ nativeDb, log })
 }

@@ -8,8 +8,6 @@ class Scheduler {
 
     this._jobs = {}
     this._eventQueue = eventQueue
-
-    this.start()
   }
 
   addJob (name, intervalSeconds, callback) {
@@ -69,13 +67,13 @@ class Scheduler {
         job.lastRun = now
 
         this._eventQueue.add(async () => callback(), {
-          name: `Scheduled job: ${id}`
+          name: id
         })
       }
     })
 
     // check every second
-    this._timer = setTimeout(() => this._processJobs, 1000)
+    this._timer = setTimeout(() => this._processJobs(), 1000)
   }
 }
 

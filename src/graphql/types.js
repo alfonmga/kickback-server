@@ -6,11 +6,13 @@ type Address {
 }
 
 type Party {
-  name: String!
+  name: String
   address: Address!
-  deposit: String!
-  attendeeLimit: Int!
-  attendees: Int!
+  deposit: String
+  attendeeLimit: Int
+  attendees: Int
+  created: String
+  lastUpdated: String
 }
 
 type Query {

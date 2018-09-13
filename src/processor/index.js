@@ -3,7 +3,11 @@ const { NEW_PARTY } = require('../constants/events')
 module.exports = async ({ log: parentLog, scheduler, db, blockChain }) => {
   const log = parentLog.create('processor')
 
-  scheduler.addJob('updateContractsFromChain', 600, require('./tasks/updateContractsFromChain')({ log, db, blockChain }))
+  scheduler.addJob(
+    'updateContractsFromChain',
+    300, /* once every 5 minutes */
+    require('./tasks/updateContractsFromChain')({ log, db, blockChain })
+  )
 
   blockChain.on(NEW_PARTY, async contractInstance => {
     log.info(`New deployment at: ${contractInstance.address}`)

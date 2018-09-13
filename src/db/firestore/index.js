@@ -18,7 +18,7 @@ module.exports = async ({ config: { FIREBASE }, log: parentLog }) => {
 
   await db.getCollections()
 
-  log.info('Connected to Firestore cloud!')
+  log.info('Connected to Firestore!')
 
   return db
 }

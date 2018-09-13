@@ -2,7 +2,7 @@ module.exports = ({ log: parentLog, blockChain, db }) => {
   const log = parentLog.create('updateContractsFromChain')
 
   return async () => {
-    log.info('Running task ...')
+    log.debug('Running task ...')
 
     try {
       const contract = blockChain.getPartyContract()
@@ -17,8 +17,10 @@ module.exports = ({ log: parentLog, blockChain, db }) => {
       const docs = await db.getActiveParties({ stalestFirst: true, limit: 1000 })
 
       await Promise.all(docs.map(async doc => (
-        db.updateParty(contract.at(doc.id))
+        db.updateParty(await contract.at(doc.address))
       )))
+
+      log.debug(`... ${docs.length} parties updated`)
     } catch (err) {
       log.error('Failed', err)
     }
