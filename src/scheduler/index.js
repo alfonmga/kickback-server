@@ -1,9 +1,9 @@
-const randStr = require('randomstring')
+const { generate: randStr } = require('randomstring')
 
 const _idn = (id, name) => `${name}-${id}`
 
 class Scheduler {
-  constructor (log, eventQueue) {
+  constructor ({ log, eventQueue }) {
     this._log = log.create('scheduler')
 
     this._jobs = {}
@@ -12,15 +12,15 @@ class Scheduler {
     this.start()
   }
 
-  addJob (name, interval, callback) {
+  addJob (name, intervalSeconds, callback) {
     const id = _idn(randStr(5), name)
 
-    this._log.info(`Add job ${id} to run every ${interval} seconds`)
+    this._log.info(`Add job ${id} to run every ${intervalSeconds} seconds`)
 
     this._jobs[id] = {
       name,
       callback,
-      intervalMs: interval * 1000,
+      intervalMs: intervalSeconds * 1000,
       lastRun: 0
     }
 
@@ -35,7 +35,7 @@ class Scheduler {
     delete this._jobs[id]
   }
 
-  start = () => {
+  start () {
     if (!this._running) {
       this._log.info('Start scheduler ...')
 
@@ -44,7 +44,7 @@ class Scheduler {
     }
   }
 
-  stop = () => {
+  stop () {
     if (this._running) {
       this._log.info('Stop scheduler ...')
 
@@ -53,7 +53,7 @@ class Scheduler {
     }
   }
 
-  _processJobs = () => {
+  _processJobs () {
     if (!this._running) {
       return
     }
@@ -75,8 +75,8 @@ class Scheduler {
     })
 
     // check every second
-    this._timer = setTimeout(this._processJobs, 1000)
+    this._timer = setTimeout(() => this._processJobs, 1000)
   }
 }
 
-module.exports = (log, eventQueue) => new Scheduler(log, eventQueue)
+module.exports = (...args) => new Scheduler(...args)

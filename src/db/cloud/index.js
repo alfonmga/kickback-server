@@ -1,6 +1,8 @@
 const FirebaseAdmin = require('firebase-admin')
 
-module.exports = ({ FIREBASE }, log) => {
+module.exports = ({ config: { FIREBASE }, log: parentLog }) => {
+  const log = parentLog.create('firestore')
+
   // eslint-disable-next-line import/no-dynamic-require
   const serviceAccount = require(FIREBASE.keyFilename)
 
@@ -10,7 +12,7 @@ module.exports = ({ FIREBASE }, log) => {
 
   const db = FirebaseAdmin.firestore()
 
-  log.info('Firestore connected')
+  log.info('Connected')
 
   return db
 }

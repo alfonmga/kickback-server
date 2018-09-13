@@ -14,11 +14,8 @@ const env = envalid.cleanEnv(process.env, {
 })
 
 
-
-// eslint-disable-next-line import/no-dynamic-require
-const props = require(`./${env.APP_MODE}`)
-
 module.exports = {
   env,
-  ...props
+  // eslint-disable-next-line import/no-dynamic-require
+  ...require(`./${env.APP_MODE}`),
 }

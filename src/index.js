@@ -9,7 +9,7 @@ const setupScheduler = require('./scheduler')
 const log = require('./log')(config)
 const connectDb = require('./db')
 const connectEthereum = require('./ethereum')
-const createBlockchainProcessor = require('./blockchainProcessor')
+const createProcessor = require('./processor')
 
 const init = async () => {
   const app = next({ dev: config.env.isDev })
@@ -18,15 +18,15 @@ const init = async () => {
 
   log.info(`App mode: ${config.env.APP_MODE}`)
 
-  const db = connectDb(config, log)
+  const db = connectDb({ config, log })
   if (!db) {
     throw new Error('Database could not be connected')
   }
 
-  const eventQueue = setupEventQueue(log)
-  const scheduler = setupScheduler(log, eventQueue)
-  const ethereum = await connectEthereum(config, log, db)
-  const blockchainProcessor = await createBlockchainProcessor(config, log, ethereum, db)
+  const eventQueue = setupEventQueue({ log })
+  const scheduler = setupScheduler({ log, eventQueue })
+  const blockChain = await connectEthereum({ config, log, db })
+  await createProcessor({ config, log, scheduler, db, blockChain })
 
   const server = new Koa()
   const router = new Router()

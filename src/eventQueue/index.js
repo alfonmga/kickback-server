@@ -1,6 +1,6 @@
 const PQueue = require('p-queue')
 
-const createQueueClass = log => (
+const createQueueClass = ({ log }) => (
   class Queue {
     constructor () {
       this._queue = []
@@ -28,8 +28,8 @@ const createQueueClass = log => (
   }
 )
 
-module.exports = log => new PQueue({
+module.exports = ({ log }) => new PQueue({
   concurrency: 1,
   autoStart: true,
-  queueClass: createQueueClass(log),
+  queueClass: createQueueClass({ log }),
 })

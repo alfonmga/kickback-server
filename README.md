@@ -64,8 +64,8 @@ $ yarn start
 
 **Test contract deployment and interaction**
 
-_TODO_
-Clone our [frontend repo]() and use it to test out the contracts.
+Clone our [frontend repo](https://github.com/noblocknoparty/app) and use it to test out the contracts.
+
 
 ## Deployments
 
@@ -74,13 +74,15 @@ On CI we deploy to Zeit using [now](https://zeit.co/docs/getting-started/five-mi
 To use the same commands locally you will need to set the `NOW_TOKEN` environment
 variable to your access token obtained from https://zeit.co/account/tokens.
 
-### Development
+To deploy and alias the dev server URL in one go:
+
+**Dev server deployment**
 
 ```shell
 $ yarn deploy:dev
 ```
 
-To deploy and alias the dev server URL in one go:
+To deploy and alias our dev domain all in one go:
 
 ```shell
 $ yarn release:dev

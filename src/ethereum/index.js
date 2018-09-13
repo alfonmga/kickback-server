@@ -7,7 +7,7 @@ const { BLOCK, NEW_PARTY } = require('../constants/events')
 
 
 class EventWatcher {
-  constructor (log, eventName, lowLevelEmitter, callback) {
+  constructor ({ log, eventName, lowLevelEmitter, callback }) {
     this.eventName = eventName
     this.log = log
     this.lowLevelEmitter = lowLevelEmitter
@@ -42,10 +42,10 @@ class EventWatcher {
 
 
 class Manager extends EventEmitter {
-  constructor (config, log) {
+  constructor ({ config, log }) {
     super()
     this.config = config
-    this.log = log
+    this.log = log.create('ethereum')
   }
 
   async init () {
@@ -59,7 +59,8 @@ class Manager extends EventEmitter {
 
     this.log.info(`Ethereum connected to '${this.config.NETWORK}', real network id: ${await this.httpWeb3.eth.net.getId()}`)
 
-    const contract = getContract(Deployer, this.httpWeb3)
+    const contract = this.getDeployerContract()
+
     if (this.config.env.DEPLOYER_CONTRACT_ADDRESS) {
       this.deployer = await contract.at(this.config.env.DEPLOYER_CONTRACT_ADDRESS)
     } else {
@@ -86,12 +87,20 @@ class Manager extends EventEmitter {
     return this.httpWeb3
   }
 
+  getDeployerContract () {
+    return getContract(Deployer, this.wsWeb3)
+  }
+
+  getPartyContract () {
+    return getContract(Conference, this.wsWeb3)
+  }
+
   _onBlock (data) {
     this.emit(BLOCK, data)
   }
 
   _onNewParty ({ returnValues: { deployedAddress } }) {
-    const contract = getContract(Conference, this.httpWeb3)
+    const contract = this.getPartyContract()
 
     contract.at(deployedAddress)
       .then(contractInstance => (
@@ -118,7 +127,7 @@ class Manager extends EventEmitter {
 
   async _subscribe (filterName, filterArgs, callback) {
     const sub = await new Promise((resolve, reject) => {
-      const e = this.wsWeb3.eth.subscribe(filterName, ...filterArgs, err => {
+      const e = this.wsWeb3.eth.subscribe(filterName, filterArgs, err => {
         if (err) {
           reject(err)
         }
@@ -128,7 +137,12 @@ class Manager extends EventEmitter {
       setTimeout(() => resolve(e), 250)
     })
 
-    return new EventWatcher(this.log, filterName, sub, callback)
+    return new EventWatcher({
+      log: this.log,
+      eventName: filterName,
+      lowLevelEmitter: sub,
+      callback
+    })
   }
 
   async _watchEvent (truffleContract, eventName, filterArgs, callback) {
@@ -143,12 +157,12 @@ class Manager extends EventEmitter {
       setTimeout(() => resolve(e), 250)
     })
 
-    return new EventWatcher(this.log, eventName, eventWatcher, callback)
+    return new EventWatcher({ log: this.log, eventName, lowLevelEmitter: eventWatcher, callback })
   }
 }
 
-module.exports = async (config, log) => {
-  const e = new Manager(config, log)
+module.exports = async (...args) => {
+  const e = new Manager(...args)
 
   await e.init()
 
