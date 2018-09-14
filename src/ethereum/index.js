@@ -2,7 +2,7 @@ const EventEmitter = require('eventemitter3')
 const Web3 = require('web3')
 const { Deployer, Conference } = require('@noblocknoparty/contracts')
 
-const { getContract } = require('./utils')
+const { getContract } = require('../utils/contracts')
 const { BLOCK, NEW_PARTY } = require('../constants/events')
 
 

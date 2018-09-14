@@ -4,7 +4,7 @@ import { Conference, Deployer } from '@noblocknoparty/contracts'
 import Log from 'logarama'
 
 import { BLOCK, NEW_PARTY } from '../constants/events'
-import { getContract } from './utils'
+import { getContract } from '../utils/contracts'
 import initEthereum from './'
 
 describe('ethereum', () => {
