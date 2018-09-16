@@ -11,6 +11,7 @@ const connectDb = require('./db')
 const connectEthereum = require('./ethereum')
 const createProcessor = require('./processor')
 const setupGraphQLEndpoint = require('./graphql')
+const setupAuthMiddleware = require('./auth')
 
 const init = async () => {
   const app = next({ dev: config.env.isDev })
@@ -51,7 +52,8 @@ const init = async () => {
     await nextHandler()
   })
 
-  setupGraphQLEndpoint({ db, server })
+  setupAuthMiddleware({ db, server, blockChain })
+  setupGraphQLEndpoint({ db, server, blockChain })
 
   server.use(router.routes())
 

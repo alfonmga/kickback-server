@@ -1,13 +1,9 @@
 const { gql } = require('apollo-server-koa')
 
 module.exports = gql`
-type Address {
-  hex: String!
-}
-
 type Party {
   name: String
-  address: Address!
+  address: String!
   deposit: String
   attendeeLimit: Int
   attendees: Int
@@ -15,7 +11,34 @@ type Party {
   lastUpdated: String
 }
 
+type SocialMedia {
+  type: String!
+  value: String!
+}
+
+type UserProfile {
+  created: Int!
+  address: String!
+  avatarUrl: String
+  social: [SocialMedia]
+}
+
+type UserProfileInput {
+  email: String
+  social: [SocialMedia]
+}
+
+type LoginChallenge {
+  str: String!
+}
+
 type Query {
   allParties: [Party]
+  userProfile(address: String!): UserProfile
+}
+
+type Mutation {
+  createLoginChallenge(address: String!): LoginChallenge
+  updateUserProfile(profile: UserProfileInput!): UserProfile
 }
 `

@@ -1,11 +1,106 @@
 const { toHex, hexToNumber } = require('web3-utils')
 
 const setupFirestoreDb = require('./firestore')
+const { SESSION_VALIDITY_SECONDS } = require('../constants/session')
+const { assertEthereumAddress, assertEmail } = require('../utils/validators')
 
 class Db {
   constructor ({ nativeDb, log }) {
     this._nativeDb = nativeDb
     this._log = log
+  }
+
+  async updateUserProfile (userAddress, profile) {
+    const { email: newEmail, social } = profile
+
+    assertEthereumAddress(userAddress)
+
+    if (newEmail) {
+      assertEmail(newEmail)
+    }
+
+    const doc = await this._loadUserWhoMustExist(userAddress)
+
+    const { email = {} } = doc.data()
+
+    if (email.verified !== newEmail) {
+      email.pending = newEmail
+
+      // TODO: send confirmation email!
+    }
+
+    await doc.update({
+      lastUpdated: Date.now(),
+      email,
+      social: social.reduce((m, { type, value }) => {
+        m[type] = value
+        return m
+      }, {})
+    })
+
+    return this.getUserProfile(userAddress)
+  }
+
+  async getUserProfile (userAddress, isOwner = false) {
+    const doc = await this._nativeDb.doc(`user/${userAddress}`).get()
+
+    if (!doc.exists) {
+      return {}
+    }
+
+    const { social, created, email } = doc.data()
+
+    return {
+      address: userAddress,
+      created,
+      social: Object.keys(social || {}).reduce((m, type) => {
+        m.push({
+          type,
+          value: social[type]
+        })
+
+        return m
+      }, []),
+      /* only want owner to see their own email address */
+      ...(isOwner ? email : {})
+    }
+  }
+
+  async getLoginChallenge (userAddress) {
+    const doc = await this._loadUserWhoMustExist(userAddress)
+
+    const { challenge, created } = doc.data().auth
+
+    // check login session validity
+    if (created < (Date.now() + SESSION_VALIDITY_SECONDS * 1000)) {
+      throw new Error(`User login session has expired: ${userAddress}`)
+    }
+
+    return challenge
+  }
+
+  async createLoginChallenge (userAddress) {
+    assertEthereumAddress(userAddress)
+
+    const doc = this._nativeDb.doc(`user/${userAddress}`)
+
+    const newProps = {
+      login: {
+        challenge: `Hello! please sign this friendly message using your private key to start using KickBack (timestamp: ${Date.now()})`,
+        created: Date.now()
+      },
+      lastUpdated: Date.now()
+    }
+
+    if (!(await doc.get()).exists) {
+      newProps.created = Date.now()
+
+      await doc.set(newProps)
+    } else {
+      await doc.update(newProps)
+    }
+
+    return newProps.login.challenge
   }
 
   async addParty (partyInstance) {
@@ -88,6 +183,18 @@ class Db {
       m.ref = doc.ref.path
       return m
     })
+  }
+
+  async _loadUserWhoMustExist (userAddress) {
+    assertEthereumAddress(userAddress)
+
+    const doc = await this._nativeDb.doc(`user/${userAddress}`).get()
+
+    if (!doc.exists) {
+      throw new Error(`User not found: ${userAddress}`)
+    }
+
+    return doc
   }
 }
 

@@ -83,6 +83,10 @@ class Manager extends EventEmitter {
     ])
   }
 
+  web3 () {
+    return this.httpWeb3
+  }
+
   getDeployerContract () {
     return getContract(Deployer, this.wsWeb3)
   }

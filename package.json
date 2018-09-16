@@ -45,6 +45,7 @@
     "get-stdin": "^6.0.0",
     "graphql": "^14.0.2",
     "koa": "^2.5.2",
+    "koa-jwt": "^3.5.1",
     "koa-router": "^7.4.0",
     "logarama": "^3.2.0",
     "next": "^6.1.1",
@@ -53,6 +54,7 @@
     "react": "^16.4.2",
     "react-dom": "^16.4.2",
     "truffle-contract": "^4.0.0-beta.0",
+    "validator": "^10.7.1",
     "web3": "^1.0.0-beta.33",
     "web3-utils": "^1.0.0-beta.36",
     "yargs": "^12.0.2"

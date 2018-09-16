@@ -8,6 +8,7 @@ module.exports = ({ db, server: app }) => {
     introspection: true,
     typeDefs: types,
     resolvers: createResolvers({ db }),
+    context: ({ ctx: { state: { user } } }) => ({ user })
   })
 
   server.applyMiddleware({ app })
