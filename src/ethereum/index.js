@@ -1,20 +1,21 @@
 const EventEmitter = require('eventemitter3')
 const Web3 = require('web3')
-const { Deployer, Conference } = require('@noblocknoparty/contracts')
+const { Deployer, Conference, events } = require('@noblocknoparty/contracts')
+const { parseLog } = require('ethereum-event-logs')
 
-const { getContract } = require('../utils/contracts')
-const { BLOCK, NEW_PARTY } = require('../constants/events')
+const { getContract } = require('./utils')
+const { BLOCK } = require('../constants/events')
 
 
 class EventWatcher {
   constructor ({ log, eventName, lowLevelEmitter, callback }) {
-    this.eventName = eventName
-    this.log = log
-    this.lowLevelEmitter = lowLevelEmitter
-    this.callback = callback
+    this._eventName = eventName
+    this._log = log
+    this._lowLevelEmitter = lowLevelEmitter
+    this._callback = callback
 
-    this.lowLevelEmitter.on('data', this._onData.bind(this))
-    this.lowLevelEmitter.on('error', this._onError.bind(this))
+    this._lowLevelEmitter.on('data', this._onData.bind(this))
+    this._lowLevelEmitter.on('error', this._onError.bind(this))
   }
 
   addListener (cb) {
@@ -26,17 +27,17 @@ class EventWatcher {
   }
 
   _onData (data) {
-    this.log.trace(`${this.eventName} subscription event`, data)
+    this._log.trace(`${this._eventName} subscription event`, data)
 
-    this.callback(data)
+    this._callback(data)
   }
 
   _onError (err) {
-    this.log.error(`${this.eventName} subscription error`, err)
+    this._log.error(`${this._eventName} subscription error`, err)
   }
 
   async shutdown () {
-    this.lowLevelEmitter.removeAllListeners()
+    this._lowLevelEmitter.removeAllListeners()
   }
 }
 
@@ -44,35 +45,34 @@ class EventWatcher {
 class Manager extends EventEmitter {
   constructor ({ config, log }) {
     super()
-    this.config = config
-    this.log = log.create('ethereum')
+    this._config = config
+    this._log = log.create('ethereum')
   }
 
   async init () {
     this.wsWeb3 = new Web3(
-      this.config.provider || new Web3.providers.WebsocketProvider(this.config.ETHEREUM_ENDPOINT_WS)
+      this._config.provider
+        || new Web3.providers.WebsocketProvider(this._config.ETHEREUM_ENDPOINT_WS)
     )
 
     this.httpWeb3 = new Web3(
-      this.config.provider || new Web3.providers.HttpProvider(this.config.ETHEREUM_ENDPOINT_RPC)
+      this._config.provider || new Web3.providers.HttpProvider(this._config.ETHEREUM_ENDPOINT_RPC)
     )
 
-    this.log.info(`Ethereum connected to '${this.config.NETWORK}', real network id: ${await this.httpWeb3.eth.net.getId()}`)
+    this._log.info(`Connected to '${this._config.NETWORK}' network, id: ${await this.httpWeb3.eth.net.getId()}`)
 
     const contract = this.getDeployerContract()
 
-    if (this.config.env.DEPLOYER_CONTRACT_ADDRESS) {
-      this.deployer = await contract.at(this.config.env.DEPLOYER_CONTRACT_ADDRESS)
+    if (this._config.env.DEPLOYER_CONTRACT_ADDRESS) {
+      this.deployer = await contract.at(this._config.env.DEPLOYER_CONTRACT_ADDRESS)
     } else {
       this.deployer = await contract.deployed()
     }
 
-    this.blockWatcher = await this._subscribe(
-      'newBlockHeaders', this._onBlock.bind(this)
-    )
+    this._log.info(`Deployer address: ${this.deployer.address}`)
 
-    this.newPartyWatcher = await this._watchEvent(
-      this.deployer, 'NewParty', {}, this._onNewParty.bind(this)
+    this.blockWatcher = await this._subscribe(
+      'newBlockHeaders', this._onBlockHeader.bind(this)
     )
   }
 
@@ -83,10 +83,6 @@ class Manager extends EventEmitter {
     ])
   }
 
-  getWeb3 () {
-    return this.httpWeb3
-  }
-
   getDeployerContract () {
     return getContract(Deployer, this.wsWeb3)
   }
@@ -95,40 +91,24 @@ class Manager extends EventEmitter {
     return getContract(Conference, this.wsWeb3)
   }
 
-  _onBlock (data) {
-    this.emit(BLOCK, data)
-  }
+  async _onBlockHeader (blockHeader) {
+    const logs = await this.httpWeb3.eth.getPastLogs({
+      fromBlock: blockHeader.number,
+      toBlock: blockHeader.number
+    })
 
-  async _onNewParty ({ returnValues: { deployedAddress } }) {
-    try {
-      this.emit(NEW_PARTY, await this.getPartyContract().at(deployedAddress))
-    } catch (err) {
-      this.log.error(`Error processing party at ${deployedAddress}`, err)
-    }
+    this.emit(BLOCK, blockHeader, parseLog(logs, [ events.NewParty ], {
+      address: this.deployer.address
+    }))
   }
 
   async _subscribe (filterName, callback) {
     return new EventWatcher({
-      log: this.log,
+      log: this._log,
       eventName: filterName,
       lowLevelEmitter: this.wsWeb3.eth.subscribe(filterName),
       callback
     })
-  }
-
-  async _watchEvent (truffleContract, eventName, filterArgs, callback) {
-    const eventWatcher = await new Promise((resolve, reject) => {
-      const e = truffleContract.contract.events[eventName](filterArgs, err => {
-        if (err) {
-          reject(err)
-        }
-      })
-
-      // if not yet errored then must be ok!
-      setTimeout(() => resolve(e), 250)
-    })
-
-    return new EventWatcher({ log: this.log, eventName, lowLevelEmitter: eventWatcher, callback })
   }
 }
 

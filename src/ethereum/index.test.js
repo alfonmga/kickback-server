@@ -1,10 +1,10 @@
 import Ganache from 'ganache-core'
 import Web3 from 'web3'
-import { Conference, Deployer } from '@noblocknoparty/contracts'
+import { Deployer, events } from '@noblocknoparty/contracts'
 import Log from 'logarama'
 
-import { BLOCK, NEW_PARTY } from '../constants/events'
-import { getContract } from '../utils/contracts'
+import { BLOCK } from '../constants/events'
+import { getContract } from './utils'
 import initEthereum from './'
 
 describe('ethereum', () => {
@@ -19,11 +19,11 @@ describe('ethereum', () => {
 
   beforeAll(async () => {
     log = new Log({
-      minLevel: 'warn'
+      minLevel: 'info'
     })
 
     provider = Ganache.provider({
-      total_accounts: 4
+      total_accounts: 4,
     })
 
     const { accounts: accountsMap } = provider.manager.state
@@ -31,10 +31,13 @@ describe('ethereum', () => {
 
     web3 = new Web3(provider)
 
+    console.log(`Network id: ${await web3.eth.net.getId()}`)
+
     deployerContract = getContract(Deployer, web3, { from: accounts[0] })
+
     deployer = await deployerContract.new()
 
-    log.info(`Deployer contract at: ${deployer.address}`)
+    console.log(`Deployer contract at: ${deployer.address}`)
 
     config = {
       provider,
@@ -52,13 +55,13 @@ describe('ethereum', () => {
   })
 
   it('can be initialized', async () => {
-    ethereum = await initEthereum(config, log)
+    ethereum = await initEthereum({ config, log })
 
     expect(ethereum).toBeDefined()
   })
 
   it('will emit new blocks when they arrive', async () => {
-    ethereum = await initEthereum(config, log)
+    ethereum = await initEthereum({ config, log })
 
     const spy = jest.fn()
 
@@ -80,42 +83,33 @@ describe('ethereum', () => {
 
     // ensure the rest matches up
     expect(web3Block).toMatchObject(block)
+
+    // no events
+    expect(spy.mock.calls[0][1]).toEqual([])
   })
 
-  it('will emit new parties when they are created', async () => {
-    ethereum = await initEthereum(config, log)
+  it('will emit new party events alongside new block', async () => {
+    ethereum = await initEthereum({ config, log })
 
     const spy = jest.fn()
 
-    ethereum.on(NEW_PARTY, spy)
+    ethereum.on(BLOCK, spy)
 
-    await deployer.deploy('My event', 0, 0, 0, 'key')
+    await deployer.deploy('test', '0x0', '0x0', '0x0', 'encKey')
 
     expect(spy).toHaveBeenCalled()
 
-    const party = spy.mock.calls[0][0]
+    // parsed events
+    const [ event ] = spy.mock.calls[0][1]
 
-    expect(party).toBeDefined()
-
-    const { address } = party
-
-    const partyInstance = await getContract(Conference, web3).at(address)
-
-    const owner = await partyInstance.owner()
-    expect(owner.toLowerCase()).toEqual(accounts[0].toLowerCase())
-
-    const [ name, deposit, limitOfParticipants, coolingPeriod ] = await Promise.all([
-      partyInstance.name(),
-      partyInstance.deposit(),
-      partyInstance.limitOfParticipants(),
-      partyInstance.coolingPeriod()
-    ])
-
-    expect(party).toMatchObject({
-      name,
-      deposit,
-      limitOfParticipants,
-      coolingPeriod
+    expect(event).toMatchObject({
+      name: events.NewParty.name
     })
+
+    expect(event.args.deployer).toEqualIgnoreCase(accounts[0])
+
+    const party = await ethereum.getPartyContract().at(event.args.deployedAddress)
+
+    expect(await party.name()).toEqual('test')
   })
 })

@@ -48,7 +48,6 @@ openssl aes-256-cbc -K $CONFIG_ENCRYPTION_KEY -iv $CONFIG_ENCRYPTION_IV -in .goo
 ```
 
 
-
 _The env vars `CONFIG_ENCRYPTION_KEY` and `CONFIG_ENCRYPTION_IV` can be found in our password vault_.
 
 **Deploy contracts to local test network and create .env file**
@@ -111,4 +110,18 @@ To deploy and alias the production server URL in one go:
 
 ```shell
 $ yarn release:prod
+```
+
+## Testing
+
+Prior to running tests ensure you have a test network running:
+
+```shell
+npx ganache-cli --accounts 500
+```
+
+Now run:
+
+```shell
+yarn test
 ```

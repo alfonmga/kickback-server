@@ -1,21 +1,17 @@
-const { NEW_PARTY } = require('../constants/events')
+const { BLOCK } = require('../constants/events')
 
-module.exports = async ({ log: parentLog, scheduler, db, blockChain }) => {
+module.exports = async ({ log: parentLog, scheduler, eventQueue, db, blockChain }) => {
   const log = parentLog.create('processor')
 
-  scheduler.addJob(
-    'updateContractsFromChain',
-    300, /* once every 5 minutes */
-    require('./tasks/updateContractsFromChain')({ log, db, blockChain })
-  )
+  const updateDbFromChain = require('./tasks/updateDbFromChain')({ log, db, blockChain })
+  const insertNewParties = require('./tasks/insertNewPartiesIntoDb')({ log, db, blockChain })
 
-  blockChain.on(NEW_PARTY, async contractInstance => {
-    log.info(`New deployment at: ${contractInstance.address}`)
+  // every 5 minutes we want to refresh db data
+  scheduler.schedule('updateDbFromChain', 300, updateDbFromChain)
 
-    try {
-      await db.addParty(contractInstance)
-    } catch (err) {
-      log.error('Error adding new party to db', err)
-    }
+  blockChain.on(BLOCK, (block, blockEvents) => {
+    eventQueue.add(() => insertNewParties(blockEvents), {
+      name: 'insertNewParties'
+    })
   })
 }

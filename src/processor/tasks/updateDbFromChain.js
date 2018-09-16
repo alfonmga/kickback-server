@@ -1,11 +1,11 @@
 module.exports = ({ log: parentLog, blockChain, db }) => {
-  const log = parentLog.create('updateContractsFromChain')
+  const log = parentLog.create('updateDbFromChain')
 
   return async () => {
     log.debug('Running task ...')
 
     try {
-      const contract = blockChain.getPartyContract()
+      const contract = await blockChain.getPartyContract()
 
       /*
       Fetch all active parties, 1000 at a time (to avoid the task running too

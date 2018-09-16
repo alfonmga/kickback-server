@@ -27,7 +27,7 @@ const init = async () => {
   const eventQueue = setupEventQueue({ log })
   const scheduler = setupScheduler({ log, eventQueue })
   const blockChain = await connectEthereum({ config, log, db })
-  await createProcessor({ config, log, scheduler, db, blockChain })
+  await createProcessor({ config, log, eventQueue, scheduler, db, blockChain })
 
   const server = new Koa()
   const router = new Router()
