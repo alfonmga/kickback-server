@@ -1,16 +1,18 @@
 import EventEmitter from 'eventemitter3'
 import Log from 'logarama'
 
-import { NEW_PARTY } from '../constants/events'
+import { BLOCK } from '../constants/events'
 import createProcessor from './'
 
-jest.mock('./tasks/updateContractsFromChain', () => (args => args))
+jest.mock('./tasks/updateDbFromChain', () => (args => args))
+jest.mock('./tasks/insertNewPartiesIntoDb', () => (args => events => ({ events, ...args })))
 
 describe('blockchain processor', () => {
   let log
   let blockChain
   let db
   let scheduler
+  let eventQueue
 
   beforeEach(async () => {
     log = new Log({ minLevel: 'warn' })
@@ -22,45 +24,43 @@ describe('blockchain processor', () => {
     }
 
     scheduler = {
-      addJob: jest.fn()
+      schedule: jest.fn()
     }
 
-    await createProcessor({ log, scheduler, db, blockChain })
+    eventQueue = {
+      add: jest.fn()
+    }
+
+    await createProcessor({ log, eventQueue, scheduler, db, blockChain })
   })
 
   it('adds the cron job to the scheduler', () => {
-    expect(scheduler.addJob).toHaveBeenCalled()
+    expect(scheduler.schedule).toHaveBeenCalled()
 
-    const [ name, timeoutSeconds, task ] = scheduler.addJob.mock.calls[0]
+    const [ name, timeoutSeconds, task ] = scheduler.schedule.mock.calls[0]
 
-    expect(name).toEqual('updateContractsFromChain')
+    expect(name).toEqual('updateDbFromChain')
     expect(timeoutSeconds).toEqual(300)
+    expect(task.log).toBeInstanceOf(Log)
     expect(task.db).toEqual(db)
     expect(task.blockChain).toEqual(blockChain)
-    expect(task.log).toBeInstanceOf(Log)
   })
 
   it('puts new parties into the database', () => {
-    const contractInstance = {
-      address: '0xabc'
-    }
+    blockChain.emit(BLOCK, 'block', 'blockEvents1')
 
-    db.addParty.mockImplementationOnce(() => Promise.resolve())
+    expect(eventQueue.add).toHaveBeenCalled()
+    expect(eventQueue.add.mock.calls[0][1]).toEqual({
+      name: 'insertNewPartiesIntoDb'
+    })
+    const cb = eventQueue.add.mock.calls[0][0]
 
-    blockChain.emit(NEW_PARTY, contractInstance)
-
-    expect(db.addParty).toHaveBeenCalledWith(contractInstance)
-  })
-
-  it('handles errors when putting new parties into the database', () => {
-    const contractInstance = {
-      address: '0xabc'
-    }
-
-    db.addParty.mockImplementationOnce(() => Promise.reject(new Error('test')))
-
-    blockChain.emit(NEW_PARTY, contractInstance)
-
-    expect(db.addParty).toHaveBeenCalledWith(contractInstance)
+    const ret = cb()
+    expect(ret).toMatchObject({
+      events: 'blockEvents1',
+    })
+    expect(ret.db).toEqual(db)
+    expect(ret.blockChain).toEqual(blockChain)
+    expect(ret.log).toBeInstanceOf(Log)
   })
 })
