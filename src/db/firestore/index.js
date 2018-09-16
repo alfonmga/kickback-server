@@ -1,10 +1,12 @@
+const crypto = require('crypto')
 const FirebaseAdmin = require('firebase-admin')
 
-module.exports = async ({ config: { FIREBASE }, log: parentLog }) => {
+module.exports = async ({ config: { env, FIREBASE }, log: parentLog }) => {
   const log = parentLog.create('firestore')
 
-  // eslint-disable-next-line import/no-dynamic-require
-  const serviceAccount = require(FIREBASE.keyFilename)
+  const cipher = crypto.createDecipheriv('aes-256-cbc', env.CONFIG_ENCRYPTION_KEY, env.CONFIG_ENCRYPTION_IV)
+  const plaintext = cipher.update(FIREBASE.encryptedConfig, 'base64', 'utf8') + cipher.final('utf8')
+  const serviceAccount = JSON.parse(plaintext)
 
   FirebaseAdmin.initializeApp({
     credential: FirebaseAdmin.credential.cert(serviceAccount)

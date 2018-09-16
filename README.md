@@ -1,9 +1,11 @@
-# BlockParty backend server
+# KickBack backend server
 
-* Development deployment: https://dev.server.noblockno.party [![Build Status](https://travis-ci.org/noblocknoparty/server.svg?branch=dev)](https://travis-ci.org/noblocknoparty/server)
-* Production deployment: https://live.server.noblockno.party [![Build Status](https://travis-ci.org/noblocknoparty/server.svg?branch=master)](https://travis-ci.org/noblocknoparty/server)
+* Ropsten deployment: https://dev.api.kickback.events [![Build Status](https://travis-ci.org/noblocknoparty/server.svg?branch=dev)](https://travis-ci.org/noblocknoparty/server)
+* Mainnet deployment: https://live.api.kickback.events [![Build Status](https://travis-ci.org/noblocknoparty/server.svg?branch=master)](https://travis-ci.org/noblocknoparty/server)
 
-Google Firestore is used as the backend storage, with separate storage databases for dev and live.
+This is a GraphAL API server.
+
+Google Firestore is used as the backend storage, with separate storage databases for local, dev (Ropsten) and master (Mainnet).
 
 More info on server is available [in the docs](https://github.com/noblocknoparty/docs/blob/master/BackendServer.md).
 
@@ -38,17 +40,9 @@ There are 3 databases in Google cloud:
 * `blockparty-dev` - used for the server running on the dev site against Ropsten
 * `blockparty-live` - used for the server running on the production site against Maininet
 
-The Google Cloud JSON config files in `.googlecloud/` need to be decrypted using
-the commands:
-
-```shell
-openssl aes-256-cbc -K $CONFIG_ENCRYPTION_KEY -iv $CONFIG_ENCRYPTION_IV -in .googlecloud/local.json.enc -out .googlecloud/local.json -d
-openssl aes-256-cbc -K $CONFIG_ENCRYPTION_KEY -iv $CONFIG_ENCRYPTION_IV -in .googlecloud/dev.json.enc -out .googlecloud/dev.json -d
-openssl aes-256-cbc -K $CONFIG_ENCRYPTION_KEY -iv $CONFIG_ENCRYPTION_IV -in .googlecloud/dev.production.enc -out .googlecloud/production.json -d
-```
-
-
-_The env vars `CONFIG_ENCRYPTION_KEY` and `CONFIG_ENCRYPTION_IV` can be found in our password vault_.
+The corresponding Google Cloud JSON config files in `.googlecloud/` will be
+decrypted using the env vars `CONFIG_ENCRYPTION_KEY` and `CONFIG_ENCRYPTION_IV`. Ensure
+they are set in `.env` (you can get them from our password vault).
 
 **Deploy contracts to local test network and create .env file**
 
@@ -70,6 +64,9 @@ Now you can run the server:
 $ yarn start
 ```
 
+The GraphQL endpoint is at the `/graphql` URL path. If you load this path in a
+browser you will get the [GraphQL playground](https://github.com/prisma/graphql-playground).
+
 **Test contract deployment and interaction**
 
 If you wish to deploy a new Party run:
@@ -86,6 +83,8 @@ On CI we deploy to Zeit using [now](https://zeit.co/docs/getting-started/five-mi
 
 To use the same commands locally you will need to set the `NOW_TOKEN` environment
 variable to your access token obtained from https://zeit.co/account/tokens.
+
+We've also got certain [secret environment variables](https://zeit.co/docs/getting-started/secrets) setup for our deployments, namely `CONFIG_ENCRYPTION_KEY` and `CONFIG_ENCRYPTION_IV`.
 
 To deploy and alias the dev server URL in one go:
 

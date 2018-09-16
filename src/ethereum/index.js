@@ -56,7 +56,7 @@ class Manager extends EventEmitter {
     )
 
     this.httpWeb3 = new Web3(
-      this._config.provider || new Web3.providers.HttpProvider(this._config.ETHEREUM_ENDPOINT_RPC)
+      this._config.provider || new Web3.providers.HttpProvider(this._config.ETHEREUM_ENDPOINT_HTTP)
     )
 
     this._log.info(`Connected to '${this._config.NETWORK}' network, id: ${await this.httpWeb3.eth.net.getId()}`)

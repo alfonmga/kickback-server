@@ -2,6 +2,5 @@
 yarn-error.log
 node_modules
 
-.googlecloud/*.json
 .env
 test-coverage

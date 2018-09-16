@@ -1,6 +1,6 @@
 {
-  "name": "blockparty-server",
-  "alias": "dev.server.noblockno.party",
+  "name": "kickback-api",
+  "alias": "dev.api.kickback.events",
   "scale": {
     "bru1": {
       "min": 1,
@@ -9,6 +9,8 @@
   },
   "env": {
     "NODE_ENV": "production",
-    "APP_MODE": "development"
+    "APP_MODE": "development",
+    "CONFIG_ENCRYPTION_KEY": "@config_encryption_key",
+    "CONFIG_ENCRYPTION_IV": "@config_encryption_iv"
   }
 }

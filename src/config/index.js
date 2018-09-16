@@ -8,14 +8,17 @@ const env = envalid.cleanEnv(process.env, {
   NODE_ENV: str({ default: 'development' }),
   APP_MODE: str({ default: 'local' }),
   LOG: str({ default: 'debug' }),
-  DEPLOYER_CONTRACT_ADDRESS: str()
+  DEPLOYER_CONTRACT_ADDRESS: str({ default: '' }),
+  CONFIG_ENCRYPTION_IV: str(),
+  CONFIG_ENCRYPTION_KEY: str()
 }, {
   dotEnvPath: '.env'
 })
 
+// eslint-disable-next-line import/no-dynamic-require
+const modeConfig = require(`./${env.APP_MODE}`)
 
 module.exports = {
   env,
-  // eslint-disable-next-line import/no-dynamic-require
-  ...require(`./${env.APP_MODE}`),
+  ...modeConfig,
 }

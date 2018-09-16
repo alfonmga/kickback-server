@@ -7,9 +7,6 @@ branches:
     - dev
     - master
 before_script:
-  - openssl aes-256-cbc -K $CONFIG_ENCRYPTION_KEY -iv $CONFIG_ENCRYPTION_IV -in .googlecloud/local.json.enc -out .googlecloud/local.json -d
-  - openssl aes-256-cbc -K $CONFIG_ENCRYPTION_KEY -iv $CONFIG_ENCRYPTION_IV -in .googlecloud/dev.json.enc -out .googlecloud/dev.json -d
-  - openssl aes-256-cbc -K $CONFIG_ENCRYPTION_KEY -iv $CONFIG_ENCRYPTION_IV -in .googlecloud/production.json.enc -out .googlecloud/production.json -d
   - yarn test:coverage && cat test-coverage/lcov.info | node_modules/.bin/coveralls
 script:
   - yarn build
