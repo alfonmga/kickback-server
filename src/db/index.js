@@ -1,7 +1,7 @@
 const { toHex, hexToNumber } = require('web3-utils')
 
 const setupFirestoreDb = require('./firestore')
-const { SESSION_VALIDITY_SECONDS } = require('../constants/session')
+const { SESSION_VALIDITY_SECONDS } = require('../auth')
 const { assertEthereumAddress, assertEmail } = require('../utils/validators')
 
 class Db {

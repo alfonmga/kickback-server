@@ -16,6 +16,11 @@ type SocialMedia {
   value: String!
 }
 
+input SocialMediaInput {
+  type: String!
+  value: String!
+}
+
 type UserProfile {
   created: Int!
   address: String!
@@ -23,9 +28,9 @@ type UserProfile {
   social: [SocialMedia]
 }
 
-type UserProfileInput {
+input UserProfileInput {
   email: String
-  social: [SocialMedia]
+  social: [SocialMediaInput]
 }
 
 type LoginChallenge {

@@ -1,11 +1,15 @@
 const jwt = require('koa-jwt')
 
+exports.SESSION_VALIDITY_SECONDS = 86400
+
 module.exports = ({ db, server, blockChain }) => {
   server.use(jwt({
     // our security comes from signing with user's private key, not arbitrary secrets here!
-    secret: 'not so secret!',
+    secret: 'kickback',
     // don't reject a request just because auth failed!
-    passthrough: true
+    passthrough: true,
+    // options for HS256
+    algorithm: 'HS256'
   }))
 
   server.use(async (ctx, next) => {
