@@ -43,6 +43,50 @@ describe('ethereum', () => {
     nativeDb = db._nativeDb
   })
 
+  describe('createLoginChallenge', () => {
+    let userAddress
+    let user
+
+    beforeEach(async () => {
+      userAddress = newAddr()
+
+      const userRef = nativeDb.doc(`user/${userAddress}`)
+      await userRef.set(createUserProfile(userAddress))
+      user = (await userRef.get()).data()
+    })
+
+    it('throws if invalid address format', async () => {
+      try {
+        await db.createLoginChallenge('invalid')
+      } catch (err) {
+        expect(err).toBeDefined()
+      }
+    })
+
+    it('updates existing user', async () => {
+      const str = await db.createLoginChallenge(userAddress)
+
+      const data = (await nativeDb.doc(`user/${userAddress}`).get()).data()
+
+      expect(data.created).toEqual(user.created)
+      expect(data.lastUpdated).toBeGreaterThan(user.lastUpdated)
+      expect(data.login.challenge).toEqual(str)
+      expect(data.login.created).toEqual(data.lastUpdated)
+    })
+
+    it('creates new user', async () => {
+      const addr = newAddr()
+
+      const str = await db.createLoginChallenge(addr)
+
+      const data = (await nativeDb.doc(`user/${addr}`).get()).data()
+
+      expect(data.created).toBeDefined()
+      expect(data.lastUpdated).toEqual(data.created)
+      expect(data.login.challenge).toEqual(str)
+    })
+  })
+
   describe('getUserProfile', () => {
     let userAddress
     let user
@@ -137,11 +181,7 @@ describe('ethereum', () => {
         ]
       })
 
-      const doc = await nativeDb.doc(`user/${userAddress}`).get()
-
-      const data = doc.data()
-
-      expect(data.lastUpdated).toBeGreaterThan(user.lastUpdated)
+      const data = (await nativeDb.doc(`user/${userAddress}`).get()).data()
 
       expect(data).toMatchObject({
         email: {
@@ -158,9 +198,7 @@ describe('ethereum', () => {
         email: user.email.verified
       })
 
-      const doc = await nativeDb.doc(`user/${userAddress}`).get()
-
-      const data = doc.data()
+      const data = (await nativeDb.doc(`user/${userAddress}`).get()).data()
 
       expect(data.email).toEqual(user.email)
     })
@@ -170,9 +208,7 @@ describe('ethereum', () => {
         email: 'test-newemail@kickback.events'
       })
 
-      const doc = await nativeDb.doc(`user/${userAddress}`).get()
-
-      const data = doc.data()
+      const data = (await nativeDb.doc(`user/${userAddress}`).get()).data()
 
       expect(data.email).toEqual({
         verified: user.email.verified,

@@ -95,7 +95,7 @@ class Db {
     }
 
     if (!(await doc.get()).exists) {
-      newProps.created = Date.now()
+      newProps.created = newProps.lastUpdated
 
       await doc.set(newProps)
     } else {
