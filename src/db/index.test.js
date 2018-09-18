@@ -5,6 +5,8 @@ import createDb from './'
 
 const wallet = EthHdWallet.fromMnemonic(generateMnemonic())
 
+const newAddr = () => wallet.generateAddresses(1).pop()
+
 const createUserProfile = address => ({
   address,
   lastUpdated: Date.now(),
@@ -41,12 +43,54 @@ describe('ethereum', () => {
     nativeDb = db._nativeDb
   })
 
+  describe('getUserProfile', () => {
+    let userAddress
+    let user
+
+    beforeEach(async () => {
+      userAddress = newAddr()
+
+      const userRef = nativeDb.doc(`user/${userAddress}`)
+      await userRef.set(createUserProfile(userAddress))
+      user = (await userRef.get()).data()
+    })
+
+    it('returns empty if user not found', async () => {
+      const ret = await db.getUserProfile(newAddr())
+
+      expect(ret).toEqual({})
+    })
+
+    it('returns profile if user found', async () => {
+      const ret = await db.getUserProfile(userAddress)
+
+      expect(ret).toEqual({
+        address: userAddress,
+        created: user.created,
+        social: [
+          {
+            type: 'twitter',
+            value: user.social.twitter
+          }
+        ]
+      })
+    })
+
+    it('returns email too if user is profile owner', async () => {
+      const ret = await db.getUserProfile(userAddress, true)
+
+      expect(ret).toMatchObject({
+        email: user.email,
+      })
+    })
+  })
+
   describe('updateUserProfile', () => {
     let userAddress
     let user
 
     beforeEach(async () => {
-      userAddress = wallet.generateAddresses(1).pop()
+      userAddress = newAddr()
 
       const userRef = nativeDb.doc(`user/${userAddress}`)
       await userRef.set(createUserProfile(userAddress))
@@ -74,10 +118,8 @@ describe('ethereum', () => {
     })
 
     it('throws if user not found', async () => {
-      const addr = wallet.generateAddresses(1).pop()
-
       try {
-        await db.updateUserProfile(addr, {
+        await db.updateUserProfile(newAddr(), {
           email: 'test-newemail@kickback.events'
         })
       } catch (err) {

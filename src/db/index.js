@@ -63,7 +63,7 @@ class Db {
         return m
       }, []),
       /* only want owner to see their own email address */
-      ...(isOwner ? email : {})
+      ...(isOwner ? { email } : {})
     }
   }
 
