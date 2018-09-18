@@ -24,16 +24,16 @@ class Db {
 
     const { email = {} } = doc.data()
 
-    if (email.verified !== newEmail) {
+    if (newEmail && email.verified !== newEmail) {
       email.pending = newEmail
 
       // TODO: send confirmation email!
     }
 
-    await doc.update({
+    await doc.ref.update({
       lastUpdated: Date.now(),
       email,
-      social: social.reduce((m, { type, value }) => {
+      social: (social || []).reduce((m, { type, value }) => {
         m[type] = value
         return m
       }, {})
@@ -49,10 +49,10 @@ class Db {
       return {}
     }
 
-    const { social, created, email } = doc.data()
+    const { address, social, created, email } = doc.data()
 
     return {
-      address: userAddress,
+      address,
       created,
       social: Object.keys(social || {}).reduce((m, type) => {
         m.push({
@@ -86,6 +86,7 @@ class Db {
     const doc = this._nativeDb.doc(`user/${userAddress}`)
 
     const newProps = {
+      address: userAddress,
       login: {
         challenge: `Hello! please sign this friendly message using your private key to start using KickBack (timestamp: ${Date.now()})`,
         created: Date.now()
