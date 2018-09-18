@@ -34,15 +34,20 @@ The server has 3 running modes (can be set using the `APP_MODE` var in `.env` fi
 
 **Setup Firestore database credentials**
 
-There are 3 databases in Google cloud:
+Note that there are 3 Firestore databases:
 
-* `blockparty-local` - used for when running the dev server locally and testing
-* `blockparty-dev` - used for the server running on the dev site against Ropsten
-* `blockparty-live` - used for the server running on the production site against Maininet
+* `kickback-local` - used for when running the dev server locally and testing (default)
+* `kickback-dev` - used for the server running on the dev site against Ropsten
+* `kickback-live` - used for the server running on the production site against Maininet
 
-The corresponding Google Cloud JSON config files in `.googlecloud/` will be
-decrypted using the env vars `CONFIG_ENCRYPTION_KEY` and `CONFIG_ENCRYPTION_IV`. Ensure
-they are set in `.env` (you can get them from our password vault).
+Ensure you have the `FIREBASE_TOKEN` environment variable set properly (obtain
+  it using `yarn firebase login:ci`).
+
+You will then need to setup the db indexes and rules (although they should be already):
+
+```shell
+yarn setupdb local
+```
 
 **Deploy contracts to local test network and create .env file**
 
@@ -81,10 +86,16 @@ Alternatively, you can deploy and interact with parties using our [frontend](htt
 
 On CI we deploy to Zeit using [now](https://zeit.co/docs/getting-started/five-minute-guide-to-now).
 
-To use the same commands locally you will need to set the `NOW_TOKEN` environment
-variable to your access token obtained from https://zeit.co/account/tokens.
+To use the same commands locally you will need to set the following environment
+variables (these also need to be set in [CI](https://travis-ci.org/noblocknoparty/server/settings)):
 
-We've also got certain [secret environment variables](https://zeit.co/docs/getting-started/secrets) setup for our deployments, namely `CONFIG_ENCRYPTION_KEY` and `CONFIG_ENCRYPTION_IV`.
+* `NOW_TOKEN` - obtained from https://zeit.co/account/tokens.
+* `FIREBASE_TOKEN` - obtained using `yarn firebase login:ci`
+* `CONFIG_ENCRYPTION_KEY` - obtained from our password vault
+* `CONFIG_ENCRYPTION_IV` - obtained from our password vault
+
+_Note: The last two encryption variables have also been setup in [Zeit](https://zeit.co/docs/getting-started/secrets), so if you change their
+values remember to update Zeit._
 
 To deploy and alias the dev server URL in one go:
 
@@ -124,3 +135,7 @@ Now run:
 ```shell
 yarn test
 ```
+
+## License
+
+AGPL v3

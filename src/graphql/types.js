@@ -38,7 +38,7 @@ type LoginChallenge {
 }
 
 type Query {
-  allParties: [Party]
+  activeParties: [Party]
   userProfile(address: String!): UserProfile
 }
 

@@ -74,6 +74,8 @@ class Manager extends EventEmitter {
     this.blockWatcher = await this._subscribe(
       'newBlockHeaders', this._onBlockHeader.bind(this)
     )
+
+    this._networkId = await this.httpWeb3.eth.net.getId()
   }
 
   async shutdown () {
@@ -81,6 +83,10 @@ class Manager extends EventEmitter {
       (this.blockWatcher ? this.blockWatcher.shutdown() : Promise.resolve()),
       (this.newPartyWatcher ? this.newPartyWatcher.shutdown() : Promise.resolve())
     ])
+  }
+
+  getNetworkId () {
+    return this._networkId
   }
 
   web3 () {

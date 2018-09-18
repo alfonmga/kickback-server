@@ -5,9 +5,10 @@ const { SESSION_VALIDITY_SECONDS } = require('../auth')
 const { assertEthereumAddress, assertEmail } = require('../utils/validators')
 
 class Db {
-  constructor ({ nativeDb, log }) {
+  constructor ({ nativeDb, log, blockChain }) {
     this._nativeDb = nativeDb
     this._log = log
+    this._blockChain = blockChain
   }
 
   async updateUserProfile (userAddress, profile) {
@@ -124,6 +125,7 @@ class Db {
     ])
 
     await doc.set({
+      network: this._blockChain.getNetworkId(),
       name,
       deposit: toHex(deposit),
       attendeeLimit: hexToNumber(toHex(limitOfParticipants)),
@@ -166,6 +168,7 @@ class Db {
   async getActiveParties ({ stalestFirst = false, limit = undefined } = {}) {
     let query = this._nativeDb.collection('party')
       .where('ended', '==', false)
+      .where('network', '==', this._blockChain.getNetworkId())
 
     if (stalestFirst) {
       query = query.orderBy('lastUpdated', 'asc')
@@ -198,8 +201,8 @@ class Db {
   }
 }
 
-module.exports = async ({ config, log }) => {
+module.exports = async ({ config, log, blockChain }) => {
   const nativeDb = await setupFirestoreDb({ config, log })
 
-  return new Db({ nativeDb, log })
+  return new Db({ nativeDb, log, blockChain })
 }

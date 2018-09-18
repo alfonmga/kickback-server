@@ -20,14 +20,10 @@ const init = async () => {
 
   log.info(`App mode: ${config.env.APP_MODE}`)
 
-  const db = await connectDb({ config, log })
-  if (!db) {
-    throw new Error('Database could not be connected')
-  }
-
+  const blockChain = await connectEthereum({ config, log })
+  const db = await connectDb({ config, log, blockChain })
   const eventQueue = setupEventQueue({ log })
   const scheduler = setupScheduler({ log, eventQueue })
-  const blockChain = await connectEthereum({ config, log, db })
   await createProcessor({ config, log, eventQueue, scheduler, db, blockChain })
 
   const server = new Koa()

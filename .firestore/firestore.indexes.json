@@ -1,0 +1,40 @@
+{
+  "indexes": [
+    {
+      "collectionId": "party",
+      "state": "READY",
+      "fields": [
+        {
+          "fieldPath": "ended",
+          "mode": "ASCENDING"
+        },
+        {
+          "fieldPath": "network",
+          "mode": "ASCENDING"
+        },
+        {
+          "fieldPath": "created",
+          "mode": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionId": "party",
+      "state": "READY",
+      "fields": [
+        {
+          "fieldPath": "ended",
+          "mode": "ASCENDING"
+        },
+        {
+          "fieldPath": "network",
+          "mode": "ASCENDING"
+        },
+        {
+          "fieldPath": "lastUpdated",
+          "mode": "ASCENDING"
+        }
+      ]
+    }
+  ]
+}

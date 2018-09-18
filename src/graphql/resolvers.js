@@ -6,7 +6,7 @@ const assertUser = user => {
 
 module.exports = ({ db }) => ({
   Query: {
-    allParties: async () => db.getActiveParties(),
+    activeParties: async () => db.getActiveParties(),
     userProfile: async (_, { address }, { user }) => (
       db.getUserProfile(address, user && user.address === address)
     )
