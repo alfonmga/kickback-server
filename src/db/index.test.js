@@ -25,6 +25,8 @@ const createUserProfile = address => ({
   }
 })
 
+const insertParty = async (nativeDb, id, data) => nativeDb.doc(`party/${id}`).set(data)
+
 describe('ethereum', () => {
   let log
   let provider
@@ -60,6 +62,98 @@ describe('ethereum', () => {
 
     db = await createDb({ config, log, blockChain })
     nativeDb = db._nativeDb
+  })
+
+  describe('getActiveParties', () => {
+    beforeAll(async () => {
+      await insertParty(nativeDb, 'testparty1', {
+        network: 123,
+        ended: false,
+        lastUpdated: 1,
+        created: 1,
+      })
+
+      await insertParty(nativeDb, 'testparty2', {
+        network: blockChain.getNetworkId(),
+        ended: false,
+        lastUpdated: 2,
+        created: 1,
+      })
+
+      await insertParty(nativeDb, 'testparty3', {
+        network: blockChain.getNetworkId(),
+        ended: true,
+        lastUpdated: 3,
+        created: 2,
+      })
+
+      await insertParty(nativeDb, 'testparty4', {
+        network: blockChain.getNetworkId(),
+        ended: false,
+        lastUpdated: 2,
+        created: 1,
+      })
+
+      await insertParty(nativeDb, 'testparty5', {
+        network: blockChain.getNetworkId(),
+        ended: false,
+        lastUpdated: 4,
+        created: 3,
+      })
+
+      await insertParty(nativeDb, 'testparty6', {
+        network: 123,
+        ended: false,
+        lastUpdated: 5,
+        created: 4,
+      })
+    })
+
+    it('returns all newest first by default', async () => {
+      const events = await db.getActiveParties()
+
+      expect(events.length).toEqual(3)
+
+      expect(events[0]).toMatchObject({
+        address: 'testparty5',
+      })
+
+      expect(events[1]).toMatchObject({
+        address: 'testparty4',
+      })
+
+      expect(events[2]).toMatchObject({
+        address: 'testparty2',
+      })
+    })
+
+    it('can return limited results', async () => {
+      const events = await db.getActiveParties({ limit: 1 })
+
+      expect(events.length).toEqual(1)
+
+      expect(events[0]).toMatchObject({
+        address: 'testparty5',
+      })
+    })
+
+    it('can return in order stalest first', async () => {
+      const events = await db.getActiveParties({ stalestFirst: true })
+
+      expect(events.length).toEqual(3)
+
+      expect(events[0]).toMatchObject({
+        address: 'testparty2',
+      })
+
+      expect(events[1]).toMatchObject({
+        address: 'testparty4',
+      })
+
+      expect(events[2]).toMatchObject({
+        address: 'testparty5',
+      })
+    })
   })
 
   describe('addParty', () => {

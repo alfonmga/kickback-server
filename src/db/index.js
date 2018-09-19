@@ -183,8 +183,9 @@ class Db {
 
     return (await query.get()).docs.map(doc => {
       const m = doc.data()
+
       m.address = doc.id
-      m.ref = doc.ref.path
+
       return m
     })
   }
