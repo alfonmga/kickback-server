@@ -1,7 +1,7 @@
 const { toHex, hexToNumber } = require('web3-utils')
 
 const setupFirestoreDb = require('./firestore')
-const { SESSION_VALIDITY_SECONDS } = require('../auth')
+const { SESSION_VALIDITY_SECONDS } = require('../constants/session')
 const { assertEthereumAddress, assertEmail } = require('../utils/validators')
 
 class Db {
@@ -70,10 +70,10 @@ class Db {
   async getLoginChallenge (userAddress) {
     const doc = await this._loadUserWhoMustExist(userAddress)
 
-    const { challenge, created } = doc.data().auth
+    const { challenge, created = 0 } = (doc.data().login || {})
 
     // check login session validity
-    if (created < (Date.now() + SESSION_VALIDITY_SECONDS * 1000)) {
+    if (created < (Date.now() - SESSION_VALIDITY_SECONDS * 1000)) {
       throw new Error(`User login session has expired: ${userAddress}`)
     }
 

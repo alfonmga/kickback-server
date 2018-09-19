@@ -2,6 +2,7 @@ import Log from 'logarama'
 import { generateMnemonic, EthHdWallet } from 'eth-hd-wallet'
 
 import createDb from './'
+import { SESSION_VALIDITY_SECONDS } from '../constants/session'
 
 const wallet = EthHdWallet.fromMnemonic(generateMnemonic())
 
@@ -41,6 +42,54 @@ describe('ethereum', () => {
 
     db = await createDb({ config, log, blockChain })
     nativeDb = db._nativeDb
+  })
+
+  describe('getLoginChallenge', () => {
+    let userAddress
+    let userRef
+
+    beforeEach(async () => {
+      userAddress = newAddr()
+
+      userRef = nativeDb.doc(`user/${userAddress}`)
+      await userRef.set(createUserProfile(userAddress))
+    })
+
+    it('throws if user not found', async () => {
+      try {
+        await db.getLoginChallenge('invalid')
+      } catch (err) {
+        expect(err).toBeDefined()
+      }
+    })
+
+    it('throws if challenge has expired', async () => {
+      await userRef.update({
+        login: {
+          challenge: 'challenge',
+          created: Date.now() - (SESSION_VALIDITY_SECONDS * 1000) - 1
+        }
+      })
+
+      try {
+        await db.getLoginChallenge(userAddress)
+      } catch (err) {
+        expect(err.message).toEqual(expect.stringContaining('login session has expired'))
+      }
+    })
+
+    it('returns challenge if not yet expired', async () => {
+      await userRef.update({
+        login: {
+          challenge: 'challenge1',
+          created: Date.now()
+        }
+      })
+
+      const str = await db.getLoginChallenge(userAddress)
+
+      expect(str).toEqual('challenge1')
+    })
   })
 
   describe('createLoginChallenge', () => {

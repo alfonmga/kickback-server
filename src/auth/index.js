@@ -1,7 +1,5 @@
 const jwt = require('koa-jwt')
 
-exports.SESSION_VALIDITY_SECONDS = 86400
-
 module.exports = ({ db, server, blockChain }) => {
   server.use(jwt({
     // our security comes from signing with user's private key, not arbitrary secrets here!
