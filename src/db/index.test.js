@@ -1,7 +1,12 @@
+import Ganache from 'ganache-core'
+import Web3 from 'web3'
+import { toHex, toWei } from 'web3-utils'
+import { Conference } from '@noblocknoparty/contracts'
 import Log from 'logarama'
 import { generateMnemonic, EthHdWallet } from 'eth-hd-wallet'
 
 import createDb from './'
+import { getContract } from '../utils/contracts'
 import { SESSION_VALIDITY_SECONDS } from '../constants/session'
 
 const wallet = EthHdWallet.fromMnemonic(generateMnemonic())
@@ -22,6 +27,9 @@ const createUserProfile = address => ({
 
 describe('ethereum', () => {
   let log
+  let provider
+  let accounts
+  let web3
   let blockChain
   let db
   let nativeDb
@@ -32,16 +40,109 @@ describe('ethereum', () => {
       minLevel: 'info'
     })
 
-    const networkId = Math.random()
+    config = require('../config')
+
+    provider = Ganache.provider({
+      total_accounts: 4,
+    })
+
+    const { accounts: accountsMap } = provider.manager.state
+    accounts = Object.keys(accountsMap)
+
+    web3 = new Web3(provider)
+    const networkId = await web3.eth.net.getId()
+
+    console.log(`Network id: ${networkId}`)
 
     blockChain = {
       getNetworkId: () => networkId
     }
 
-    config = require('../config')
-
     db = await createDb({ config, log, blockChain })
     nativeDb = db._nativeDb
+  })
+
+  describe('addParty', () => {
+    let party
+
+    beforeEach(async () => {
+      party = await getContract(Conference, web3, { from: accounts[0] }).new(
+        'test', toHex(toWei('0.2', 'ether')), 100, 2, 'test', accounts[0]
+      )
+    })
+
+    it('does nothing if party already exists in db', async () => {
+      await nativeDb.doc(`party/${party.address}`).set({
+        dummy: true
+      })
+
+      await db.addParty(party)
+
+      const data = (await nativeDb.doc(`party/${party.address}`).get()).data()
+
+      expect(data).toEqual({
+        dummy: true
+      })
+    })
+
+    it('adds new party to db', async () => {
+      await db.addParty(party)
+
+      const data = (await nativeDb.doc(`party/${party.address}`).get()).data()
+
+      expect(data).toMatchObject({
+        network: blockChain.getNetworkId(),
+        name: 'test',
+        deposit: toHex(toWei('0.2', 'ether')),
+        attendeeLimit: 100,
+        attendees: 0,
+        coolingPeriod: toHex(2),
+        ended: false,
+      })
+
+      expect(data.created).toBeGreaterThan(0)
+      expect(data.created).toEqual(data.lastUpdated)
+    })
+  })
+
+  describe('updateParty', () => {
+    let party
+
+    beforeEach(async () => {
+      party = await getContract(Conference, web3, { from: accounts[0] }).new(
+        'test', toHex(toWei('0.2', 'ether')), 100, 2, 'test', accounts[0]
+      )
+    })
+
+    it('does nothing if party does not exist in db', async () => {
+      await db.updateParty(party)
+
+      const doc = await nativeDb.doc(`party/${party.address}`).get()
+
+      expect(doc.exists).toBeFalsy()
+    })
+
+    it('updates party data if it exists in db', async () => {
+      await nativeDb.doc(`party/${party.address}`).set({
+        // we expect the update to override these values
+        attendeeLimit: 5000,
+        attendees: 6000,
+        ended: true,
+        lastUpdated: 1
+      })
+
+      await db.updateParty(party)
+
+      const data = (await nativeDb.doc(`party/${party.address}`).get()).data()
+
+      expect(data).toMatchObject({
+        attendeeLimit: 100,
+        attendees: 0,
+        ended: false,
+      })
+
+      expect(data.lastUpdated).toBeGreaterThan(1)
+    })
   })
 
   describe('getLoginChallenge', () => {

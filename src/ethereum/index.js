@@ -3,7 +3,7 @@ const Web3 = require('web3')
 const { Deployer, Conference, events } = require('@noblocknoparty/contracts')
 const { parseLog } = require('ethereum-event-logs')
 
-const { getContract } = require('./utils')
+const { getContract } = require('../utils/contracts')
 const { BLOCK } = require('../constants/events')
 
 
