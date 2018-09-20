@@ -86,15 +86,6 @@ $ yarn start
 The GraphQL endpoint is at the `/graphql` URL path. If you load this path in a
 browser you will get the [GraphQL playground](https://github.com/prisma/graphql-playground).
 
-**Test contract deployment and interaction**
-
-If you wish to deploy a new Party run:
-
-```shell
-scripts/deployPartyLocally.js
-```
-
-Alternatively, you can deploy and interact with parties using our [frontend](https://github.com/noblocknoparty/app).
 
 ## Deployments
 
