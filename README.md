@@ -20,11 +20,29 @@ Pre-requisites:
   * Node 8.11.4
   * Yarn
 
-**Create .env file**
+**Deploy contracts to local test network and create .env file**
 
-Create a `.env` file in your project root. This gets auto-loaded at startup by
-the server and provides a convenient way of setting environment variables.
-In our server deployments we auto-create this file.
+Clone the [contracts repo](https://githbu.com/noblocknoparty/contracts) into a sibling folder called `contracts` such that
+directory structure is as follows:
+
+```shell
+/my/path
+  /my/path/contracts    <- contracts repo
+  /my/path/server    <- server repo (this project)
+```
+
+Now go into the `contracts` repo folder and run:
+
+```shell
+yarn deploy:local
+```
+
+_Note: This will update the file `.env` to contain the deployer address_.
+
+**App mode**
+
+The `.env` file gets auto-loaded at startup by the server and provides a
+convenient way of setting environment variables.
 
 The server has 3 running modes (can be set using the `APP_MODE` var in `.env` file):
 
@@ -49,16 +67,12 @@ You will then need to setup the db indexes and rules (although they should be al
 yarn setupdb local
 ```
 
-**Deploy contracts to local test network and create .env file**
+Before you can run the server you will also need to set the following environment
+variables into `.env` (values can be obtained from our password vault):
 
-Clone our [contracts repo](https://github.com/noblocknoparty/contracts) and follow the instructions to deploy the
-contracts to a local test network. The network RPC endpoint should match what's
-in `src/config/local.js` in this repo.
-
-Find the deployed address of the `Deployer` contract and enter it the `.env` file:
-
-```
-DEPLOYER_CONTRACT_ADDRESS=<...address...>
+```shell
+CONFIG_ENCRYPTION_IV
+CONFIG_ENCRYPTION_KEY
 ```
 
 **Run server**

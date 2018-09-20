@@ -1,4 +1,5 @@
 module.exports = {
   BLOCK: 'block',
-  NEW_PARTY: 'newParty'
+  NEW_PARTY: 'newParty',
+  NOTIFICATION: 'notification'
 }

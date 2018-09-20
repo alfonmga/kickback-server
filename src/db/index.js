@@ -1,14 +1,37 @@
+const EventEmitter = require('eventemitter3')
+const { generate: randStr } = require('randomstring')
 const { toHex, hexToNumber } = require('web3-utils')
 
 const setupFirestoreDb = require('./firestore')
+const { NOTIFICATION } = require('../constants/events')
 const { SESSION_VALIDITY_SECONDS } = require('../constants/session')
+const { VERIFY_EMAIL } = require('../constants/notifications')
 const { assertEthereumAddress, assertEmail } = require('../utils/validators')
 
-class Db {
+class Db extends EventEmitter {
   constructor ({ nativeDb, log, blockChain }) {
+    super()
     this._nativeDb = nativeDb
     this._log = log
     this._blockChain = blockChain
+  }
+
+  async notifyUser (userAddress, type, data) {
+    assertEthereumAddress(userAddress)
+
+    const id = randStr(10)
+
+    await this._nativeDb.doc(`notification/${id}`).set({
+      user: userAddress,
+      type,
+      data,
+      created: Date.now(),
+      lastUpdated: Date.now(),
+      seen: false, // if user has seen it
+      processed: false, // if system has processed it (e.g. by sending an email to user)
+    })
+
+    this.emit(NOTIFICATION, id)
   }
 
   async updateUserProfile (userAddress, profile) {
@@ -27,7 +50,7 @@ class Db {
     if (newEmail && email.verified !== newEmail) {
       email.pending = newEmail
 
-      // TODO: send confirmation email!
+      this.notifyUser(userAddress, VERIFY_EMAIL, { email: newEmail })
     }
 
     await doc.ref.update({
