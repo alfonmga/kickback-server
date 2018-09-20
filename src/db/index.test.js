@@ -2,9 +2,9 @@ import Ganache from 'ganache-core'
 import Web3 from 'web3'
 import { toHex, toWei } from 'web3-utils'
 import { Conference } from '@noblocknoparty/contracts'
-import Log from 'logarama'
 import { generateMnemonic, EthHdWallet } from 'eth-hd-wallet'
 
+import createLog from '../log'
 import createDb from './'
 import { getContract } from '../utils/contracts'
 import { SESSION_VALIDITY_SECONDS } from '../constants/session'
@@ -38,8 +38,9 @@ describe('ethereum', () => {
   let config
 
   beforeAll(async () => {
-    log = new Log({
-      minLevel: 'info'
+    log = createLog({
+      LOG: 'info',
+      APP_MODE: 'test'
     })
 
     config = require('../config')

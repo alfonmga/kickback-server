@@ -1,8 +1,8 @@
 import Ganache from 'ganache-core'
 import Web3 from 'web3'
 import { Deployer, events } from '@noblocknoparty/contracts'
-import Log from 'logarama'
 
+import createLog from '../log'
 import { BLOCK } from '../constants/events'
 import { getContract } from '../utils/contracts'
 import initEthereum from './'
@@ -18,8 +18,9 @@ describe('ethereum', () => {
   let ethereum
 
   beforeAll(async () => {
-    log = new Log({
-      minLevel: 'info'
+    log = createLog({
+      LOG: 'info',
+      APP_MODE: 'test'
     })
 
     provider = Ganache.provider({

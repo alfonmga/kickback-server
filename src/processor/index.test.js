@@ -1,6 +1,6 @@
 import EventEmitter from 'eventemitter3'
-import Log from 'logarama'
 
+import createLog from '../log'
 import { BLOCK } from '../constants/events'
 import createProcessor from './'
 
@@ -15,13 +15,15 @@ describe('blockchain processor', () => {
   let eventQueue
 
   beforeEach(async () => {
-    log = new Log({ minLevel: 'warn' })
+    log = createLog({
+      LOG: 'info',
+      APP_MODE: 'test'
+    })
 
     blockChain = new EventEmitter()
 
-    db = {
-      addParty: jest.fn()
-    }
+    db = new EventEmitter()
+    db.addParty = jest.fn()
 
     scheduler = {
       schedule: jest.fn()
@@ -41,7 +43,7 @@ describe('blockchain processor', () => {
 
     expect(name).toEqual('updateDbFromChain')
     expect(timeoutSeconds).toEqual(300)
-    expect(task.log).toBeInstanceOf(Log)
+    expect(task.log).toBeDefined()
     expect(task.db).toEqual(db)
     expect(task.blockChain).toEqual(blockChain)
   })
@@ -61,6 +63,6 @@ describe('blockchain processor', () => {
     })
     expect(ret.db).toEqual(db)
     expect(ret.blockChain).toEqual(blockChain)
-    expect(ret.log).toBeInstanceOf(Log)
+    expect(ret.log).toBeDefined()
   })
 })
