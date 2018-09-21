@@ -5,7 +5,7 @@ import { BLOCK } from '../constants/events'
 import createProcessor from './'
 
 jest.mock('./tasks/updateDbFromChain', () => (args => args))
-jest.mock('./tasks/insertNewPartiesIntoDb', () => (args => events => ({ events, ...args })))
+jest.mock('./tasks/processBlockLogs', () => (args => logs => ({ logs, ...args })))
 
 describe('blockchain processor', () => {
   let log
@@ -48,18 +48,18 @@ describe('blockchain processor', () => {
     expect(task.blockChain).toEqual(blockChain)
   })
 
-  it('puts new parties into the database', () => {
-    blockChain.emit(BLOCK, 'block', 'blockEvents1')
+  it('process logs from every incoming block', () => {
+    blockChain.emit(BLOCK, 'block', 'blockLogs1')
 
     expect(eventQueue.add).toHaveBeenCalled()
     expect(eventQueue.add.mock.calls[0][1]).toEqual({
-      name: 'insertNewPartiesIntoDb'
+      name: 'processBlockLogs'
     })
     const cb = eventQueue.add.mock.calls[0][0]
 
     const ret = cb()
     expect(ret).toMatchObject({
-      events: 'blockEvents1',
+      logs: 'blockLogs1',
     })
     expect(ret.db).toEqual(db)
     expect(ret.blockChain).toEqual(blockChain)

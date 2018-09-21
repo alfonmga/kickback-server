@@ -1,6 +1,7 @@
 import Ganache from 'ganache-core'
 import Web3 from 'web3'
 import { Deployer, events } from '@noblocknoparty/contracts'
+import { parseLog } from 'ethereum-event-logs'
 
 import createLog from '../log'
 import { BLOCK } from '../constants/events'
@@ -85,11 +86,11 @@ describe('ethereum', () => {
     // ensure the rest matches up
     expect(web3Block).toMatchObject(block)
 
-    // no events
+    // no logs
     expect(spy.mock.calls[0][1]).toEqual([])
   })
 
-  it('will emit new party events alongside new block', async () => {
+  it('will emit logs alongside new block', async () => {
     ethereum = await initEthereum({ config, log })
 
     const spy = jest.fn()
@@ -101,7 +102,11 @@ describe('ethereum', () => {
     expect(spy).toHaveBeenCalled()
 
     // parsed events
-    const [ event ] = spy.mock.calls[0][1]
+    const logs = spy.mock.calls[0][1]
+
+    expect(logs.length).toEqual(1)
+
+    const [ event ] = parseLog(logs, [ events.NewParty ])
 
     expect(event).toMatchObject({
       name: events.NewParty.name

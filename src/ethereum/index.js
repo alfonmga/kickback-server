@@ -1,7 +1,6 @@
 const EventEmitter = require('eventemitter3')
 const Web3 = require('web3')
-const { Deployer, Conference, events } = require('@noblocknoparty/contracts')
-const { parseLog } = require('ethereum-event-logs')
+const { Deployer, Conference } = require('@noblocknoparty/contracts')
 
 const { getContract } = require('../utils/contracts')
 const { BLOCK } = require('../constants/events')
@@ -61,13 +60,7 @@ class Manager extends EventEmitter {
 
     this._log.info(`Connected to '${this._config.NETWORK}' network, id: ${await this.httpWeb3.eth.net.getId()}`)
 
-    const contract = this.getDeployerContract()
-
-    if (this._config.env.DEPLOYER_CONTRACT_ADDRESS) {
-      this.deployer = await contract.at(this._config.env.DEPLOYER_CONTRACT_ADDRESS)
-    } else {
-      this.deployer = await contract.deployed()
-    }
+    this.deployer = await this.getDeployerContractInstance()
 
     this._log.info(`Deployer address: ${this.deployer.address}`)
 
@@ -85,16 +78,26 @@ class Manager extends EventEmitter {
     ])
   }
 
-  getNetworkId () {
+  get networkId () {
     return this._networkId
   }
 
-  web3 () {
+  get web3 () {
     return this.httpWeb3
   }
 
-  getDeployerContract () {
-    return getContract(Deployer, this.wsWeb3)
+  async getDeployerContractInstance () {
+    const contract = getContract(Deployer, this.wsWeb3)
+    let instance
+
+    if (this._config.env.DEPLOYER_CONTRACT_ADDRESS) {
+      instance = await contract.at(this._config.env.DEPLOYER_CONTRACT_ADDRESS)
+      instance.transactionHash = this._config.env.DEPLOYER_TRANSACTION
+    } else {
+      instance = await contract.deployed()
+    }
+
+    return instance
   }
 
   getPartyContract () {
@@ -102,14 +105,7 @@ class Manager extends EventEmitter {
   }
 
   async _onBlockHeader (blockHeader) {
-    const logs = await this.httpWeb3.eth.getPastLogs({
-      fromBlock: blockHeader.number,
-      toBlock: blockHeader.number
-    })
-
-    this.emit(BLOCK, blockHeader, parseLog(logs, [ events.NewParty ], {
-      address: this.deployer.address
-    }))
+    this.emit(BLOCK, blockHeader)
   }
 
   async _subscribe (filterName, callback) {

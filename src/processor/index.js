@@ -1,26 +1,51 @@
 const { BLOCK, NOTIFICATION } = require('../constants/events')
 
-module.exports = async ({ log: parentLog, scheduler, eventQueue, db, blockChain }) => {
+module.exports = async ({ log: parentLog, eventQueue, db, blockChain }) => {
   const log = parentLog.create('processor')
 
-  const updateDbFromChain = require('./tasks/updateDbFromChain')({ log, db, blockChain })
-  const insertNewPartiesIntoDb = require('./tasks/insertNewPartiesIntoDb')({ log, db, blockChain })
-  const sendNotificationEmail = require('./tasks/sendNotificationEmail')({ log, db, blockChain })
+  // ongoing chain of blocks that need processing
+  const blocksToProcess = []
 
-  // every 5 minutes we want to refresh db data
-  scheduler.schedule('updateDbFromChain', 300, updateDbFromChain)
+  const sendNotificationEmail = require('./tasks/sendNotificationEmail')({ log, db, blockChain, eventQueue })
+  const processBlockLogs = require('./tasks/processBlockLogs')({ log, db, blockChain, eventQueue })
 
-  // when new notification is triggered
-  db.on(NOTIFICATION, id => {
-    eventQueue.add(() => sendNotificationEmail(id), {
-      name: `sendNotificationEmail:${id}`
-    })
+  // start processing blocks from where we last got to!
+  let lastBlockNumber = await db.getKey('lastBlockNumber')
+  if (!lastBlockNumber) {
+    log.info(`No last block number found, so calculating when to start from ...`)
+
+    // work out which block number to start watching from
+    const { transactionHash } = await blockChain.getDeployerContractInstance()
+    const { blockNumber } = await blockChain.web3.eth.getTransactionReceipt(transactionHash)
+    // block after one in which deployer was deployed is our starting block
+    lastBlockNumber = blockNumber + 1
+  } else {
+    lastBlockNumber += 1
+  }
+
+  // now see what the latest block number is
+  const latestBlockNumber = await blockChain.web3.eth.getBlockNumber()
+
+  if (latestBlockNumber >= lastBlockNumber) {
+    log.info(`Will first process from blocks ${lastBlockNumber} to ${latestBlockNumber}`)
+
+    // fill up chain with block numbers
+    while (lastBlockNumber <= latestBlockNumber) {
+      blocksToProcess.push(lastBlockNumber)
+      lastBlockNumber += 1
+    }
+  } else {
+    log.info('Block processor is fully up-to-date with blocks')
+  }
+
+  // now listen for new block
+  blockChain.on(BLOCK, ({ number }) => {
+    blocksToProcess.push(number)
   })
 
-  // when new block is received
-  blockChain.on(BLOCK, (block, blockEvents) => {
-    eventQueue.add(() => insertNewPartiesIntoDb(blockEvents), {
-      name: 'insertNewPartiesIntoDb'
-    })
-  })
+  // listen for notifications
+  db.on(NOTIFICATION, sendNotificationEmail)
+
+  // start processing blocks
+  processBlockLogs(blocksToProcess)
 }

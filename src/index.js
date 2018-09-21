@@ -5,7 +5,6 @@ const next = require('next')
 
 const config = require('./config')
 const setupEventQueue = require('./eventQueue')
-const setupScheduler = require('./scheduler')
 const log = require('./log')(config)
 const connectDb = require('./db')
 const connectEthereum = require('./ethereum')
@@ -23,8 +22,7 @@ const init = async () => {
   const blockChain = await connectEthereum({ config, log })
   const db = await connectDb({ config, log, blockChain })
   const eventQueue = setupEventQueue({ log })
-  const scheduler = setupScheduler({ log, eventQueue })
-  await createProcessor({ config, log, eventQueue, scheduler, db, blockChain })
+  await createProcessor({ config, log, eventQueue, db, blockChain })
 
   const server = new Koa()
   const router = new Router()

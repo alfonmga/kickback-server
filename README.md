@@ -37,7 +37,7 @@ Now go into the `contracts` repo folder and run:
 yarn deploy:local
 ```
 
-_Note: This will update the file `.env` to contain the deployer address_.
+_Note: This will update the file `.env` to contain the deployer address and tx hash_.
 
 **App mode**
 

@@ -3,6 +3,7 @@ const { generate: randStr } = require('randomstring')
 const { toHex, hexToNumber } = require('web3-utils')
 
 const setupFirestoreDb = require('./firestore')
+const { STATUS: ATTENDEE_STATUS } = require('../constants/attendees')
 const { NOTIFICATION } = require('../constants/events')
 const { SESSION_VALIDITY_SECONDS } = require('../constants/session')
 const { VERIFY_EMAIL } = require('../constants/notifications')
@@ -128,12 +129,12 @@ class Db extends EventEmitter {
     return newProps.login.challenge
   }
 
-  async addParty (partyInstance) {
+  async addPartyFromContract (partyInstance) {
     const { address } = partyInstance
 
-    const doc = this._nativeDb.doc(`party/${address}`)
+    const doc = await this._getParty(address)
 
-    if ((await doc.get()).exists) {
+    if (doc.exists) {
       this._log.error(`Party already exists in db: ${address}`)
 
       return
@@ -149,7 +150,8 @@ class Db extends EventEmitter {
     ])
 
     await doc.set({
-      network: this._blockChain.getNetworkId(),
+      address,
+      network: this._blockChain.networkId,
       name,
       deposit: toHex(deposit),
       attendeeLimit: hexToNumber(toHex(limitOfParticipants)),
@@ -163,28 +165,30 @@ class Db extends EventEmitter {
     this._log.info(`New party added to db: ${doc.id}`)
   }
 
-  async updateParty (partyInstance) {
+  async updatePartyFromContract (partyInstance) {
     const { address } = partyInstance
 
-    const doc = this._nativeDb.doc(`party/${address}`)
+    const doc = await this._getParty(address)
 
-    if (!(await doc.get()).exists) {
+    if (!doc.exists) {
       this._log.error(`Party does not exist in db: ${address}`)
 
       return
     }
 
     // fetch data from contract
-    const [ limitOfParticipants, registered, ended ] = await Promise.all([
+    const [ limitOfParticipants, registered, ended, cancelled ] = await Promise.all([
       partyInstance.limitOfParticipants(),
       partyInstance.registered(),
-      partyInstance.ended()
+      partyInstance.ended(),
+      partyInstance.cancelled()
     ])
 
     await doc.update({
       attendeeLimit: hexToNumber(toHex(limitOfParticipants)),
       attendees: hexToNumber(toHex(registered)),
       ended,
+      cancelled,
       lastUpdated: Date.now()
     })
   }
@@ -192,7 +196,7 @@ class Db extends EventEmitter {
   async getActiveParties ({ stalestFirst = false, limit = undefined } = {}) {
     let query = this._nativeDb.collection('party')
       .where('ended', '==', false)
-      .where('network', '==', this._blockChain.getNetworkId())
+      .where('network', '==', this._blockChain.networkId)
 
     if (stalestFirst) {
       query = query.orderBy('lastUpdated', 'asc')
@@ -204,13 +208,98 @@ class Db extends EventEmitter {
       query = query.limit(limit)
     }
 
-    return (await query.get()).docs.map(doc => {
-      const m = doc.data()
+    return (await query.get()).docs.map(doc => doc.data())
+  }
 
-      m.address = doc.id
+  async addAttendee (address, attendee) {
+    const doc = await this._getParty(address)
 
-      return m
-    })
+    if (!doc.exists) {
+      this._log.error(`Party not found: ${address}`)
+
+      return
+    }
+
+    const attendeeList = await this._getAttendeeList(address)
+
+    if (!attendeeList.exists) {
+      await attendeeList.set({
+        address,
+        attendees: [
+          {
+            address: attendee,
+            status: ATTENDEE_STATUS.REGISTERED,
+          }
+        ],
+        created: Date.now(),
+        lastUpdated: Date.now(),
+      })
+    } else {
+      const list = (await attendeeList.get()).get('attendees')
+
+      if (!list.find(({ address: a }) => a === attendee)) {
+        list.push({
+          address: attendee,
+          status: ATTENDEE_STATUS.REGISTERED
+        })
+
+        await attendeeList.update({
+          address,
+          attendees: attendeeList,
+          lastUpdated: Date.now(),
+        })
+      }
+    }
+  }
+
+  async markPartyEnded (address) {
+    const doc = await this._getParty(address)
+
+    if (doc.exists) {
+      await doc.update({
+        ended: true,
+        lastUpdated: Date.now()
+      })
+    }
+  }
+
+  async markPartyCancelled (address) {
+    const doc = await this._getParty(address)
+
+    if (doc.exists) {
+      await doc.update({
+        ended: true,
+        lastUpdated: Date.now()
+      })
+    }
+  }
+
+  async getKey (key) {
+    return (await this._nativeDb.doc(`settings/${this._id(key)}`).get()).get('value')
+  }
+
+  async setKey (key, value) {
+    return this._nativeDb.doc(`settings/${this._id(key)}`).set({ value })
+  }
+
+  async _getParty (address) {
+    const ref = this._nativeDb.doc(`party/${this._id(address)}`)
+
+    ref.exists = (await ref.get()).exists
+
+    return ref
+  }
+
+  async _getAttendeeList (address) {
+    const ref = this._nativeDb.doc(`attendeeList/${this._id(address)}`)
+
+    ref.exists = (await ref.get()).exists
+
+    return ref
+  }
+
+  _id (str) {
+    return `${str}-${this._blockChain.networkId}`
   }
 
   async _loadUserWhoMustExist (userAddress) {
