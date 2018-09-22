@@ -186,28 +186,29 @@ class Db extends EventEmitter {
     return (await query.get()).docs.map(doc => doc.data())
   }
 
-  async addAttendee (address, attendee) {
-    const party = await this._getParty(address)
+  async updateAttendeeStatus (partyAddress, attendeeAddress, status) {
+    const party = await this._getParty(partyAddress)
 
     if (!party.exists) {
-      this._log.error(`Party not found: ${address}`)
+      this._log.error(`Party not found: ${partyAddress}`)
 
       return
     }
 
-    this._log.info(`Adding attendee ${attendee} to party ${address}`)
+    this._log.info(`Update status of attendee ${attendeeAddress} at party ${partyAddress} to ${status}`)
 
     const newEntry = {
-      address: attendee,
-      status: ATTENDEE_STATUS.REGISTERED,
+      address: attendeeAddress,
+      status,
     }
 
-    const attendeeList = await this._getAttendeeList(address)
+    const attendeeList = await this._getAttendeeList(partyAddress)
 
+    // no attendee list exists yet, so create one
     if (!attendeeList.exists) {
       await Promise.all([
         attendeeList.set({
-          address,
+          address: partyAddress,
           attendees: [ newEntry ],
           created: Date.now(),
           lastUpdated: Date.now(),
@@ -219,11 +220,21 @@ class Db extends EventEmitter {
       ])
     } else {
       const list = (await attendeeList.get()).get('attendees')
+      const index = list.findIndex(({ address: a }) => a === attendeeAddress)
 
-      if (!list.find(({ address: a }) => a === attendee)) {
+      // if found
+      if (0 <= index) {
+        list.splice(index, 1, newEntry)
+
+        await attendeeList.update({
+          attendees: list,
+          lastUpdated: Date.now(),
+        })
+      }
+      // not found
+      else if (0 > index) {
         await Promise.all([
           attendeeList.update({
-            address,
             attendees: list.concat(newEntry),
             lastUpdated: Date.now(),
           }),
@@ -240,6 +251,8 @@ class Db extends EventEmitter {
     const doc = await this._getParty(address)
 
     if (doc.exists) {
+      this._log.info(`Party ended: ${address}`)
+
       await doc.update({
         ended: true,
         lastUpdated: Date.now()
@@ -251,7 +264,10 @@ class Db extends EventEmitter {
     const doc = await this._getParty(address)
 
     if (doc.exists) {
+      this._log.info(`Party cancelled: ${address}`)
+
       await doc.update({
+        cancelled: true,
         ended: true,
         lastUpdated: Date.now()
       })

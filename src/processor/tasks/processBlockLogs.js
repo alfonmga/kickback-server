@@ -1,6 +1,8 @@
 const { events: contractEvents } = require('@noblocknoparty/contracts')
 const { parseLog } = require('ethereum-event-logs')
 
+const { STATUS: ATTENDEE_STATUS } = require('../../constants/attendees')
+
 const eventAbis = Object.values(contractEvents)
 
 
@@ -34,37 +36,47 @@ module.exports = ({ log: parentLog, blockChain, db, eventQueue }) => {
       }
 
       // for parties which have ended
-      // if (categorized[contractEvents.EndParty.name]) {
-      //   await Promise.all(categorized[contractEvents.EndParty.name].map(async event => {
-      //     const { address } = event
-      //
-      //     if (await db.doesPartyExist(address)) {
-      //       log.info(`Party ended: ${address}`)
-      //
-      //       await db.markPartyEnded(address)
-      //     }
-      //   }))
-      // }
+      if (categorized[contractEvents.EndParty.name]) {
+        await Promise.all(categorized[contractEvents.EndParty.name].map(async event => {
+          const { address } = event
+
+          await db.markPartyEnded(address)
+        }))
+      }
 
       // for parties which have been cancelled
-      // if (categorized[contractEvents.CancelParty.name]) {
-      //   await Promise.all(categorized[contractEvents.CancelParty.name].map(async event => {
-      //     const { address } = event
-      //
-      //     if (await db.doesPartyExist(address)) {
-      //       log.info(`Party cancelled: ${address}`)
-      //
-      //       await db.markPartyCancelled(address)
-      //     }
-      //   }))
-      // }
+      if (categorized[contractEvents.CancelParty.name]) {
+        await Promise.all(categorized[contractEvents.CancelParty.name].map(async event => {
+          const { address } = event
+
+          await db.markPartyCancelled(address)
+        }))
+      }
 
       // add new attendees
       if (categorized[contractEvents.Register.name]) {
         await Promise.all(categorized[contractEvents.Register.name].map(async event => {
           const { address, args: { addr: attendee } } = event
 
-          return db.addAttendee(address, attendee)
+          return db.updateAttendeeStatus(address, attendee, ATTENDEE_STATUS.REGISTERED)
+        }))
+      }
+
+      // mark attendees as attended
+      if (categorized[contractEvents.Attend.name]) {
+        await Promise.all(categorized[contractEvents.Attend.name].map(async event => {
+          const { address, args: { addr: attendee } } = event
+
+          return db.updateAttendeeStatus(address, attendee, ATTENDEE_STATUS.ATTENDED)
+        }))
+      }
+
+      // mark attendees as having withdrawn payout
+      if (categorized[contractEvents.Withdraw.name]) {
+        await Promise.all(categorized[contractEvents.Withdraw.name].map(async event => {
+          const { address, args: { addr: attendee } } = event
+
+          return db.updateAttendeeStatus(address, attendee, ATTENDEE_STATUS.WITHDRAWN_PAYOUT)
         }))
       }
     } catch (err) {
