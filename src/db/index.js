@@ -140,6 +140,9 @@ class Db extends EventEmitter {
       return
     }
 
+
+    this._log.info(`Adding new party at: ${address}`)
+
     // fetch data from contract
     const [ name, deposit, limitOfParticipants, coolingPeriod, ended ] = await Promise.all([
       partyInstance.name(),
@@ -165,34 +168,6 @@ class Db extends EventEmitter {
     this._log.info(`New party added to db: ${doc.id}`)
   }
 
-  async updatePartyFromContract (partyInstance) {
-    const { address } = partyInstance
-
-    const doc = await this._getParty(address)
-
-    if (!doc.exists) {
-      this._log.error(`Party does not exist in db: ${address}`)
-
-      return
-    }
-
-    // fetch data from contract
-    const [ limitOfParticipants, registered, ended, cancelled ] = await Promise.all([
-      partyInstance.limitOfParticipants(),
-      partyInstance.registered(),
-      partyInstance.ended(),
-      partyInstance.cancelled()
-    ])
-
-    await doc.update({
-      attendeeLimit: hexToNumber(toHex(limitOfParticipants)),
-      attendees: hexToNumber(toHex(registered)),
-      ended,
-      cancelled,
-      lastUpdated: Date.now()
-    })
-  }
-
   async getActiveParties ({ stalestFirst = false, limit = undefined } = {}) {
     let query = this._nativeDb.collection('party')
       .where('ended', '==', false)
@@ -212,42 +187,51 @@ class Db extends EventEmitter {
   }
 
   async addAttendee (address, attendee) {
-    const doc = await this._getParty(address)
+    const party = await this._getParty(address)
 
-    if (!doc.exists) {
+    if (!party.exists) {
       this._log.error(`Party not found: ${address}`)
 
       return
     }
 
+    this._log.info(`Adding attendee ${attendee} to party ${address}`)
+
+    const newEntry = {
+      address: attendee,
+      status: ATTENDEE_STATUS.REGISTERED,
+    }
+
     const attendeeList = await this._getAttendeeList(address)
 
     if (!attendeeList.exists) {
-      await attendeeList.set({
-        address,
-        attendees: [
-          {
-            address: attendee,
-            status: ATTENDEE_STATUS.REGISTERED,
-          }
-        ],
-        created: Date.now(),
-        lastUpdated: Date.now(),
-      })
+      await Promise.all([
+        attendeeList.set({
+          address,
+          attendees: [ newEntry ],
+          created: Date.now(),
+          lastUpdated: Date.now(),
+        }),
+        party.update({
+          attendees: 1,
+          lastUpdated: Date.now()
+        })
+      ])
     } else {
       const list = (await attendeeList.get()).get('attendees')
 
       if (!list.find(({ address: a }) => a === attendee)) {
-        list.push({
-          address: attendee,
-          status: ATTENDEE_STATUS.REGISTERED
-        })
-
-        await attendeeList.update({
-          address,
-          attendees: attendeeList,
-          lastUpdated: Date.now(),
-        })
+        await Promise.all([
+          attendeeList.update({
+            address,
+            attendees: list.concat(newEntry),
+            lastUpdated: Date.now(),
+          }),
+          party.update({
+            attendees: list.length + 1,
+            lastUpdated: Date.now()
+          })
+        ])
       }
     }
   }

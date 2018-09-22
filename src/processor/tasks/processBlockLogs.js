@@ -29,8 +29,6 @@ module.exports = ({ log: parentLog, blockChain, db, eventQueue }) => {
         await Promise.all(categorized[contractEvents.NewParty.name].map(async event => {
           const instance = await PartyContract.at(event.args.deployedAddress)
 
-          log.info(`New party at: ${instance.address}`)
-
           return db.addPartyFromContract(instance)
         }))
       }
