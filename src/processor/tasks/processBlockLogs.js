@@ -31,7 +31,11 @@ module.exports = ({ log: parentLog, blockChain, db, eventQueue }) => {
         await Promise.all(categorized[contractEvents.NewParty.name].map(async event => {
           const instance = await PartyContract.at(event.args.deployedAddress)
 
-          return db.addPartyFromContract(instance)
+          try {
+            return db.addPartyFromContract(instance)
+          } catch (err) {
+            return log.error(`Error adding party to db`, err)
+          }
         }))
       }
 
@@ -40,7 +44,11 @@ module.exports = ({ log: parentLog, blockChain, db, eventQueue }) => {
         await Promise.all(categorized[contractEvents.EndParty.name].map(async event => {
           const { address } = event
 
-          await db.markPartyEnded(address)
+          try {
+            return db.markPartyEnded(address)
+          } catch (err) {
+            return log.error(`Error marking party as ended`, err)
+          }
         }))
       }
 
@@ -49,7 +57,11 @@ module.exports = ({ log: parentLog, blockChain, db, eventQueue }) => {
         await Promise.all(categorized[contractEvents.CancelParty.name].map(async event => {
           const { address } = event
 
-          await db.markPartyCancelled(address)
+          try {
+            return db.markPartyCancelled(address)
+          } catch (err) {
+            return log.error(`Error marking party as cancelled`, err)
+          }
         }))
       }
 
@@ -58,7 +70,11 @@ module.exports = ({ log: parentLog, blockChain, db, eventQueue }) => {
         await Promise.all(categorized[contractEvents.Register.name].map(async event => {
           const { address, args: { addr: attendee } } = event
 
-          return db.updateAttendeeStatus(address, attendee, ATTENDEE_STATUS.REGISTERED)
+          try {
+            return db.updateAttendeeStatus(address, attendee, ATTENDEE_STATUS.REGISTERED)
+          } catch (err) {
+            return log.error(`Error updating attendee status to registered`, err)
+          }
         }))
       }
 
@@ -67,7 +83,11 @@ module.exports = ({ log: parentLog, blockChain, db, eventQueue }) => {
         await Promise.all(categorized[contractEvents.Attend.name].map(async event => {
           const { address, args: { addr: attendee } } = event
 
-          return db.updateAttendeeStatus(address, attendee, ATTENDEE_STATUS.ATTENDED)
+          try {
+            return db.updateAttendeeStatus(address, attendee, ATTENDEE_STATUS.ATTENDED)
+          } catch (err) {
+            return log.error(`Error updating attendee status to attended`, err)
+          }
         }))
       }
 
@@ -76,7 +96,11 @@ module.exports = ({ log: parentLog, blockChain, db, eventQueue }) => {
         await Promise.all(categorized[contractEvents.Withdraw.name].map(async event => {
           const { address, args: { addr: attendee } } = event
 
-          return db.updateAttendeeStatus(address, attendee, ATTENDEE_STATUS.WITHDRAWN_PAYOUT)
+          try {
+            return db.updateAttendeeStatus(address, attendee, ATTENDEE_STATUS.WITHDRAWN_PAYOUT)
+          } catch (err) {
+            return log.error(`Error updating attendee status to withdrawn payout`, err)
+          }
         }))
       }
     } catch (err) {

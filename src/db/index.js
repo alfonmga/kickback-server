@@ -3,7 +3,6 @@ const { generate: randStr } = require('randomstring')
 const { toHex, hexToNumber } = require('web3-utils')
 
 const setupFirestoreDb = require('./firestore')
-const { STATUS: ATTENDEE_STATUS } = require('../constants/attendees')
 const { NOTIFICATION } = require('../constants/events')
 const { SESSION_VALIDITY_SECONDS } = require('../constants/session')
 const { VERIFY_EMAIL } = require('../constants/notifications')
