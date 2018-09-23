@@ -7,6 +7,8 @@ import { generateMnemonic, EthHdWallet } from 'eth-hd-wallet'
 import createLog from '../log'
 import createDb from './'
 import { getContract } from '../utils/contracts'
+import { NOTIFICATION } from '../constants/events'
+import { VERIFY_EMAIL } from '../constants/notifications'
 import { SESSION_VALIDITY_SECONDS } from '../constants/session'
 
 const wallet = EthHdWallet.fromMnemonic(generateMnemonic())
@@ -40,6 +42,7 @@ describe('ethereum', () => {
   let updateUser
   let loadParty
   let saveParty
+  let loadNotification
 
   beforeAll(async () => {
     log = createLog({
@@ -79,6 +82,8 @@ describe('ethereum', () => {
       ...data
     })
     loadParty = async address => nativeDb.doc(`party/${address}-${networkId}`).get().then(d => d.data())
+
+    loadNotification = async id => nativeDb.doc(`notification/${id}`).get().then(d => d.data())
   })
 
   describe('getActiveParties', () => {
@@ -428,6 +433,58 @@ describe('ethereum', () => {
         verified: user.email.verified,
         pending: 'test-newemail@kickback.events'
       })
+    })
+
+    it('creates notificationw when new email given', async () => {
+      db.notifyUser = jest.fn(() => Promise.resolve())
+
+      await db.updateUserProfile(userAddress, {
+        email: 'test-newemail@kickback.events'
+      })
+
+      expect(db.notifyUser).toHaveBeenCalledWith(userAddress, VERIFY_EMAIL, {
+        email: 'test-newemail@kickback.events'
+      })
+    })
+  })
+
+  describe('notifyUser', () => {
+    it('throws if address is invalid', async () => {
+      try {
+        await db.notifyUser('invalid')
+      } catch (err) {
+        expect(err.message.toLowerCase()).toEqual(expect.stringContaining('invalid ethereum address'))
+      }
+    })
+
+    it('emits an event', async () => {
+      const userAddress = newAddr()
+
+      const spy = jest.fn()
+      db.on(NOTIFICATION, spy)
+
+      const id = await db.notifyUser(userAddress, 'type1', 'data1')
+
+      expect(spy).toHaveBeenCalledWith(id)
+    })
+
+    it('creates an entry', async () => {
+      const userAddress = newAddr()
+
+      const id = await db.notifyUser(userAddress, 'type1', 'data1')
+
+      const notification = await loadNotification(id)
+
+      expect(notification).toMatchObject({
+        user: userAddress,
+        type: 'type1',
+        data: 'data1',
+        seen: false, // if user has seen it
+        email_sent: false, // if system has processed it by sending an email to user
+      })
+
+      expect(notification.created).toBeDefined()
+      expect(notification.created).toEqual(notification.lastUpdated)
     })
   })
 })

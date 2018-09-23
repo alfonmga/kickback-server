@@ -28,10 +28,12 @@ class Db extends EventEmitter {
       created: Date.now(),
       lastUpdated: Date.now(),
       seen: false, // if user has seen it
-      processed: false, // if system has processed it (e.g. by sending an email to user)
+      email_sent: false, // if system has processed it by sending an email to user
     })
 
     this.emit(NOTIFICATION, id)
+
+    return id
   }
 
   async updateUserProfile (userAddress, profile) {
