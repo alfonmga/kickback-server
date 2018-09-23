@@ -135,7 +135,7 @@ module.exports = ({ log: parentLog, blockChain, db, eventQueue }) => {
         _process(blocksToProcess)
       } else {
         // if none left to process then wait 20 seconds
-        log.info(`No blocks to process, sleeping for a bit ...`)
+        log.debug(`No blocks to process, sleeping for a bit ...`)
 
         setTimeout(() => _process(blocksToProcess), 10000)
       }

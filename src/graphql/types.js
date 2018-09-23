@@ -37,8 +37,22 @@ type LoginChallenge {
   str: String!
 }
 
+enum AttendeeStatus {
+  REGISTERED
+  SHOWED_UP
+  ATTENDED
+  WITHDRAWN_PAYOUT
+  UNKNOWN
+}
+
+type Attendee {
+  address: String!
+  status: AttendeeStatus!
+}
+
 type Query {
   activeParties: [Party]
+  attendees(party: String!): [Attendee]
   userProfile(address: String!): UserProfile
 }
 

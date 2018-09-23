@@ -43,9 +43,9 @@ class Db extends EventEmitter {
       assertEmail(newEmail)
     }
 
-    const doc = await this._loadUserWhoMustExist(userAddress)
+    const doc = await this._getUser(userAddress, true)
 
-    const { email = {} } = doc.data()
+    const { email = {} } = doc.data
 
     if (newEmail && email.verified !== newEmail) {
       email.pending = newEmail
@@ -53,7 +53,7 @@ class Db extends EventEmitter {
       this.notifyUser(userAddress, VERIFY_EMAIL, { email: newEmail })
     }
 
-    await doc.ref.update({
+    await doc.update({
       lastUpdated: Date.now(),
       email,
       social: (social || []).reduce((m, { type, value }) => {
@@ -66,13 +66,13 @@ class Db extends EventEmitter {
   }
 
   async getUserProfile (userAddress, isOwner = false) {
-    const doc = await this._nativeDb.doc(`user/${userAddress}`).get()
+    const doc = await this._getUser(userAddress)
 
     if (!doc.exists) {
       return {}
     }
 
-    const { address, social, created, email } = doc.data()
+    const { address, social, created, email } = doc.data
 
     return {
       address,
@@ -91,9 +91,9 @@ class Db extends EventEmitter {
   }
 
   async getLoginChallenge (userAddress) {
-    const doc = await this._loadUserWhoMustExist(userAddress)
+    const doc = await this._getUser(userAddress, true)
 
-    const { challenge, created = 0 } = (doc.data().login || {})
+    const { challenge, created = 0 } = (doc.data.login || {})
 
     // check login session validity
     if (created < (Date.now() - SESSION_VALIDITY_SECONDS * 1000)) {
@@ -106,8 +106,6 @@ class Db extends EventEmitter {
   async createLoginChallenge (userAddress) {
     assertEthereumAddress(userAddress)
 
-    const doc = this._nativeDb.doc(`user/${userAddress}`)
-
     const newProps = {
       address: userAddress,
       login: {
@@ -117,7 +115,9 @@ class Db extends EventEmitter {
       lastUpdated: Date.now()
     }
 
-    if (!(await doc.get()).exists) {
+    const doc = this._getUser(userAddress)
+
+    if (!doc.exists) {
       newProps.created = newProps.lastUpdated
 
       await doc.set(newProps)
@@ -134,11 +134,10 @@ class Db extends EventEmitter {
     const doc = await this._getParty(address)
 
     if (doc.exists) {
-      this._log.error(`Party already exists in db: ${address}`)
+      this._log.warn(`Party already exists in db: ${address}`)
 
       return
     }
-
 
     this._log.info(`Adding new party at: ${address}`)
 
@@ -185,11 +184,17 @@ class Db extends EventEmitter {
     return (await query.get()).docs.map(doc => doc.data())
   }
 
+  async getAttendees (partyAddress) {
+    const list = await this._getAttendeeList(partyAddress)
+
+    return list.exists ? list.data.attendees : []
+  }
+
   async updateAttendeeStatus (partyAddress, attendeeAddress, status) {
     const party = await this._getParty(partyAddress)
 
     if (!party.exists) {
-      this._log.error(`Party not found: ${partyAddress}`)
+      this._log.warn(`Party not found: ${partyAddress}`)
 
       return
     }
@@ -218,7 +223,7 @@ class Db extends EventEmitter {
         })
       ])
     } else {
-      const list = (await attendeeList.get()).get('attendees')
+      const list = attendeeList.data.attendees
       const index = list.findIndex(({ address: a }) => a === attendeeAddress)
 
       // if found
@@ -281,36 +286,38 @@ class Db extends EventEmitter {
     return this._nativeDb.doc(`settings/${this._id(key)}`).set({ value })
   }
 
-  async _getParty (address) {
-    const ref = this._nativeDb.doc(`party/${this._id(address)}`)
+  async _getUser (address, mustExist = false) {
+    const ref = this._get(`user/${address}`)
 
-    ref.exists = (await ref.get()).exists
+    if (mustExist && !ref.exists) {
+      throw new Error(`User not found: ${address}`)
+    }
 
     return ref
   }
 
-  async _getAttendeeList (address) {
-    const ref = this._nativeDb.doc(`attendeeList/${this._id(address)}`)
+  async _getParty (address) {
+    return this._get(`party/${this._id(address)}`)
+  }
 
-    ref.exists = (await ref.get()).exists
+  async _getAttendeeList (address) {
+    return this._get(`attendeeList/${this._id(address)}`)
+  }
+
+  async _get (refPath) {
+    const ref = this._nativeDb.doc(refPath)
+    const doc = await ref.get()
+
+    if (doc.exists) {
+      ref.exists = true
+      ref.data = doc.data()
+    }
 
     return ref
   }
 
   _id (str) {
     return `${str}-${this._blockChain.networkId}`
-  }
-
-  async _loadUserWhoMustExist (userAddress) {
-    assertEthereumAddress(userAddress)
-
-    const doc = await this._nativeDb.doc(`user/${userAddress}`).get()
-
-    if (!doc.exists) {
-      throw new Error(`User not found: ${userAddress}`)
-    }
-
-    return doc
   }
 }
 
