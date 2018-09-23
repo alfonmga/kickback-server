@@ -115,7 +115,7 @@ class Db extends EventEmitter {
       lastUpdated: Date.now()
     }
 
-    const doc = this._getUser(userAddress)
+    const doc = await this._getUser(userAddress)
 
     if (!doc.exists) {
       newProps.created = newProps.lastUpdated
@@ -287,7 +287,7 @@ class Db extends EventEmitter {
   }
 
   async _getUser (address, mustExist = false) {
-    const ref = this._get(`user/${address}`)
+    const ref = await this._get(`user/${address}`)
 
     if (mustExist && !ref.exists) {
       throw new Error(`User not found: ${address}`)

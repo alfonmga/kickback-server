@@ -25,8 +25,6 @@ const createUserProfile = address => ({
   }
 })
 
-const insertParty = async (nativeDb, id, data) => nativeDb.doc(`party/${id}`).set(data)
-
 describe('ethereum', () => {
   let log
   let provider
@@ -36,6 +34,12 @@ describe('ethereum', () => {
   let db
   let nativeDb
   let config
+
+  let loadUser
+  let saveUser
+  let updateUser
+  let loadParty
+  let saveParty
 
   beforeAll(async () => {
     log = createLog({
@@ -57,52 +61,60 @@ describe('ethereum', () => {
 
     console.log(`Network id: ${networkId}`)
 
-    blockChain = {
-      getNetworkId: () => networkId
-    }
+    blockChain = { web3, networkId }
 
     db = await createDb({ config, log, blockChain })
     nativeDb = db._nativeDb
+
+    saveUser = async (address, data) => nativeDb.doc(`user/${address}`).set({
+      address,
+      ...data
+    })
+    updateUser = async (address, data) => nativeDb.doc(`user/${address}`).update(data)
+    loadUser = async address => nativeDb.doc(`user/${address}`).get().then(d => d.data())
+
+    saveParty = async (address, data) => nativeDb.doc(`party/${address}-${networkId}`).set({
+      address,
+      network: networkId,
+      ...data
+    })
+    loadParty = async address => nativeDb.doc(`party/${address}-${networkId}`).get().then(d => d.data())
   })
 
   describe('getActiveParties', () => {
     beforeAll(async () => {
-      await insertParty(nativeDb, 'testparty1', {
+      await saveParty('testparty1', {
         network: 123,
         ended: false,
         lastUpdated: 1,
         created: 1,
       })
 
-      await insertParty(nativeDb, 'testparty2', {
-        network: blockChain.getNetworkId(),
+      await saveParty('testparty2', {
         ended: false,
         lastUpdated: 2,
         created: 1,
       })
 
-      await insertParty(nativeDb, 'testparty3', {
-        network: blockChain.getNetworkId(),
+      await saveParty('testparty3', {
         ended: true,
         lastUpdated: 3,
         created: 2,
       })
 
-      await insertParty(nativeDb, 'testparty4', {
-        network: blockChain.getNetworkId(),
+      await saveParty('testparty4', {
         ended: false,
         lastUpdated: 2,
         created: 1,
       })
 
-      await insertParty(nativeDb, 'testparty5', {
-        network: blockChain.getNetworkId(),
+      await saveParty('testparty5', {
         ended: false,
         lastUpdated: 4,
         created: 3,
       })
 
-      await insertParty(nativeDb, 'testparty6', {
+      await saveParty('testparty6', {
         network: 123,
         ended: false,
         lastUpdated: 5,
@@ -157,7 +169,7 @@ describe('ethereum', () => {
     })
   })
 
-  describe('addParty', () => {
+  describe('addPartyFromContract', () => {
     let party
 
     beforeEach(async () => {
@@ -167,26 +179,26 @@ describe('ethereum', () => {
     })
 
     it('does nothing if party already exists in db', async () => {
-      await nativeDb.doc(`party/${party.address}`).set({
+      await saveParty(party.address, {
         dummy: true
       })
 
-      await db.addParty(party)
+      const unchanged = await loadParty(party.address)
 
-      const data = (await nativeDb.doc(`party/${party.address}`).get()).data()
+      await db.addPartyFromContract(party)
 
-      expect(data).toEqual({
-        dummy: true
-      })
+      const data = await loadParty(party.address)
+
+      expect(data).toEqual(unchanged)
     })
 
     it('adds new party to db', async () => {
-      await db.addParty(party)
+      await db.addPartyFromContract(party)
 
-      const data = (await nativeDb.doc(`party/${party.address}`).get()).data()
+      const data = await loadParty(party.address)
 
       expect(data).toMatchObject({
-        network: blockChain.getNetworkId(),
+        network: blockChain.networkId,
         name: 'test',
         deposit: toHex(toWei('0.2', 'ether')),
         attendeeLimit: 100,
@@ -200,55 +212,13 @@ describe('ethereum', () => {
     })
   })
 
-  describe('updateParty', () => {
-    let party
-
-    beforeEach(async () => {
-      party = await getContract(Conference, web3, { from: accounts[0] }).new(
-        'test', toHex(toWei('0.2', 'ether')), 100, 2, 'test', accounts[0]
-      )
-    })
-
-    it('does nothing if party does not exist in db', async () => {
-      await db.updateParty(party)
-
-      const doc = await nativeDb.doc(`party/${party.address}`).get()
-
-      expect(doc.exists).toBeFalsy()
-    })
-
-    it('updates party data if it exists in db', async () => {
-      await nativeDb.doc(`party/${party.address}`).set({
-        // we expect the update to override these values
-        attendeeLimit: 5000,
-        attendees: 6000,
-        ended: true,
-        lastUpdated: 1
-      })
-
-      await db.updateParty(party)
-
-      const data = (await nativeDb.doc(`party/${party.address}`).get()).data()
-
-      expect(data).toMatchObject({
-        attendeeLimit: 100,
-        attendees: 0,
-        ended: false,
-      })
-
-      expect(data.lastUpdated).toBeGreaterThan(1)
-    })
-  })
-
   describe('getLoginChallenge', () => {
     let userAddress
-    let userRef
 
     beforeEach(async () => {
       userAddress = newAddr()
 
-      userRef = nativeDb.doc(`user/${userAddress}`)
-      await userRef.set(createUserProfile(userAddress))
+      await saveUser(userAddress, createUserProfile(userAddress))
     })
 
     it('throws if user not found', async () => {
@@ -260,7 +230,7 @@ describe('ethereum', () => {
     })
 
     it('throws if challenge has expired', async () => {
-      await userRef.update({
+      await updateUser(userAddress, {
         login: {
           challenge: 'challenge',
           created: Date.now() - (SESSION_VALIDITY_SECONDS * 1000) - 1
@@ -275,7 +245,7 @@ describe('ethereum', () => {
     })
 
     it('returns challenge if not yet expired', async () => {
-      await userRef.update({
+      await updateUser(userAddress, {
         login: {
           challenge: 'challenge1',
           created: Date.now()
@@ -295,9 +265,9 @@ describe('ethereum', () => {
     beforeEach(async () => {
       userAddress = newAddr()
 
-      const userRef = nativeDb.doc(`user/${userAddress}`)
-      await userRef.set(createUserProfile(userAddress))
-      user = (await userRef.get()).data()
+      await saveUser(userAddress, createUserProfile(userAddress))
+
+      user = await loadUser(userAddress)
     })
 
     it('throws if invalid address format', async () => {
@@ -311,7 +281,7 @@ describe('ethereum', () => {
     it('updates existing user', async () => {
       const str = await db.createLoginChallenge(userAddress)
 
-      const data = (await nativeDb.doc(`user/${userAddress}`).get()).data()
+      const data = await loadUser(userAddress)
 
       expect(data.created).toEqual(user.created)
       expect(data.lastUpdated).toBeGreaterThan(user.lastUpdated)
@@ -324,7 +294,7 @@ describe('ethereum', () => {
 
       const str = await db.createLoginChallenge(addr)
 
-      const data = (await nativeDb.doc(`user/${addr}`).get()).data()
+      const data = await loadUser(addr)
 
       expect(data.created).toBeDefined()
       expect(data.lastUpdated).toEqual(data.created)
@@ -339,9 +309,9 @@ describe('ethereum', () => {
     beforeEach(async () => {
       userAddress = newAddr()
 
-      const userRef = nativeDb.doc(`user/${userAddress}`)
-      await userRef.set(createUserProfile(userAddress))
-      user = (await userRef.get()).data()
+      await saveUser(userAddress, createUserProfile(userAddress))
+
+      user = await loadUser(userAddress)
     })
 
     it('returns empty if user not found', async () => {
@@ -381,9 +351,8 @@ describe('ethereum', () => {
     beforeEach(async () => {
       userAddress = newAddr()
 
-      const userRef = nativeDb.doc(`user/${userAddress}`)
-      await userRef.set(createUserProfile(userAddress))
-      user = (await userRef.get()).data()
+      await saveUser(userAddress, createUserProfile(userAddress))
+      user = await loadUser(userAddress)
     })
 
     it('throws if address is invalid', async () => {
@@ -426,7 +395,7 @@ describe('ethereum', () => {
         ]
       })
 
-      const data = (await nativeDb.doc(`user/${userAddress}`).get()).data()
+      const data = await loadUser(userAddress)
 
       expect(data).toMatchObject({
         email: {
@@ -443,7 +412,7 @@ describe('ethereum', () => {
         email: user.email.verified
       })
 
-      const data = (await nativeDb.doc(`user/${userAddress}`).get()).data()
+      const data = await loadUser(userAddress)
 
       expect(data.email).toEqual(user.email)
     })
@@ -453,7 +422,7 @@ describe('ethereum', () => {
         email: 'test-newemail@kickback.events'
       })
 
-      const data = (await nativeDb.doc(`user/${userAddress}`).get()).data()
+      const data = await loadUser(userAddress)
 
       expect(data.email).toEqual({
         verified: user.email.verified,
