@@ -12,106 +12,78 @@ module.exports = ({ log: parentLog, blockChain, db, eventQueue }) => {
   const _processLogs = async logs => {
     const PartyContract = await blockChain.getPartyContract()
 
-    try {
-      // get our events and categorize them by name
-      const categorized = parseLog(logs, eventAbis).reduce((m, event) => {
-        const { name } = event
+    // get our events and categorize them by name
+    const categorized = parseLog(logs, eventAbis).reduce((m, event) => {
+      const { name } = event
 
-        if (!m[name]) {
-          m[name] = []
-        }
-
-        m[name].push(event)
-
-        return m
-      }, {})
-
-      // load in new parties
-      if (categorized[contractEvents.NewParty.name]) {
-        await Promise.all(categorized[contractEvents.NewParty.name].map(async event => {
-          const instance = await PartyContract.at(event.args.deployedAddress)
-
-          try {
-            return db.addPartyFromContract(instance)
-          } catch (err) {
-            return log.error(`Error adding party to db`, err)
-          }
-        }))
+      if (!m[name]) {
+        m[name] = []
       }
 
-      // for parties which have ended
-      if (categorized[contractEvents.EndParty.name]) {
-        await Promise.all(categorized[contractEvents.EndParty.name].map(async event => {
-          const { address } = event
+      m[name].push(event)
 
-          try {
-            return db.markPartyEnded(address)
-          } catch (err) {
-            return log.error(`Error marking party as ended`, err)
-          }
-        }))
-      }
+      return m
+    }, {})
 
-      // for parties which have been cancelled
-      if (categorized[contractEvents.CancelParty.name]) {
-        await Promise.all(categorized[contractEvents.CancelParty.name].map(async event => {
-          const { address } = event
+    // load in new parties
+    if (categorized[contractEvents.NewParty.name]) {
+      await Promise.all(categorized[contractEvents.NewParty.name].map(async event => {
+        const instance = await PartyContract.at(event.args.deployedAddress)
 
-          try {
-            return db.markPartyCancelled(address)
-          } catch (err) {
-            return log.error(`Error marking party as cancelled`, err)
-          }
-        }))
-      }
+        return db.addPartyFromContract(instance)
+      }))
+    }
 
-      // add new attendees
-      if (categorized[contractEvents.Register.name]) {
-        await Promise.all(categorized[contractEvents.Register.name].map(async event => {
-          const { address, args: { addr: attendee } } = event
+    // for parties which have ended
+    if (categorized[contractEvents.EndParty.name]) {
+      await Promise.all(categorized[contractEvents.EndParty.name].map(async event => {
+        const { address } = event
 
-          try {
-            return db.updateAttendeeStatus(address, attendee, ATTENDEE_STATUS.REGISTERED)
-          } catch (err) {
-            return log.error(`Error updating attendee status to registered`, err)
-          }
-        }))
-      }
+        return db.markPartyEnded(address)
+      }))
+    }
 
-      // mark attendees as attended
-      if (categorized[contractEvents.Attend.name]) {
-        await Promise.all(categorized[contractEvents.Attend.name].map(async event => {
-          const { address, args: { addr: attendee } } = event
+    // for parties which have been cancelled
+    if (categorized[contractEvents.CancelParty.name]) {
+      await Promise.all(categorized[contractEvents.CancelParty.name].map(async event => {
+        const { address } = event
 
-          try {
-            return db.updateAttendeeStatus(address, attendee, ATTENDEE_STATUS.ATTENDED)
-          } catch (err) {
-            return log.error(`Error updating attendee status to attended`, err)
-          }
-        }))
-      }
+        return db.markPartyCancelled(address)
+      }))
+    }
 
-      // mark attendees as having withdrawn payout
-      if (categorized[contractEvents.Withdraw.name]) {
-        await Promise.all(categorized[contractEvents.Withdraw.name].map(async event => {
-          const { address, args: { addr: attendee } } = event
+    // add new attendees
+    if (categorized[contractEvents.Register.name]) {
+      await Promise.all(categorized[contractEvents.Register.name].map(async event => {
+        const { address, args: { addr: attendee } } = event
 
-          try {
-            return db.updateAttendeeStatus(address, attendee, ATTENDEE_STATUS.WITHDRAWN_PAYOUT)
-          } catch (err) {
-            return log.error(`Error updating attendee status to withdrawn payout`, err)
-          }
-        }))
-      }
-    } catch (err) {
-      log.error('Failed', err)
+        return db.updateAttendeeStatus(address, attendee, ATTENDEE_STATUS.REGISTERED)
+      }))
+    }
+
+    // mark attendees as attended
+    if (categorized[contractEvents.Attend.name]) {
+      await Promise.all(categorized[contractEvents.Attend.name].map(async event => {
+        const { address, args: { addr: attendee } } = event
+
+        return db.updateAttendeeStatus(address, attendee, ATTENDEE_STATUS.ATTENDED)
+      }))
+    }
+
+    // mark attendees as having withdrawn payout
+    if (categorized[contractEvents.Withdraw.name]) {
+      await Promise.all(categorized[contractEvents.Withdraw.name].map(async event => {
+        const { address, args: { addr: attendee } } = event
+
+        return db.updateAttendeeStatus(address, attendee, ATTENDEE_STATUS.WITHDRAWN_PAYOUT)
+      }))
     }
   }
 
   const _process = async blocksToProcess => (
     eventQueue.add(async () => {
       // get next block to process
-      const blockNumber = blocksToProcess.shift()
+      const blockNumber = blocksToProcess[0]
 
       if (blockNumber) {
         log.info(`Processing block ${blockNumber} ...`)
@@ -122,11 +94,16 @@ module.exports = ({ log: parentLog, blockChain, db, eventQueue }) => {
           toBlock: blockNumber
         })
 
-        // process them
-        await _processLogs(logs)
-
-        // update db
-        await db.setKey('lastBlockNumber', blockNumber)
+        try {
+          // process them
+          await _processLogs(logs)
+          // update the db
+          await db.setKey('lastBlockNumber', blockNumber)
+          // remove block from list so that we don't do it again
+          blockNumber.shift()
+        } catch (err) {
+          log.error(`Error processing block ${blockNumber}`, err)
+        }
       }
 
       // onto the next one...

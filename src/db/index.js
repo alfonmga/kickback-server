@@ -228,7 +228,7 @@ class Db extends EventEmitter {
       const list = attendeeList.data.attendees
       const index = list.findIndex(({ address: a }) => a === attendeeAddress)
 
-      // if found
+      // if attendee found
       if (0 <= index) {
         list.splice(index, 1, newEntry)
 
@@ -237,7 +237,7 @@ class Db extends EventEmitter {
           lastUpdated: Date.now(),
         })
       }
-      // not found
+      // if attendee not found
       else if (0 > index) {
         await Promise.all([
           attendeeList.update({

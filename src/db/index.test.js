@@ -8,6 +8,7 @@ import createLog from '../log'
 import createDb from './'
 import { getContract } from '../utils/contracts'
 import { NOTIFICATION } from '../constants/events'
+import { STATUS as ATTENDEE_STATUS } from '../constants/attendees'
 import { VERIFY_EMAIL } from '../constants/notifications'
 import { SESSION_VALIDITY_SECONDS } from '../constants/session'
 
@@ -43,10 +44,12 @@ describe('ethereum', () => {
   let loadParty
   let saveParty
   let loadNotification
+  let loadAttendeeList
+  let saveAttendeeList
 
   beforeAll(async () => {
     log = createLog({
-      LOG: 'info',
+      LOG: 'warn',
       APP_MODE: 'test'
     })
 
@@ -84,6 +87,52 @@ describe('ethereum', () => {
     loadParty = async address => nativeDb.doc(`party/${address}-${networkId}`).get().then(d => d.data())
 
     loadNotification = async id => nativeDb.doc(`notification/${id}`).get().then(d => d.data())
+
+    saveAttendeeList = async (address, list) => nativeDb.doc(`attendeeList/${address}-${networkId}`).set({
+      address,
+      attendees: list,
+    })
+    loadAttendeeList = async address => nativeDb.doc(`attendeeList/${address}-${networkId}`).get().then(d => d.data())
+  })
+
+  describe('notifyUser', () => {
+    it('throws if address is invalid', async () => {
+      try {
+        await db.notifyUser('invalid')
+      } catch (err) {
+        expect(err.message.toLowerCase()).toEqual(expect.stringContaining('invalid ethereum address'))
+      }
+    })
+
+    it('emits an event', async () => {
+      const userAddress = newAddr()
+
+      const spy = jest.fn()
+      db.on(NOTIFICATION, spy)
+
+      const id = await db.notifyUser(userAddress, 'type1', 'data1')
+
+      expect(spy).toHaveBeenCalledWith(id)
+    })
+
+    it('creates an entry', async () => {
+      const userAddress = newAddr()
+
+      const id = await db.notifyUser(userAddress, 'type1', 'data1')
+
+      const notification = await loadNotification(id)
+
+      expect(notification).toMatchObject({
+        user: userAddress,
+        type: 'type1',
+        data: 'data1',
+        seen: false, // if user has seen it
+        email_sent: false, // if system has processed it by sending an email to user
+      })
+
+      expect(notification.created).toBeDefined()
+      expect(notification.created).toEqual(notification.lastUpdated)
+    })
   })
 
   describe('getActiveParties', () => {
@@ -448,43 +497,110 @@ describe('ethereum', () => {
     })
   })
 
-  describe('notifyUser', () => {
-    it('throws if address is invalid', async () => {
-      try {
-        await db.notifyUser('invalid')
-      } catch (err) {
-        expect(err.message.toLowerCase()).toEqual(expect.stringContaining('invalid ethereum address'))
-      }
+  describe('getAttendees', () => {
+    it('returns empty if not found', async () => {
+      expect(await db.getAttendees('invalid')).toEqual([])
     })
 
-    it('emits an event', async () => {
-      const userAddress = newAddr()
+    it('returns list if found', async () => {
+      const list = [
+        { address: newAddr(), status: ATTENDEE_STATUS.REGISTERED },
+        { address: newAddr(), status: ATTENDEE_STATUS.ATTENDED },
+      ]
 
-      const spy = jest.fn()
-      db.on(NOTIFICATION, spy)
+      const party = newAddr()
 
-      const id = await db.notifyUser(userAddress, 'type1', 'data1')
+      await saveAttendeeList(party, list)
 
-      expect(spy).toHaveBeenCalledWith(id)
+      expect(await db.getAttendees(party)).toEqual(list)
     })
+  })
 
-    it('creates an entry', async () => {
-      const userAddress = newAddr()
+  describe('updateAttendeeStatus', () => {
+    let partyAddress
 
-      const id = await db.notifyUser(userAddress, 'type1', 'data1')
+    beforeEach(async () => {
+      partyAddress = newAddr()
 
-      const notification = await loadNotification(id)
-
-      expect(notification).toMatchObject({
-        user: userAddress,
-        type: 'type1',
-        data: 'data1',
-        seen: false, // if user has seen it
-        email_sent: false, // if system has processed it by sending an email to user
+      await saveParty(partyAddress, {
+        attendees: 0
       })
+    })
 
-      expect(notification.created).toBeDefined()
-      expect(notification.created).toEqual(notification.lastUpdated)
+    it('does nothing if party not found', async () => {
+      const invalidPartyAddress = newAddr()
+
+      await db.updateAttendeeStatus(invalidPartyAddress, newAddr(), ATTENDEE_STATUS.REGISTERED)
+
+      const doc = await loadAttendeeList(partyAddress)
+
+      expect(doc).toBeUndefined()
+    })
+
+    it('creates attendee list and updates party attendees count if it does not exist yet', async () => {
+      const attendeeAddress = newAddr()
+
+      await db.updateAttendeeStatus(partyAddress, attendeeAddress, ATTENDEE_STATUS.REGISTERED)
+
+      const doc = await loadAttendeeList(partyAddress)
+
+      expect(doc.attendees).toEqual([
+        { address: attendeeAddress, status: ATTENDEE_STATUS.REGISTERED }
+      ])
+      expect(doc.address).toEqual(partyAddress)
+      expect(doc.created).toBeDefined()
+      expect(doc.created).toEqual(doc.lastUpdated)
+
+      const party = await loadParty(partyAddress)
+
+      expect(party.attendees).toEqual(1)
+    })
+
+    it('appends to attendee list and updates party attendees count if attendee not already in list', async () => {
+      const originalList = [
+        { address: newAddr(), status: ATTENDEE_STATUS.ATTENDED }
+      ]
+
+      await saveAttendeeList(partyAddress, originalList)
+
+      const attendeeAddress = newAddr()
+
+      await db.updateAttendeeStatus(partyAddress, attendeeAddress, ATTENDEE_STATUS.REGISTERED)
+
+      const doc = await loadAttendeeList(partyAddress)
+
+      expect(doc.attendees).toEqual([
+        ...originalList,
+        { address: attendeeAddress, status: ATTENDEE_STATUS.REGISTERED },
+      ])
+
+      const party = await loadParty(partyAddress)
+
+      expect(party.attendees).toEqual(2)
+    })
+
+    it('updates attendee list entry if attendee already in list', async () => {
+      const attendeeAddress = newAddr()
+
+      const originalList = [
+        { address: attendeeAddress, status: ATTENDEE_STATUS.ATTENDED },
+        { address: newAddr(), status: ATTENDEE_STATUS.REGISTERED }
+      ]
+
+      await saveAttendeeList(partyAddress, originalList)
+
+      await db.updateAttendeeStatus(partyAddress, attendeeAddress, ATTENDEE_STATUS.WITHDRAWN_PAYOUT)
+
+      const doc = await loadAttendeeList(partyAddress)
+
+      expect(doc.attendees).toEqual([
+        { address: attendeeAddress, status: ATTENDEE_STATUS.WITHDRAWN_PAYOUT },
+        originalList[1],
+      ])
+
+      const party = await loadParty(partyAddress)
+
+      expect(party.attendees).toEqual(0) // no change from before!
     })
   })
 })
