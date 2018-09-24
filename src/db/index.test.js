@@ -603,4 +603,64 @@ describe('ethereum', () => {
       expect(party.attendees).toEqual(0) // no change from before!
     })
   })
+
+  describe('markPartyEnded', () => {
+    it('does nothing if party not found', async () => {
+      const invalidPartyAddress = newAddr()
+
+      await db.markPartyEnded(invalidPartyAddress)
+
+      const party = await loadParty(invalidPartyAddress)
+
+      expect(party).toBeUndefined()
+    })
+
+    it('marks party as ended if found', async () => {
+      const address = newAddr()
+
+      await saveParty(address, {
+        ended: false,
+        cancelled: false,
+      })
+
+      await db.markPartyEnded(address)
+
+      const party = await loadParty(address)
+
+      expect(party).toMatchObject({
+        ended: true,
+        cancelled: false,
+      })
+    })
+  })
+
+  describe('markPartyCancelled', () => {
+    it('does nothing if party not found', async () => {
+      const invalidPartyAddress = newAddr()
+
+      await db.markPartyCancelled(invalidPartyAddress)
+
+      const party = await loadParty(invalidPartyAddress)
+
+      expect(party).toBeUndefined()
+    })
+
+    it('marks party as ended if found', async () => {
+      const address = newAddr()
+
+      await saveParty(address, {
+        ended: false,
+        cancelled: false
+      })
+
+      await db.markPartyCancelled(address)
+
+      const party = await loadParty(address)
+
+      expect(party).toMatchObject({
+        ended: true,
+        cancelled: true,
+      })
+    })
+  })
 })
