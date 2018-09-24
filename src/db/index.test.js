@@ -46,6 +46,8 @@ describe('ethereum', () => {
   let loadNotification
   let loadAttendeeList
   let saveAttendeeList
+  let loadKey
+  let saveKey
 
   beforeAll(async () => {
     log = createLog({
@@ -93,6 +95,49 @@ describe('ethereum', () => {
       attendees: list,
     })
     loadAttendeeList = async address => nativeDb.doc(`attendeeList/${address}-${networkId}`).get().then(d => d.data())
+
+    saveKey = async (key, value) => nativeDb.doc(`setting/${key}-${networkId}`).set({ value })
+    loadKey = async key => nativeDb.doc(`setting/${key}-${networkId}`).get().then(d => d.data())
+  })
+
+  describe('getKey', () => {
+    it('returns nothing if key not set', async () => {
+      const id = `test-${Date.now()}`
+
+      expect(await db.getKey(id)).toBeUndefined()
+    })
+
+    it('returns value if key set', async () => {
+      const id = `test-${Date.now()}`
+
+      await saveKey(id, 'key value')
+
+      expect(await db.getKey(id)).toEqual('key value')
+    })
+  })
+
+  describe('setKey', () => {
+    it('sets key if not previously set', async () => {
+      const id = `test-${Date.now()}`
+
+      await db.setKey(id, 'new value')
+
+      const { value } = await loadKey(id)
+
+      expect(value).toEqual('new value')
+    })
+
+    it('overwrites previous value', async () => {
+      const id = `test-${Date.now()}`
+
+      await saveKey(id, 'old value')
+
+      await db.setKey(id, 'new value')
+
+      const { value } = await loadKey(id)
+
+      expect(value).toEqual('new value')
+    })
   })
 
   describe('notifyUser', () => {

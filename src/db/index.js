@@ -281,11 +281,11 @@ class Db extends EventEmitter {
   }
 
   async getKey (key) {
-    return (await this._nativeDb.doc(`settings/${this._id(key)}`).get()).get('value')
+    return (await this._nativeDb.doc(`setting/${this._id(key)}`).get()).get('value')
   }
 
   async setKey (key, value) {
-    return this._nativeDb.doc(`settings/${this._id(key)}`).set({ value })
+    return this._nativeDb.doc(`setting/${this._id(key)}`).set({ value })
   }
 
   async _getUser (address, mustExist = false) {

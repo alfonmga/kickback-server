@@ -3,9 +3,6 @@ const { BLOCK, NOTIFICATION } = require('../constants/events')
 module.exports = async ({ log: parentLog, eventQueue, db, blockChain }) => {
   const log = parentLog.create('processor')
 
-  // ongoing chain of blocks that need processing
-  const blocksToProcess = []
-
   const sendNotificationEmail = require('./tasks/sendNotificationEmail')({ log, db, blockChain, eventQueue })
   const processBlockLogs = require('./tasks/processBlockLogs')({ log, db, blockChain, eventQueue })
 
@@ -26,6 +23,9 @@ module.exports = async ({ log: parentLog, eventQueue, db, blockChain }) => {
   // now see what the latest block number is
   const latestBlockNumber = await blockChain.web3.eth.getBlockNumber()
 
+  // ongoing chain of blocks that need processing
+  const blocksToProcess = []
+
   if (latestBlockNumber >= lastBlockNumber) {
     log.info(`Will first process from blocks ${lastBlockNumber} to ${latestBlockNumber}`)
 
@@ -38,7 +38,7 @@ module.exports = async ({ log: parentLog, eventQueue, db, blockChain }) => {
     log.info('Block processor is fully up-to-date with blocks')
   }
 
-  // now listen for new block
+  // now listen for new blocks
   blockChain.on(BLOCK, ({ number }) => {
     blocksToProcess.push(number)
   })
