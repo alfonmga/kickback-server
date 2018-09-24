@@ -1,7 +1,6 @@
 import Ganache from 'ganache-core'
 import Web3 from 'web3'
-import { Deployer, events } from '@noblocknoparty/contracts'
-import { parseLog } from 'ethereum-event-logs'
+import { Deployer } from '@noblocknoparty/contracts'
 
 import createLog from '../log'
 import { BLOCK } from '../constants/events'
@@ -20,7 +19,7 @@ describe('ethereum', () => {
 
   beforeAll(async () => {
     log = createLog({
-      LOG: 'info',
+      LOG: 'warn',
       APP_MODE: 'test'
     })
 
@@ -62,6 +61,21 @@ describe('ethereum', () => {
     expect(ethereum).toBeDefined()
   })
 
+  it('can return a web3 instance', () => {
+    expect(ethereum.web3).toEqual(ethereum.httpWeb3)
+  })
+
+  it('can return network id', async () => {
+    expect(ethereum.networkId).toEqual(await ethereum.web3.eth.net.getId())
+  })
+
+  it('can return a deployer contract instance', async () => {
+    const instance = await ethereum.getDeployerContractInstance()
+
+    expect(instance.address).toEqual(deployer.address)
+    expect(instance.deploy).toBeDefined()
+  })
+
   it('will emit new blocks when they arrive', async () => {
     ethereum = await initEthereum({ config, log })
 
@@ -85,37 +99,5 @@ describe('ethereum', () => {
 
     // ensure the rest matches up
     expect(web3Block).toMatchObject(block)
-
-    // no logs
-    expect(spy.mock.calls[0][1]).toEqual([])
-  })
-
-  it('will emit logs alongside new block', async () => {
-    ethereum = await initEthereum({ config, log })
-
-    const spy = jest.fn()
-
-    ethereum.on(BLOCK, spy)
-
-    await deployer.deploy('test', '0x0', '0x0', '0x0', 'encKey')
-
-    expect(spy).toHaveBeenCalled()
-
-    // parsed events
-    const logs = spy.mock.calls[0][1]
-
-    expect(logs.length).toEqual(1)
-
-    const [ event ] = parseLog(logs, [ events.NewParty ])
-
-    expect(event).toMatchObject({
-      name: events.NewParty.name
-    })
-
-    expect(event.args.deployer).toEqualIgnoreCase(accounts[0])
-
-    const party = await ethereum.getPartyContract().at(event.args.deployedAddress)
-
-    expect(await party.name()).toEqual('test')
   })
 })
