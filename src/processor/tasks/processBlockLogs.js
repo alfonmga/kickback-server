@@ -25,59 +25,70 @@ module.exports = ({ log: parentLog, blockChain, db, eventQueue }) => {
       return m
     }, {})
 
+    const _process = (n, mapfn) => Promise.all((categorized[n] || []).map(mapfn))
+
     // load in new parties
-    if (categorized[contractEvents.NewParty.name]) {
-      await Promise.all(categorized[contractEvents.NewParty.name].map(async event => {
-        const instance = await PartyContract.at(event.args.deployedAddress)
+    await _process(contractEvents.NewParty.name, async event => {
+      const instance = await PartyContract.at(event.args.deployedAddress)
 
-        return db.addPartyFromContract(instance)
-      }))
-    }
+      return db.addPartyFromContract(instance)
+    })
 
-    // for parties which have ended
-    if (categorized[contractEvents.EndParty.name]) {
-      await Promise.all(categorized[contractEvents.EndParty.name].map(async event => {
-        const { address } = event
+    // mark parties which have ended
+    await _process(contractEvents.EndParty.name, async event => {
+      const { address } = event
 
-        return db.markPartyEnded(address)
-      }))
-    }
+      return db.markPartyEnded(address)
+    })
 
-    // for parties which have been cancelled
-    if (categorized[contractEvents.CancelParty.name]) {
-      await Promise.all(categorized[contractEvents.CancelParty.name].map(async event => {
-        const { address } = event
+    // mark parties which have been cancelled
+    await _process(contractEvents.CancelParty.name, async event => {
+      const { address } = event
 
-        return db.markPartyCancelled(address)
-      }))
-    }
+      return db.markPartyCancelled(address)
+    })
+
+    // new owner
+    await _process(contractEvents.ChangeOwner.name, async event => {
+      const { address, args: { newOwner } } = event
+
+      return db.setNewPartyOwner(address, newOwner)
+    })
+
+    // add admin
+    await _process(contractEvents.AddAdmin.name, async event => {
+      const { address, args: { grantee } } = event
+
+      return db.addPartyAdmin(address, grantee)
+    })
+
+    // remove admin
+    await _process(contractEvents.RemoveAdmin.name, async event => {
+      const { address, args: { grantee } } = event
+
+      return db.removePartyAdmin(address, grantee)
+    })
 
     // add new attendees
-    if (categorized[contractEvents.Register.name]) {
-      await Promise.all(categorized[contractEvents.Register.name].map(async event => {
-        const { address, args: { addr: attendee } } = event
+    await _process(contractEvents.Register.name, async event => {
+      const { address, args: { addr: attendee } } = event
 
-        return db.updateAttendeeStatus(address, attendee, ATTENDEE_STATUS.REGISTERED)
-      }))
-    }
+      return db.updateAttendeeStatus(address, attendee, ATTENDEE_STATUS.REGISTERED)
+    })
 
     // mark attendees as attended
-    if (categorized[contractEvents.Attend.name]) {
-      await Promise.all(categorized[contractEvents.Attend.name].map(async event => {
-        const { address, args: { addr: attendee } } = event
+    await _process(contractEvents.Attend.name, async event => {
+      const { address, args: { addr: attendee } } = event
 
-        return db.updateAttendeeStatus(address, attendee, ATTENDEE_STATUS.ATTENDED)
-      }))
-    }
+      return db.updateAttendeeStatus(address, attendee, ATTENDEE_STATUS.ATTENDED)
+    })
 
     // mark attendees as having withdrawn payout
-    if (categorized[contractEvents.Withdraw.name]) {
-      await Promise.all(categorized[contractEvents.Withdraw.name].map(async event => {
-        const { address, args: { addr: attendee } } = event
+    await _process(contractEvents.Withdraw.name, async event => {
+      const { address, args: { addr: attendee } } = event
 
-        return db.updateAttendeeStatus(address, attendee, ATTENDEE_STATUS.WITHDRAWN_PAYOUT)
-      }))
-    }
+      return db.updateAttendeeStatus(address, attendee, ATTENDEE_STATUS.WITHDRAWN_PAYOUT)
+    })
   }
 
   const _process = async blocksToProcess => (

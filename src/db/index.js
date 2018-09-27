@@ -22,7 +22,7 @@ class Db extends EventEmitter {
     const id = randStr(10)
 
     await this._nativeDb.doc(`notification/${id}`).set({
-      user: userAddress,
+      user: userAddress.toLowerCase(),
       type,
       data,
       created: Date.now(),
@@ -109,7 +109,7 @@ class Db extends EventEmitter {
     assertEthereumAddress(userAddress)
 
     const newProps = {
-      address: userAddress,
+      address: userAddress.toLowerCase(),
       login: {
         challenge: `Hello! please sign this friendly message using your private key to start using KickBack (timestamp: ${Date.now()})`,
         created: Date.now()
@@ -144,7 +144,17 @@ class Db extends EventEmitter {
     this._log.info(`Adding new party at: ${address}`)
 
     // fetch data from contract
-    const [ name, deposit, limitOfParticipants, coolingPeriod, ended ] = await Promise.all([
+    const [
+      owner,
+      admins,
+      name,
+      deposit,
+      limitOfParticipants,
+      coolingPeriod,
+      ended
+    ] = await Promise.all([
+      partyInstance.owner(),
+      partyInstance.getAdmins(),
       partyInstance.name(),
       partyInstance.deposit(),
       partyInstance.limitOfParticipants(),
@@ -153,7 +163,7 @@ class Db extends EventEmitter {
     ])
 
     await doc.set({
-      address,
+      address: address.toLowerCase(),
       network: this._blockChain.networkId,
       name,
       deposit: toHex(deposit),
@@ -161,6 +171,8 @@ class Db extends EventEmitter {
       attendees: 0,
       coolingPeriod: toHex(coolingPeriod),
       ended,
+      owner: owner.toLowerCase(),
+      admins: admins.map(a => a.toLowerCase()),
       created: Date.now(),
       lastUpdated: Date.now()
     })
@@ -200,6 +212,8 @@ class Db extends EventEmitter {
 
       return
     }
+
+    attendeeAddress = attendeeAddress.toLowerCase()
 
     this._log.info(`Update status of attendee ${attendeeAddress} at party ${partyAddress} to ${status}`)
 
@@ -253,6 +267,66 @@ class Db extends EventEmitter {
     }
   }
 
+  async setNewPartyOwner (address, newOwnerAddress) {
+    const doc = await this._getParty(address)
+
+    assertEthereumAddress(newOwnerAddress)
+
+    newOwnerAddress = newOwnerAddress.toLowerCase()
+
+    if (doc.exists) {
+      this._log.info(`Party has new owner: ${newOwnerAddress}`)
+
+      await doc.update({
+        owner: newOwnerAddress,
+      })
+    }
+  }
+
+  async addPartyAdmin (address, adminAddress) {
+    const doc = await this._getParty(address)
+
+    assertEthereumAddress(adminAddress)
+
+    adminAddress = adminAddress.toLowerCase()
+
+    if (doc.exists) {
+      const { admins } = doc.data
+
+      if (!admins.includes(adminAddress)) {
+        this._log.info(`Add party admin: ${adminAddress}`)
+
+        await doc.update({
+          admins: admins.concat(adminAddress)
+        })
+      }
+    }
+  }
+
+  async removePartyAdmin (address, adminAddress) {
+    const doc = await this._getParty(address)
+
+    assertEthereumAddress(adminAddress)
+
+    adminAddress = adminAddress.toLowerCase()
+
+    if (doc.exists) {
+      const { admins } = doc.data
+
+      const pos = admins.indexOf(adminAddress)
+
+      if (0 <= pos) {
+        this._log.info(`Remove party admin: ${adminAddress}`)
+
+        admins.splice(pos, 1)
+
+        await doc.update({
+          admins,
+        })
+      }
+    }
+  }
+
   async markPartyEnded (address) {
     const doc = await this._getParty(address)
 
@@ -289,7 +363,7 @@ class Db extends EventEmitter {
   }
 
   async _getUser (address, mustExist = false) {
-    const ref = await this._get(`user/${address}`)
+    const ref = await this._get(`user/${address.toLowerCase()}`)
 
     if (mustExist && !ref.exists) {
       throw new Error(`User not found: ${address}`)
@@ -299,11 +373,11 @@ class Db extends EventEmitter {
   }
 
   async _getParty (address) {
-    return this._get(`party/${this._id(address)}`)
+    return this._get(`party/${this._id(address.toLowerCase())}`)
   }
 
   async _getAttendeeList (address) {
-    return this._get(`attendeeList/${this._id(address)}`)
+    return this._get(`attendeeList/${this._id(address.toLowerCase())}`)
   }
 
   async _get (refPath) {

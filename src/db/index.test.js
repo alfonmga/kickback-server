@@ -178,6 +178,18 @@ describe('ethereum', () => {
       expect(notification.created).toBeDefined()
       expect(notification.created).toEqual(notification.lastUpdated)
     })
+
+    it('lowercases the user address', async () => {
+      const userAddress = newAddr().toUpperCase()
+
+      const id = await db.notifyUser(userAddress, 'type1', 'data1')
+
+      const notification = await loadNotification(id)
+
+      expect(notification).toMatchObject({
+        user: userAddress.toLowerCase(),
+      })
+    })
   })
 
   describe('getActiveParties', () => {
@@ -275,6 +287,8 @@ describe('ethereum', () => {
       party = await getContract(Conference, web3, { from: accounts[0] }).new(
         'test', toHex(toWei('0.2', 'ether')), 100, 2, 'test', accounts[0]
       )
+      // add additional admin
+      await party.grant([ accounts[2] ])
     })
 
     it('does nothing if party already exists in db', async () => {
@@ -305,6 +319,10 @@ describe('ethereum', () => {
         coolingPeriod: toHex(2),
         ended: false,
       })
+
+      expect(data.owner).toEqualIgnoreCase(accounts[0])
+      expect(data.admins.length).toEqual(1)
+      expect(data.admins[0]).toEqualIgnoreCase(accounts[2])
 
       expect(data.created).toBeGreaterThan(0)
       expect(data.created).toEqual(data.lastUpdated)
@@ -355,6 +373,19 @@ describe('ethereum', () => {
 
       expect(str).toEqual('challenge1')
     })
+
+    it('handles address in different case', async () => {
+      await updateUser(userAddress, {
+        login: {
+          challenge: 'challenge1',
+          created: Date.now()
+        }
+      })
+
+      const str = await db.getLoginChallenge(userAddress.toUpperCase())
+
+      expect(str).toEqual('challenge1')
+    })
   })
 
   describe('createLoginChallenge', () => {
@@ -399,6 +430,16 @@ describe('ethereum', () => {
       expect(data.lastUpdated).toEqual(data.created)
       expect(data.login.challenge).toEqual(str)
     })
+
+    it('lowercases the user address', async () => {
+      const addr = newAddr().toUpperCase()
+
+      await db.createLoginChallenge(addr)
+
+      const data = await loadUser(addr.toLowerCase())
+
+      expect(data.address).toEqual(addr.toLowerCase())
+    })
   })
 
   describe('getUserProfile', () => {
@@ -432,6 +473,12 @@ describe('ethereum', () => {
           }
         ]
       })
+    })
+
+    it('handles user address in different case', async () => {
+      const ret = await db.getUserProfile(userAddress.toUpperCase())
+
+      expect(ret.address).toEqual(userAddress)
     })
 
     it('returns email too if user is profile owner', async () => {
@@ -503,6 +550,18 @@ describe('ethereum', () => {
         social: {
           insta: '@test'
         }
+      })
+    })
+
+    it('handles user address in different case', async () => {
+      await db.updateUserProfile(userAddress.toUpperCase(), {
+        social: []
+      })
+
+      const data = await loadUser(userAddress)
+
+      expect(data).toMatchObject({
+        social: {}
       })
     })
 
@@ -708,4 +767,42 @@ describe('ethereum', () => {
       })
     })
   })
+
+  // describe('addAdmin', () => {
+  //   beforeEach(() => {
+  //     partyAddress = newAddr()
+  //
+  //     await saveParty(partyAddress, {
+  //
+  //     })
+  //   })
+  //
+  //   it('does nothing if party not found', async () => {
+  //     const invalidPartyAddress = newAddr()
+  //
+  //     await db.addAdmin(invalidPartyAddress)
+  //
+  //     const party = await loadParty(invalidPartyAddress)
+  //
+  //     expect(party).toBeUndefined()
+  //   })
+  //
+  //   it('marks party as ended if found', async () => {
+  //     const address = newAddr()
+  //
+  //     await saveParty(address, {
+  //       ended: false,
+  //       cancelled: false
+  //     })
+  //
+  //     await db.markPartyCancelled(address)
+  //
+  //     const party = await loadParty(address)
+  //
+  //     expect(party).toMatchObject({
+  //       ended: true,
+  //       cancelled: true,
+  //     })
+  //   })
+  // })
 })
