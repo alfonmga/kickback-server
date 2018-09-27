@@ -205,6 +205,8 @@ class Db extends EventEmitter {
   }
 
   async updateAttendeeStatus (partyAddress, attendeeAddress, status) {
+    partyAddress = partyAddress.toLowerCase()
+
     const party = await this._getParty(partyAddress)
 
     if (!party.exists) {
@@ -268,6 +270,8 @@ class Db extends EventEmitter {
   }
 
   async setNewPartyOwner (address, newOwnerAddress) {
+    address = address.toLowerCase()
+
     const doc = await this._getParty(address)
 
     assertEthereumAddress(newOwnerAddress)
@@ -275,7 +279,7 @@ class Db extends EventEmitter {
     newOwnerAddress = newOwnerAddress.toLowerCase()
 
     if (doc.exists) {
-      this._log.info(`Party has new owner: ${newOwnerAddress}`)
+      this._log.info(`Party ${address} has new owner: ${newOwnerAddress}`)
 
       await doc.update({
         owner: newOwnerAddress,
@@ -284,6 +288,8 @@ class Db extends EventEmitter {
   }
 
   async addPartyAdmin (address, adminAddress) {
+    address = address.toLowerCase()
+
     const doc = await this._getParty(address)
 
     assertEthereumAddress(adminAddress)
@@ -291,10 +297,10 @@ class Db extends EventEmitter {
     adminAddress = adminAddress.toLowerCase()
 
     if (doc.exists) {
-      const { admins } = doc.data
+      const { admins = [] } = doc.data
 
       if (!admins.includes(adminAddress)) {
-        this._log.info(`Add party admin: ${adminAddress}`)
+        this._log.info(`Party ${address} adds admin: ${adminAddress}`)
 
         await doc.update({
           admins: admins.concat(adminAddress)
@@ -304,6 +310,8 @@ class Db extends EventEmitter {
   }
 
   async removePartyAdmin (address, adminAddress) {
+    address = address.toLowerCase()
+
     const doc = await this._getParty(address)
 
     assertEthereumAddress(adminAddress)
@@ -311,12 +319,12 @@ class Db extends EventEmitter {
     adminAddress = adminAddress.toLowerCase()
 
     if (doc.exists) {
-      const { admins } = doc.data
+      const { admins = [] } = doc.data
 
       const pos = admins.indexOf(adminAddress)
 
       if (0 <= pos) {
-        this._log.info(`Remove party admin: ${adminAddress}`)
+        this._log.info(`Party ${address} removes admin: ${adminAddress}`)
 
         admins.splice(pos, 1)
 
@@ -328,10 +336,12 @@ class Db extends EventEmitter {
   }
 
   async markPartyEnded (address) {
+    address = address.toLowerCase()
+
     const doc = await this._getParty(address)
 
     if (doc.exists) {
-      this._log.info(`Party ended: ${address}`)
+      this._log.info(`Party ${address} ended`)
 
       await doc.update({
         ended: true,
@@ -341,10 +351,12 @@ class Db extends EventEmitter {
   }
 
   async markPartyCancelled (address) {
+    address = address.toLowerCase()
+
     const doc = await this._getParty(address)
 
     if (doc.exists) {
-      this._log.info(`Party cancelled: ${address}`)
+      this._log.info(`Party ${address} cancelled`)
 
       await doc.update({
         cancelled: true,

@@ -74,27 +74,27 @@ describe('ethereum', () => {
     db = await createDb({ config, log, blockChain })
     nativeDb = db._nativeDb
 
-    saveUser = async (address, data) => nativeDb.doc(`user/${address}`).set({
+    saveUser = async (address, data) => nativeDb.doc(`user/${address.toLowerCase()}`).set({
       address,
       ...data
     })
-    updateUser = async (address, data) => nativeDb.doc(`user/${address}`).update(data)
-    loadUser = async address => nativeDb.doc(`user/${address}`).get().then(d => d.data())
+    updateUser = async (address, data) => nativeDb.doc(`user/${address.toLowerCase()}`).update(data)
+    loadUser = async address => nativeDb.doc(`user/${address.toLowerCase()}`).get().then(d => d.data())
 
-    saveParty = async (address, data) => nativeDb.doc(`party/${address}-${networkId}`).set({
+    saveParty = async (address, data) => nativeDb.doc(`party/${address.toLowerCase()}-${networkId}`).set({
       address,
       network: networkId,
       ...data
     })
-    loadParty = async address => nativeDb.doc(`party/${address}-${networkId}`).get().then(d => d.data())
+    loadParty = async address => nativeDb.doc(`party/${address.toLowerCase()}-${networkId}`).get().then(d => d.data())
 
     loadNotification = async id => nativeDb.doc(`notification/${id}`).get().then(d => d.data())
 
-    saveAttendeeList = async (address, list) => nativeDb.doc(`attendeeList/${address}-${networkId}`).set({
+    saveAttendeeList = async (address, list) => nativeDb.doc(`attendeeList/${address.toLowerCase()}-${networkId}`).set({
       address,
       attendees: list,
     })
-    loadAttendeeList = async address => nativeDb.doc(`attendeeList/${address}-${networkId}`).get().then(d => d.data())
+    loadAttendeeList = async address => nativeDb.doc(`attendeeList/${address.toLowerCase()}-${networkId}`).get().then(d => d.data())
 
     saveKey = async (key, value) => nativeDb.doc(`setting/${key}-${networkId}`).set({ value })
     loadKey = async key => nativeDb.doc(`setting/${key}-${networkId}`).get().then(d => d.data())
@@ -311,6 +311,7 @@ describe('ethereum', () => {
       const data = await loadParty(party.address)
 
       expect(data).toMatchObject({
+        address: party.address.toLowerCase(),
         network: blockChain.networkId,
         name: 'test',
         deposit: toHex(toWei('0.2', 'ether')),
@@ -374,7 +375,7 @@ describe('ethereum', () => {
       expect(str).toEqual('challenge1')
     })
 
-    it('handles address in different case', async () => {
+    it('handles address in uppercase', async () => {
       await updateUser(userAddress, {
         login: {
           challenge: 'challenge1',
@@ -475,7 +476,7 @@ describe('ethereum', () => {
       })
     })
 
-    it('handles user address in different case', async () => {
+    it('handles user address in uppercase', async () => {
       const ret = await db.getUserProfile(userAddress.toUpperCase())
 
       expect(ret.address).toEqual(userAddress)
@@ -553,7 +554,7 @@ describe('ethereum', () => {
       })
     })
 
-    it('handles user address in different case', async () => {
+    it('handles user address in uppercase', async () => {
       await db.updateUserProfile(userAddress.toUpperCase(), {
         social: []
       })
@@ -618,6 +619,19 @@ describe('ethereum', () => {
 
       expect(await db.getAttendees(party)).toEqual(list)
     })
+
+    it('handles uppercase address', async () => {
+      const list = [
+        { address: newAddr(), status: ATTENDEE_STATUS.REGISTERED },
+        { address: newAddr(), status: ATTENDEE_STATUS.ATTENDED },
+      ]
+
+      const party = newAddr()
+
+      await saveAttendeeList(party, list)
+
+      expect(await db.getAttendees(party.toUpperCase())).toEqual(list)
+    })
   })
 
   describe('updateAttendeeStatus', () => {
@@ -645,6 +659,27 @@ describe('ethereum', () => {
       const attendeeAddress = newAddr()
 
       await db.updateAttendeeStatus(partyAddress, attendeeAddress, ATTENDEE_STATUS.REGISTERED)
+
+      const doc = await loadAttendeeList(partyAddress)
+
+      expect(doc.attendees).toEqual([
+        { address: attendeeAddress, status: ATTENDEE_STATUS.REGISTERED }
+      ])
+      expect(doc.address).toEqual(partyAddress)
+      expect(doc.created).toBeDefined()
+      expect(doc.created).toEqual(doc.lastUpdated)
+
+      const party = await loadParty(partyAddress)
+
+      expect(party.attendees).toEqual(1)
+    })
+
+    it('auto-lowercases all addresses', async () => {
+      const attendeeAddress = newAddr()
+
+      await db.updateAttendeeStatus(
+        partyAddress.toUpperCase(), attendeeAddress.toUpperCase(), ATTENDEE_STATUS.REGISTERED
+      )
 
       const doc = await loadAttendeeList(partyAddress)
 
@@ -736,6 +771,24 @@ describe('ethereum', () => {
         cancelled: false,
       })
     })
+
+    it('handles uppercase party address', async () => {
+      const address = newAddr()
+
+      await saveParty(address, {
+        ended: false,
+        cancelled: false,
+      })
+
+      await db.markPartyEnded(address.toUpperCase())
+
+      const party = await loadParty(address)
+
+      expect(party).toMatchObject({
+        ended: true,
+        cancelled: false,
+      })
+    })
   })
 
   describe('markPartyCancelled', () => {
@@ -766,43 +819,191 @@ describe('ethereum', () => {
         cancelled: true,
       })
     })
+
+    it('handles uppercase party address', async () => {
+      const address = newAddr()
+
+      await saveParty(address, {
+        ended: false,
+        cancelled: false
+      })
+
+      await db.markPartyCancelled(address.toUpperCase())
+
+      const party = await loadParty(address)
+
+      expect(party).toMatchObject({
+        ended: true,
+        cancelled: true,
+      })
+    })
   })
 
-  // describe('addAdmin', () => {
-  //   beforeEach(() => {
-  //     partyAddress = newAddr()
-  //
-  //     await saveParty(partyAddress, {
-  //
-  //     })
-  //   })
-  //
-  //   it('does nothing if party not found', async () => {
-  //     const invalidPartyAddress = newAddr()
-  //
-  //     await db.addAdmin(invalidPartyAddress)
-  //
-  //     const party = await loadParty(invalidPartyAddress)
-  //
-  //     expect(party).toBeUndefined()
-  //   })
-  //
-  //   it('marks party as ended if found', async () => {
-  //     const address = newAddr()
-  //
-  //     await saveParty(address, {
-  //       ended: false,
-  //       cancelled: false
-  //     })
-  //
-  //     await db.markPartyCancelled(address)
-  //
-  //     const party = await loadParty(address)
-  //
-  //     expect(party).toMatchObject({
-  //       ended: true,
-  //       cancelled: true,
-  //     })
-  //   })
-  // })
+  describe('addAdmin', () => {
+    let partyAddress
+
+    beforeEach(async () => {
+      partyAddress = newAddr()
+
+      await saveParty(partyAddress, {})
+    })
+
+    it('does nothing if party not found', async () => {
+      const invalidPartyAddress = newAddr()
+
+      await db.addPartyAdmin(invalidPartyAddress, newAddr())
+
+      const party = await loadParty(invalidPartyAddress)
+
+      expect(party).toBeUndefined()
+    })
+
+    it('adds admin', async () => {
+      const adminAddress = newAddr()
+
+      await db.addPartyAdmin(partyAddress, adminAddress)
+
+      const party = await loadParty(partyAddress)
+
+      expect(party).toMatchObject({
+        admins: [ adminAddress ],
+      })
+    })
+
+    it('checks to see if admin already added', async () => {
+      const adminAddress = newAddr()
+
+      await saveParty(partyAddress, {
+        admins: [ adminAddress ]
+      })
+
+      await db.addPartyAdmin(partyAddress, adminAddress)
+
+      const party = await loadParty(partyAddress)
+
+      expect(party).toMatchObject({
+        admins: [ adminAddress ],
+      })
+    })
+
+    it('auto-lowercases addresses', async () => {
+      const adminAddress = newAddr()
+
+      await saveParty(partyAddress, {
+        admins: [ adminAddress ]
+      })
+
+      await db.addPartyAdmin(partyAddress.toUpperCase(), adminAddress.toUpperCase())
+
+      const party = await loadParty(partyAddress)
+
+      expect(party).toMatchObject({
+        admins: [ adminAddress ],
+      })
+    })
+  })
+
+  describe('removeAdmin', () => {
+    let adminAddress
+    let adminAddress2
+    let partyAddress
+
+    beforeEach(async () => {
+      adminAddress = newAddr()
+      adminAddress2 = newAddr()
+      partyAddress = newAddr()
+
+      await saveParty(partyAddress, {
+        admins: [ adminAddress, adminAddress2 ]
+      })
+    })
+
+    it('does nothing if party not found', async () => {
+      const invalidPartyAddress = newAddr()
+
+      await db.removePartyAdmin(invalidPartyAddress, newAddr())
+
+      const party = await loadParty(invalidPartyAddress)
+
+      expect(party).toBeUndefined()
+    })
+
+    it('does nothing if admin not found', async () => {
+      await db.removePartyAdmin(partyAddress, newAddr())
+
+      const party = await loadParty(partyAddress)
+
+      expect(party).toMatchObject({
+        admins: [ adminAddress, adminAddress2 ],
+      })
+    })
+
+    it('removes admin if found', async () => {
+      await db.removePartyAdmin(partyAddress, adminAddress)
+
+      const party = await loadParty(partyAddress)
+
+      expect(party).toMatchObject({
+        admins: [ adminAddress2 ],
+      })
+    })
+
+    it('auto-lowercases addresses', async () => {
+      await db.removePartyAdmin(partyAddress.toUpperCase(), adminAddress.toUpperCase())
+
+      const party = await loadParty(partyAddress)
+
+      expect(party).toMatchObject({
+        admins: [ adminAddress2 ],
+      })
+    })
+  })
+
+  describe('setNewPartyOwner', () => {
+    let partyAddress
+    let ownerAddress
+
+    beforeEach(async () => {
+      partyAddress = newAddr()
+      ownerAddress = newAddr()
+
+      await saveParty(partyAddress, {
+        owner: ownerAddress
+      })
+    })
+
+    it('does nothing if party not found', async () => {
+      const invalidPartyAddress = newAddr()
+
+      await db.setNewPartyOwner(invalidPartyAddress, newAddr())
+
+      const party = await loadParty(invalidPartyAddress)
+
+      expect(party).toBeUndefined()
+    })
+
+    it('sets new owner', async () => {
+      const newOwner = newAddr()
+
+      await db.setNewPartyOwner(partyAddress, newOwner)
+
+      const party = await loadParty(partyAddress)
+
+      expect(party).toMatchObject({
+        owner: newOwner
+      })
+    })
+
+    it('auto-lowercases addresses', async () => {
+      const newOwner = newAddr()
+
+      await db.setNewPartyOwner(partyAddress.toUpperCase(), newOwner.toUpperCase())
+
+      const party = await loadParty(partyAddress)
+
+      expect(party).toMatchObject({
+        owner: newOwner
+      })
+    })
+  })
 })
