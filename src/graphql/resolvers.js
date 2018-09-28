@@ -55,10 +55,11 @@ module.exports = ({ db }) => {
   return {
     Query: {
       activeParties: async () => db.getActiveParties(),
+      party: async (_, { address }) => db.getParty(address),
       userProfile: async (_, { address }, { user }) => (
         db.getUserProfile(address, user && user.address === address)
       ),
-      attendees: async (_, { party }) => db.getAttendees(party),
+      attendees: async (_, { address }) => db.getAttendees(address),
     },
     Mutation: {
       createLoginChallenge: async (_, { address }) => db.createLoginChallenge(address),
@@ -69,15 +70,20 @@ module.exports = ({ db }) => {
 
         return db.updateUserProfile(address, profile)
       },
-      updatePartyMeta: async (_, { party, meta }, { user }) => {
-        await assertPartyRole(party, user, OWNER)
+      updatePartyMeta: async (_, { address: partyAddress, meta }, { user }) => {
+        await assertPartyRole(partyAddress, user, OWNER)
 
-        return db.updatePartyMeta(party, meta)
+        return db.updatePartyMeta(partyAddress, meta)
       },
-      updateAttendeeStatus: async (_, { party, attendee: { address, status } }, { user }) => {
-        await assertPartyRole(party, user, ADMIN)
+      updateAttendeeStatus: async (_, {
+        address: partyAddress,
+        attendee: { address, status }
+      }, { user }) => {
+        await assertPartyRole(partyAddress, user, ADMIN)
 
-        return db.updateAttendeeStatus(party, address, attendeeStatusToInternalStatus(status))
+        return db.updateAttendeeStatus(
+          partyAddress, address, attendeeStatusToInternalStatus(status)
+        )
       },
     },
     LoginChallenge: {

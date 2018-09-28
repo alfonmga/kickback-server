@@ -134,6 +134,12 @@ class Db extends EventEmitter {
     return newProps.login.challenge
   }
 
+  async getParty (address) {
+    const doc = await this._getParty(address)
+
+    return doc.exists ? doc.data : null
+  }
+
   async updatePartyMeta (address, data) {
     const doc = await this._getParty(address)
 

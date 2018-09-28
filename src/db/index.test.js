@@ -569,6 +569,44 @@ describe('ethereum', () => {
     })
   })
 
+  describe('getParty', () => {
+    let partyAddress
+
+    beforeEach(async () => {
+      partyAddress = newAddr()
+
+      await saveParty(partyAddress, {
+        dummy: false,
+        name: 'name1',
+        description: 'desc1',
+        date: 'date1',
+        location: 'location1',
+      })
+    })
+
+    it('returns null if not found', async () => {
+      const doc = await db.getParty(newAddr())
+
+      expect(doc).toEqual(null)
+    })
+
+    it('returns party if found', async () => {
+      const doc = await db.getParty(partyAddress)
+
+      expect(doc).toMatchObject({
+        name: 'name1'
+      })
+    })
+
+    it('auto-lowercases party address', async () => {
+      const doc = await db.getParty(partyAddress.toUpperCase())
+
+      expect(doc).toMatchObject({
+        name: 'name1'
+      })
+    })
+  })
+
   describe('updateUserProfile', () => {
     let userAddress
     let user

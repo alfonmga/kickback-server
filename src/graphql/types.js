@@ -71,19 +71,20 @@ type Attendee {
 
 input AttendeeInput {
   address: String!
-  status; AttendeeStatus!
+  status: AttendeeStatus!
 }
 
 type Query {
   activeParties: [Party]
-  attendees(party: String!): [Attendee]
+  party(address: String!): Party
+  attendees(address: String!): [Attendee]
   userProfile(address: String!): UserProfile
 }
 
 type Mutation {
   createLoginChallenge(address: String!): LoginChallenge
   updateUserProfile(profile: UserProfileInput!): UserProfile
-  updatePartyMeta(party: String!, meta: PartyMetaInput!): Party
-  updateAttendeeStatus(party: String!, attendeee: AttendeeInput!): Attendee
+  updatePartyMeta(address: String!, meta: PartyMetaInput!): Party
+  updateAttendeeStatus(address: String!, attendeee: AttendeeInput!): Attendee
 }
 `
