@@ -1,9 +1,12 @@
 import Ganache from 'ganache-core'
 import Web3 from 'web3'
 import delay from 'delay'
+import { events } from '@noblocknoparty/contracts'
 
 import createLog from '../../../log'
 import createProcessor from './'
+
+jest.mock('ethereum-event-logs', () => ({ parseLog: logs => logs }))
 
 describe('process block logs', () => {
   let accounts
@@ -14,6 +17,7 @@ describe('process block logs', () => {
   let eventQueue
   let processor
   let resolveTestModeTimer
+  let partyContract
 
   beforeAll(async () => {
     const provider = Ganache.provider({
@@ -38,29 +42,31 @@ describe('process block logs', () => {
       add: jest.fn(fn => fn())
     }
 
+    partyContract = {
+      at: jest.fn(async () => 'partyInstance')
+    }
+
     blockChain = {
       web3: {
         blockNumber: 0,
         logs: [],
         eth: {
-          getBlockNumber: jest.fn(() => Promise.resolve(blockChain.web3.blockNumber)),
-          getPastLogs: jest.fn(() => Promise.resolve(blockChain.web3.logs)),
+          getBlockNumber: jest.fn(async () => blockChain.web3.blockNumber),
+          getPastLogs: jest.fn(async () => blockChain.web3.logs),
         }
       },
-      getPartyContract: async () => ({
-        at: jest.fn(() => Promise.resolve('contractInstance'))
-      })
+      getPartyContract: async () => partyContract
     }
 
     db = {
-      updatePartyFromContract: jest.fn(() => Promise.resolve()),
-      markPartyEnded: jest.fn(() => Promise.resolve()),
-      markPartyCancelled: jest.fn(() => Promise.resolve()),
-      setNewPartyOwner: jest.fn(() => Promise.resolve()),
-      addPartyAdmin: jest.fn(() => Promise.resolve()),
-      removePartyAdmin: jest.fn(() => Promise.resolve()),
-      updateAttendeeStatus: jest.fn(() => Promise.resolve()),
-      setKey: jest.fn(() => Promise.resolve())
+      updatePartyFromContract: jest.fn(async () => {}),
+      markPartyEnded: jest.fn(async () => {}),
+      markPartyCancelled: jest.fn(async () => {}),
+      setNewPartyOwner: jest.fn(async () => {}),
+      addPartyAdmin: jest.fn(async () => {}),
+      removePartyAdmin: jest.fn(async () => {}),
+      updateAttendeeStatus: jest.fn(async () => {}),
+      setKey: jest.fn(async () => {})
     }
 
     let setTimeoutCallback = null
@@ -143,7 +149,7 @@ describe('process block logs', () => {
     config.env.BLOCK_CONFIRMATIONS = 1
     blockChain.web3.blockNumber = 4
 
-    const blockNumbers = [ 3 ]
+    const blockNumbers = [ 3, 4 ]
 
     processor = createProcessor({ config, log, blockChain, db, eventQueue })
 
@@ -153,7 +159,7 @@ describe('process block logs', () => {
 
     expect(blockChain.web3.eth.getPastLogs).toHaveBeenCalled()
     expect(db.setKey).toHaveBeenCalledWith('lastBlockNumber', 3)
-    expect(blockNumbers).toEqual([])
+    expect(blockNumbers).toEqual([ 4 ])
   })
 
   it('catches processing error and does not update db and list in such cases', async () => {
@@ -161,7 +167,7 @@ describe('process block logs', () => {
     blockChain.web3.blockNumber = 4
     blockChain.web3.logs = Promise.reject(new Error('test'))
 
-    const blockNumbers = [ 3 ]
+    const blockNumbers = [ 3, 4 ]
 
     processor = createProcessor({ config, log, blockChain, db, eventQueue })
 
@@ -171,6 +177,29 @@ describe('process block logs', () => {
 
     expect(blockChain.web3.eth.getPastLogs).toHaveBeenCalled()
     expect(db.setKey).not.toHaveBeenCalled()
-    expect(blockNumbers).toEqual([ 3 ])
+    expect(blockNumbers).toEqual([ 3, 4 ])
+  })
+
+  it('adds new parties to db', async () => {
+    blockChain.web3.blockNumber = 10
+    blockChain.web3.logs = Promise.resolve([
+      {
+        name: events.NewParty.name,
+        args: {
+          deployedAddress: '0x456',
+        },
+      }
+    ])
+
+    const blockNumbers = [ 1 ]
+
+    processor = createProcessor({ config, log, blockChain, db, eventQueue })
+
+    processor(blockNumbers)
+
+    await delay(100)
+
+    expect(partyContract.at).toHaveBeenCalledWith('0x456')
+    expect(db.updatePartyFromContract).toHaveBeenCalledWith('partyInstance')
   })
 })

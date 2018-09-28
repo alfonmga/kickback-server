@@ -1,6 +1,5 @@
 const { events: contractEvents } = require('@noblocknoparty/contracts')
 const { parseLog } = require('ethereum-event-logs')
-const delay = require('delay')
 const safeGet = require('lodash.get')
 
 const { ATTENDEE_STATUS } = require('../../../constants/status')
