@@ -1,17 +1,19 @@
 import Ganache from 'ganache-core'
 import Web3 from 'web3'
-import { Deployer } from '@noblocknoparty/contracts'
-import EventEmitter from 'eventemitter3'
+import delay from 'delay'
 
-import process from './'
+import createLog from '../../../log'
+import createProcessor from './'
 
 describe('process block logs', () => {
-  let deployer
+  let accounts
   let log
+  let config
   let blockChain
   let db
   let eventQueue
-  let lastBlockNumber
+  let processor
+  let resolveTestModeTimer
 
   beforeAll(async () => {
     const provider = Ganache.provider({
@@ -19,21 +21,11 @@ describe('process block logs', () => {
     })
 
     const { accounts: accountsMap } = provider.manager.state
-    const accounts = Object.keys(accountsMap)
+    accounts = Object.keys(accountsMap)
 
     const web3 = new Web3(provider)
 
     console.log(`Network id: ${await web3.eth.net.getId()}`)
-
-    const deployerContract = getContract(Deployer, web3, { from: accounts[0] })
-
-    deployer = await deployerContract.new()
-
-    console.log(`Deployer contract at: ${deployer.address}`)
-
-    blockChain = new EventEmitter()
-    blockChain.web3 = web3
-    blockChain.getDeployerContractInstance = async () => deployer
   })
 
   beforeEach(async () => {
@@ -42,56 +34,143 @@ describe('process block logs', () => {
       APP_MODE: 'test'
     })
 
-    db = new EventEmitter()
-    lastBlockNumber = null
-    db.getKey = async () => lastBlockNumber
+    eventQueue = {
+      add: jest.fn(fn => fn())
+    }
 
-    eventQueue = {}
+    blockChain = {
+      web3: {
+        blockNumber: 0,
+        logs: [],
+        eth: {
+          getBlockNumber: jest.fn(() => Promise.resolve(blockChain.web3.blockNumber)),
+          getPastLogs: jest.fn(() => Promise.resolve(blockChain.web3.logs)),
+        }
+      },
+      getPartyContract: async () => ({
+        at: jest.fn(() => Promise.resolve('contractInstance'))
+      })
+    }
+
+    db = {
+      updatePartyFromContract: jest.fn(() => Promise.resolve()),
+      markPartyEnded: jest.fn(() => Promise.resolve()),
+      markPartyCancelled: jest.fn(() => Promise.resolve()),
+      setNewPartyOwner: jest.fn(() => Promise.resolve()),
+      addPartyAdmin: jest.fn(() => Promise.resolve()),
+      removePartyAdmin: jest.fn(() => Promise.resolve()),
+      updateAttendeeStatus: jest.fn(() => Promise.resolve()),
+      setKey: jest.fn(() => Promise.resolve())
+    }
+
+    let setTimeoutCallback = null
+    resolveTestModeTimer = () => {
+      if (setTimeoutCallback) {
+        const fn = setTimeoutCallback
+        setTimeoutCallback = null
+        fn()
+      }
+    }
+
+    config = {
+      env: {
+        BLOCK_CONFIRMATIONS: 6
+      },
+      testMode: {
+        setTimeout: fn => {
+          setTimeoutCallback = fn
+        }
+      }
+    }
   })
 
-  it('handles db notification events', async () => {
-    await createProcessor({ log, eventQueue, db, blockChain })
+  it('does nothing if no blocks to process', async () => {
+    processor = createProcessor({ config, log, blockChain, db, eventQueue })
 
-    const setupArgs = getNotificationSetupArgs()
-    expect(setupArgs.db).toEqual(db)
-    expect(setupArgs.blockChain).toEqual(blockChain)
-    expect(setupArgs.eventQueue).toEqual(eventQueue)
+    await processor([])
 
-    db.emit(NOTIFICATION, 123)
+    expect(eventQueue.add.mock.calls.length).toEqual(1)
+    expect(eventQueue.add.mock.calls[0][1]).toEqual({ name: 'processBlockLogs' })
 
-    expect(getNotificationArgs()).toEqual(123)
+    expect(blockChain.web3.eth.getBlockNumber).not.toHaveBeenCalled()
   })
 
-  it('starts processing blocks', async () => {
-    await createProcessor({ log, eventQueue, db, blockChain })
+  it('waits some time before trying to process a block again', async () => {
+    processor = createProcessor({ config, log, blockChain, db, eventQueue })
 
-    const setupArgs = getBPSetupArgs()
-    expect(setupArgs.db).toEqual(db)
-    expect(setupArgs.blockChain).toEqual(blockChain)
-    expect(setupArgs.eventQueue).toEqual(eventQueue)
+    const blockNumbers = []
 
-    const blockList = getBPArgs()
-    expect(blockList).toEqual([])
+    processor(blockNumbers)
 
-    blockChain.emit(BLOCK, { number: 123 })
-    blockChain.emit(BLOCK, { number: 456 })
+    await delay(100)
 
-    expect(blockList).toEqual([ 123, 456 ])
+    expect(blockChain.web3.eth.getBlockNumber).not.toHaveBeenCalled()
+
+    blockNumbers.push(0)
+
+    resolveTestModeTimer()
+
+    await delay(100)
+
+    expect(blockChain.web3.eth.getBlockNumber).toHaveBeenCalled()
   })
 
-  it('catches up on missed blocks', async () => {
-    lastBlockNumber = -5
+  it('needs enough confirmations before processing a block', async () => {
+    config.env.BLOCK_CONFIRMATIONS = 3
+    blockChain.web3.blockNumber = 3
 
-    await createProcessor({ log, eventQueue, db, blockChain })
+    const blockNumbers = [ 1 ]
 
-    const blockList = getBPArgs()
-    expect(blockList).toEqual([
-      -4,
-      -3,
-      -2,
-      -1,
-      0,
-      1
-    ])
+    processor = createProcessor({ config, log, blockChain, db, eventQueue })
+
+    processor(blockNumbers)
+
+    await delay(100)
+
+    expect(blockChain.web3.eth.getPastLogs).not.toHaveBeenCalled()
+
+    // now we've got enough confirmations!
+    blockChain.web3.blockNumber = 4
+
+    resolveTestModeTimer()
+
+    await delay(100)
+
+    expect(blockChain.web3.eth.getPastLogs).toHaveBeenCalled()
+  })
+
+  it('processes a block and updates db and list', async () => {
+    config.env.BLOCK_CONFIRMATIONS = 1
+    blockChain.web3.blockNumber = 4
+
+    const blockNumbers = [ 3 ]
+
+    processor = createProcessor({ config, log, blockChain, db, eventQueue })
+
+    processor(blockNumbers)
+
+    await delay(100)
+
+    expect(blockChain.web3.eth.getPastLogs).toHaveBeenCalled()
+    expect(db.setKey).toHaveBeenCalledWith('lastBlockNumber', 3)
+    expect(blockNumbers).toEqual([])
+  })
+
+  it('catches processing error and does not update db and list in such cases', async () => {
+    config.env.BLOCK_CONFIRMATIONS = 1
+    blockChain.web3.blockNumber = 4
+    blockChain.web3.logs = Promise.reject(new Error('test'))
+
+    const blockNumbers = [ 3 ]
+
+    processor = createProcessor({ config, log, blockChain, db, eventQueue })
+
+    processor(blockNumbers)
+
+    await delay(100)
+
+    expect(blockChain.web3.eth.getPastLogs).toHaveBeenCalled()
+    expect(db.setKey).not.toHaveBeenCalled()
+    expect(blockNumbers).toEqual([ 3 ])
   })
 })

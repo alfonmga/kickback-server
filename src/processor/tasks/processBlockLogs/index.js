@@ -1,12 +1,14 @@
 const { events: contractEvents } = require('@noblocknoparty/contracts')
 const { parseLog } = require('ethereum-event-logs')
+const delay = require('delay')
+const safeGet = require('lodash.get')
 
 const { ATTENDEE_STATUS } = require('../../../constants/status')
 
 const eventAbis = Object.values(contractEvents)
 
 
-module.exports = ({ log: parentLog, blockChain, db, eventQueue }) => {
+module.exports = ({ config, log: parentLog, blockChain, db, eventQueue }) => {
   const log = parentLog.create('processBlockLogs')
 
   const _processLogs = async logs => {
@@ -96,36 +98,45 @@ module.exports = ({ log: parentLog, blockChain, db, eventQueue }) => {
       // get next block to process
       const blockNumber = blocksToProcess[0]
 
-      if (blockNumber) {
-        log.info(`Processing block ${blockNumber} ...`)
+      let processed = false
 
-        // get its logs
-        const logs = await blockChain.web3.eth.getPastLogs({
-          fromBlock: blockNumber,
-          toBlock: blockNumber
-        })
-
+      if (0 <= blockNumber) {
         try {
-          // process them
-          await _processLogs(logs)
-          // update the db
-          await db.setKey('lastBlockNumber', blockNumber)
-          // remove block from list so that we don't do it again
-          blockNumber.shift()
+          const currentBlockNumber = await blockChain.web3.eth.getBlockNumber()
+
+          if (currentBlockNumber - blockNumber < config.env.BLOCK_CONFIRMATIONS) {
+            log.debug(`Not enough confirmations to process block ${blockNumber}, need ${config.BLOCK_CONFIRMATIONS}`)
+          } else {
+            log.info(`Processing block ${blockNumber} ...`)
+
+            // get its logs
+            const logs = await blockChain.web3.eth.getPastLogs({
+              fromBlock: blockNumber,
+              toBlock: blockNumber
+            })
+
+            // process them
+            await _processLogs(logs)
+            // update the db
+            await db.setKey('lastBlockNumber', blockNumber)
+            // remove block from list so that we don't do it again
+            blocksToProcess.shift()
+            // we processed something!
+            processed = true
+          }
         } catch (err) {
           log.error(`Error processing block ${blockNumber}`, err)
         }
       }
 
-      // onto the next one...
-      if (blocksToProcess.length) {
-        // if some left to process then go straight away
+      // if no processing to do or processing failed then wait for a bit
+      if (processed && blocksToProcess.length) {
         _process(blocksToProcess)
       } else {
-        // if none left to process then wait 20 seconds
-        log.debug(`No blocks to process, sleeping for a bit ...`)
-
-        setTimeout(() => _process(blocksToProcess), 10000)
+        safeGet(config, 'testMode.setTimeout', setTimeout)(
+          () => _process(blocksToProcess),
+          5000
+        )
       }
     }, { name: 'processBlockLogs' })
   )

@@ -8,6 +8,7 @@ const env = envalid.cleanEnv(process.env, {
   NODE_ENV: str({ default: 'development' }),
   APP_MODE: str({ default: 'local' }),
   LOG: str({ default: 'debug' }),
+  BLOCK_CONFIRMATIONS: num({ default: 6 }),
   DEPLOYER_CONTRACT_ADDRESS: str({ default: '' }),
   DEPLOYER_TRANSACTION: str({ default: '' }),
   CONFIG_ENCRYPTION_IV: str(),

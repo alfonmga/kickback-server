@@ -45,6 +45,7 @@ jest.mock('./tasks/processBlockLogs', () => {
 })
 
 describe('blockchain processor', () => {
+  let config
   let deployer
   let log
   let blockChain
@@ -76,6 +77,8 @@ describe('blockchain processor', () => {
   })
 
   beforeEach(async () => {
+    config = {}
+
     log = createLog({
       LOG: 'info',
       APP_MODE: 'test'
@@ -89,7 +92,7 @@ describe('blockchain processor', () => {
   })
 
   it('handles db notification events', async () => {
-    await createProcessor({ log, eventQueue, db, blockChain })
+    await createProcessor({ config, log, eventQueue, db, blockChain })
 
     const setupArgs = getNotificationSetupArgs()
     expect(setupArgs.db).toEqual(db)
@@ -102,9 +105,10 @@ describe('blockchain processor', () => {
   })
 
   it('starts processing blocks', async () => {
-    await createProcessor({ log, eventQueue, db, blockChain })
+    await createProcessor({ config, log, eventQueue, db, blockChain })
 
     const setupArgs = getBPSetupArgs()
+    expect(setupArgs.config).toEqual(config)
     expect(setupArgs.db).toEqual(db)
     expect(setupArgs.blockChain).toEqual(blockChain)
     expect(setupArgs.eventQueue).toEqual(eventQueue)
@@ -121,7 +125,7 @@ describe('blockchain processor', () => {
   it('catches up on missed blocks', async () => {
     lastBlockNumber = -5
 
-    await createProcessor({ log, eventQueue, db, blockChain })
+    await createProcessor({ config, log, eventQueue, db, blockChain })
 
     const blockList = getBPArgs()
     expect(blockList).toEqual([
