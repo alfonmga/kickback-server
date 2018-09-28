@@ -1,6 +1,7 @@
 const { events: contractEvents } = require('@noblocknoparty/contracts')
 const { parseLog } = require('ethereum-event-logs')
 const safeGet = require('lodash.get')
+const { toHex } = require('web3-utils')
 
 const { ATTENDEE_STATUS } = require('../../../constants/status')
 
@@ -103,15 +104,15 @@ module.exports = ({ config, log: parentLog, blockChain, db, eventQueue }) => {
         try {
           const currentBlockNumber = await blockChain.web3.eth.getBlockNumber()
 
-          if (currentBlockNumber - blockNumber < config.env.BLOCK_CONFIRMATIONS) {
+          if (currentBlockNumber - blockNumber < config.BLOCK_CONFIRMATIONS) {
             log.debug(`Not enough confirmations to process block ${blockNumber}, need ${config.BLOCK_CONFIRMATIONS}`)
           } else {
             log.info(`Processing block ${blockNumber} ...`)
 
             // get its logs
             const logs = await blockChain.web3.eth.getPastLogs({
-              fromBlock: blockNumber,
-              toBlock: blockNumber
+              fromBlock: toHex(blockNumber),
+              toBlock: toHex(blockNumber)
             })
 
             // process them
@@ -134,7 +135,7 @@ module.exports = ({ config, log: parentLog, blockChain, db, eventQueue }) => {
       } else {
         safeGet(config, 'testMode.setTimeout', setTimeout)(
           () => _process(blocksToProcess),
-          5000
+          10000 /* 10 seconds */
         )
       }
     }, { name: 'processBlockLogs' })

@@ -90,9 +90,9 @@ class Manager extends EventEmitter {
     const contract = getContract(Deployer, this.wsWeb3)
     let instance
 
-    if (this._config.env.DEPLOYER_CONTRACT_ADDRESS) {
-      instance = await contract.at(this._config.env.DEPLOYER_CONTRACT_ADDRESS)
-      instance.transactionHash = this._config.env.DEPLOYER_TRANSACTION
+    if (this._config.DEPLOYER_CONTRACT_ADDRESS) {
+      instance = await contract.at(this._config.DEPLOYER_CONTRACT_ADDRESS)
+      instance.transactionHash = this._config.DEPLOYER_TRANSACTION
     } else {
       instance = await contract.deployed()
       instance.transactionHash = contract.networks[`${this._networkId}`].transactionHash

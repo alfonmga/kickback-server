@@ -80,9 +80,7 @@ describe('process block logs', () => {
     }
 
     config = {
-      env: {
-        BLOCK_CONFIRMATIONS: 6
-      },
+      BLOCK_CONFIRMATIONS: 6,
       testMode: {
         setTimeout: fn => {
           setTimeoutCallback = fn
@@ -123,7 +121,7 @@ describe('process block logs', () => {
   })
 
   it('needs enough confirmations before processing a block', async () => {
-    config.env.BLOCK_CONFIRMATIONS = 3
+    config.BLOCK_CONFIRMATIONS = 3
     blockChain.web3.blockNumber = 3
 
     const blockNumbers = [ 1 ]
@@ -147,7 +145,7 @@ describe('process block logs', () => {
   })
 
   it('processes a block and updates db and list', async () => {
-    config.env.BLOCK_CONFIRMATIONS = 1
+    config.BLOCK_CONFIRMATIONS = 1
     blockChain.web3.blockNumber = 4
 
     const blockNumbers = [ 3, 4 ]
@@ -164,7 +162,7 @@ describe('process block logs', () => {
   })
 
   it('catches processing error and does not update db and list in such cases', async () => {
-    config.env.BLOCK_CONFIRMATIONS = 1
+    config.BLOCK_CONFIRMATIONS = 1
     blockChain.web3.blockNumber = 4
     blockChain.web3.logs = Promise.reject(new Error('test'))
 

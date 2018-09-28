@@ -21,6 +21,6 @@ const env = envalid.cleanEnv(process.env, {
 const modeConfig = require(`./${env.APP_MODE}`)
 
 module.exports = {
-  env,
+  ...env,
   ...modeConfig,
 }

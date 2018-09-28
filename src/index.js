@@ -13,11 +13,11 @@ const setupGraphQLEndpoint = require('./graphql')
 const setupAuthMiddleware = require('./auth')
 
 const init = async () => {
-  const app = next({ dev: config.env.isDev })
+  const app = next({ dev: config.NODE_ENV === 'development' })
 
   const handle = app.getRequestHandler()
 
-  log.info(`App mode: ${config.env.APP_MODE}`)
+  log.info(`App mode: ${config.APP_MODE}`)
 
   const blockChain = await connectEthereum({ config, log })
   const db = await connectDb({ config, log, blockChain })
@@ -51,12 +51,12 @@ const init = async () => {
 
   server.use(router.routes())
 
-  server.listen(config.env.PORT, err => {
+  server.listen(config.PORT, err => {
     if (err) {
       throw err
     }
 
-    log.info(`> Ready on http://localhost:${config.env.PORT}`)
+    log.info(`> Ready on http://localhost:${config.PORT}`)
   })
 }
 
