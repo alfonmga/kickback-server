@@ -60,6 +60,8 @@ class Manager extends EventEmitter {
 
     this._log.info(`Connected to '${this._config.NETWORK}' network, id: ${await this.httpWeb3.eth.net.getId()}`)
 
+    this._networkId = await this.httpWeb3.eth.net.getId()
+
     this.deployer = await this.getDeployerContractInstance()
 
     this._log.info(`Deployer address: ${this.deployer.address}`)
@@ -67,8 +69,6 @@ class Manager extends EventEmitter {
     this.blockWatcher = await this._subscribe(
       'newBlockHeaders', this._onBlockHeader.bind(this)
     )
-
-    this._networkId = await this.httpWeb3.eth.net.getId()
   }
 
   async shutdown () {
@@ -95,7 +95,7 @@ class Manager extends EventEmitter {
       instance.transactionHash = this._config.env.DEPLOYER_TRANSACTION
     } else {
       instance = await contract.deployed()
-      instance.transactionHash = contract.networks[this._networkId].transactionHash
+      instance.transactionHash = contract.networks[`${this._networkId}`].transactionHash
     }
 
     return instance
