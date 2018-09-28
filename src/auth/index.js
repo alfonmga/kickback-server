@@ -23,6 +23,9 @@ module.exports = ({ db, server, blockChain }) => {
         if (signerKey.toLowerCase() !== address.toLowerCase()) {
           throw new Error(`Signer key mismatch: ${address}`)
         }
+
+        // lowercase the address
+        ctx.state.user.address = ctx.state.user.address.toLowerCase()
       } catch (err) {
         // user isn't authenticated :/
         ctx.state.user = ''

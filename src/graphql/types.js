@@ -11,6 +11,13 @@ type Party {
   lastUpdated: String
 }
 
+input PartyMetaInput {
+  name: String
+  description: String
+  date: String
+  location: String
+}
+
 type SocialMedia {
   type: String!
   value: String!

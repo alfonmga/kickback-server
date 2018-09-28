@@ -4,6 +4,7 @@ module.exports = {
     DEPLOYED: 'deployed',
   },
   ATTENDEE_STATUS: {
+    UNKNOWN: 'unknown',
     REGISTERED: 'registered',
     SHOWED_UP: 'showed_up',
     ATTENDED: 'attended',
