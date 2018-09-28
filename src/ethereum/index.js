@@ -95,6 +95,7 @@ class Manager extends EventEmitter {
       instance.transactionHash = this._config.env.DEPLOYER_TRANSACTION
     } else {
       instance = await contract.deployed()
+      instance.transactionHash = contract.networks[this._networkId].transactionHash
     }
 
     return instance
