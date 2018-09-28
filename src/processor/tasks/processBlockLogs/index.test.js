@@ -3,6 +3,7 @@ import Web3 from 'web3'
 import delay from 'delay'
 import { events } from '@noblocknoparty/contracts'
 
+import { ATTENDEE_STATUS } from '../../../constants/status'
 import createLog from '../../../log'
 import createProcessor from './'
 
@@ -223,7 +224,7 @@ describe('process block logs', () => {
     expect(db.markPartyEnded).toHaveBeenCalledWith('0x456')
   })
 
-  it('mark parties which have been cancelled', async () => {
+  it('marks parties which have been cancelled', async () => {
     blockChain.web3.blockNumber = 10
     blockChain.web3.logs = Promise.resolve([
       {
@@ -241,5 +242,191 @@ describe('process block logs', () => {
     await delay(100)
 
     expect(db.markPartyCancelled).toHaveBeenCalledWith('0x456')
+  })
+
+  it('sets new party owners', async () => {
+    blockChain.web3.blockNumber = 10
+    blockChain.web3.logs = Promise.resolve([
+      {
+        name: events.ChangeOwner.name,
+        address: '0x456',
+        args: {
+          newOwner: '0x123'
+        }
+      }
+    ])
+
+    const blockNumbers = [ 1 ]
+
+    processor = createProcessor({ config, log, blockChain, db, eventQueue })
+
+    processor(blockNumbers)
+
+    await delay(100)
+
+    expect(db.setNewPartyOwner).toHaveBeenCalledWith('0x456', '0x123')
+  })
+
+  it('adds party admins', async () => {
+    blockChain.web3.blockNumber = 10
+    blockChain.web3.logs = Promise.resolve([
+      {
+        name: events.AddAdmin.name,
+        address: '0x456',
+        args: {
+          grantee: '0x123'
+        }
+      }
+    ])
+
+    const blockNumbers = [ 1 ]
+
+    processor = createProcessor({ config, log, blockChain, db, eventQueue })
+
+    processor(blockNumbers)
+
+    await delay(100)
+
+    expect(db.addPartyAdmin).toHaveBeenCalledWith('0x456', '0x123')
+  })
+
+  it('removes party admins', async () => {
+    blockChain.web3.blockNumber = 10
+    blockChain.web3.logs = Promise.resolve([
+      {
+        name: events.RemoveAdmin.name,
+        address: '0x456',
+        args: {
+          grantee: '0x123'
+        }
+      }
+    ])
+
+    const blockNumbers = [ 1 ]
+
+    processor = createProcessor({ config, log, blockChain, db, eventQueue })
+
+    processor(blockNumbers)
+
+    await delay(100)
+
+    expect(db.removePartyAdmin).toHaveBeenCalledWith('0x456', '0x123')
+  })
+
+  it('adds party attendees', async () => {
+    blockChain.web3.blockNumber = 10
+    blockChain.web3.logs = Promise.resolve([
+      {
+        name: events.Register.name,
+        address: '0x456',
+        args: {
+          addr: '0x123'
+        }
+      }
+    ])
+
+    const blockNumbers = [ 1 ]
+
+    processor = createProcessor({ config, log, blockChain, db, eventQueue })
+
+    processor(blockNumbers)
+
+    await delay(100)
+
+    expect(db.updateAttendeeStatus).toHaveBeenCalledWith('0x456', '0x123', ATTENDEE_STATUS.REGISTERED)
+  })
+
+  it('marks attendees as attended', async () => {
+    blockChain.web3.blockNumber = 10
+    blockChain.web3.logs = Promise.resolve([
+      {
+        name: events.Attend.name,
+        address: '0x456',
+        args: {
+          addr: '0x123'
+        }
+      }
+    ])
+
+    const blockNumbers = [ 1 ]
+
+    processor = createProcessor({ config, log, blockChain, db, eventQueue })
+
+    processor(blockNumbers)
+
+    await delay(100)
+
+    expect(db.updateAttendeeStatus).toHaveBeenCalledWith('0x456', '0x123', ATTENDEE_STATUS.ATTENDED)
+  })
+
+  it('marks attendees as withdrawn payout', async () => {
+    blockChain.web3.blockNumber = 10
+    blockChain.web3.logs = Promise.resolve([
+      {
+        name: events.Withdraw.name,
+        address: '0x456',
+        args: {
+          addr: '0x123'
+        }
+      }
+    ])
+
+    const blockNumbers = [ 1 ]
+
+    processor = createProcessor({ config, log, blockChain, db, eventQueue })
+
+    processor(blockNumbers)
+
+    await delay(100)
+
+    expect(db.updateAttendeeStatus).toHaveBeenCalledWith('0x456', '0x123', ATTENDEE_STATUS.WITHDRAWN_PAYOUT)
+  })
+
+  it('if processing passes then the block number gets updated in db', async () => {
+    blockChain.web3.blockNumber = 10
+    blockChain.web3.logs = Promise.resolve([
+      {
+        name: events.Withdraw.name,
+        address: '0x456',
+        args: {
+          addr: '0x123'
+        }
+      }
+    ])
+
+    const blockNumbers = [ 2 ]
+
+    processor = createProcessor({ config, log, blockChain, db, eventQueue })
+
+    processor(blockNumbers)
+
+    await delay(100)
+
+    expect(db.setKey).toHaveBeenCalledWith('lastBlockNumber', 2)
+  })
+
+  it('if any processing fails then the whole thing fails', async () => {
+    blockChain.web3.blockNumber = 10
+    blockChain.web3.logs = Promise.resolve([
+      {
+        name: events.Withdraw.name,
+        address: '0x456',
+        args: {
+          addr: '0x123'
+        }
+      }
+    ])
+
+    db.updateAttendeeStatus = jest.fn(() => Promise.reject(new Error('test')))
+
+    const blockNumbers = [ 1 ]
+
+    processor = createProcessor({ config, log, blockChain, db, eventQueue })
+
+    processor(blockNumbers)
+
+    await delay(100)
+
+    expect(db.setKey).not.toHaveBeenCalled()
   })
 })
