@@ -180,7 +180,7 @@ describe('process block logs', () => {
     expect(blockNumbers).toEqual([ 3, 4 ])
   })
 
-  it('adds new parties to db', async () => {
+  it('adds new parties', async () => {
     blockChain.web3.blockNumber = 10
     blockChain.web3.logs = Promise.resolve([
       {
@@ -201,5 +201,45 @@ describe('process block logs', () => {
 
     expect(partyContract.at).toHaveBeenCalledWith('0x456')
     expect(db.updatePartyFromContract).toHaveBeenCalledWith('partyInstance')
+  })
+
+  it('mark parties which have ended', async () => {
+    blockChain.web3.blockNumber = 10
+    blockChain.web3.logs = Promise.resolve([
+      {
+        name: events.EndParty.name,
+        address: '0x456'
+      }
+    ])
+
+    const blockNumbers = [ 1 ]
+
+    processor = createProcessor({ config, log, blockChain, db, eventQueue })
+
+    processor(blockNumbers)
+
+    await delay(100)
+
+    expect(db.markPartyEnded).toHaveBeenCalledWith('0x456')
+  })
+
+  it('mark parties which have been cancelled', async () => {
+    blockChain.web3.blockNumber = 10
+    blockChain.web3.logs = Promise.resolve([
+      {
+        name: events.CancelParty.name,
+        address: '0x456'
+      }
+    ])
+
+    const blockNumbers = [ 1 ]
+
+    processor = createProcessor({ config, log, blockChain, db, eventQueue })
+
+    processor(blockNumbers)
+
+    await delay(100)
+
+    expect(db.markPartyCancelled).toHaveBeenCalledWith('0x456')
   })
 })
