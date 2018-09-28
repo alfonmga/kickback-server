@@ -7,7 +7,7 @@ const { NOTIFICATION } = require('../constants/events')
 const { SESSION_VALIDITY_SECONDS } = require('../constants/session')
 const { VERIFY_EMAIL } = require('../constants/notifications')
 const { PARTY_STATUS } = require('../constants/status')
-const { assertEthereumAddress, assertEmail } = require('../utils/validators')
+const { assertEthereumAddress, assertEmail, hasAcceptedLegalAgreements } = require('../utils/validators')
 
 class Db extends EventEmitter {
   constructor ({ nativeDb, log, blockChain }) {
@@ -38,7 +38,7 @@ class Db extends EventEmitter {
   }
 
   async updateUserProfile (userAddress, profile) {
-    const { email: newEmail, social } = profile
+    const { email: newEmail, social, legal } = profile
 
     assertEthereumAddress(userAddress)
 
@@ -56,8 +56,14 @@ class Db extends EventEmitter {
       this.notifyUser(userAddress, VERIFY_EMAIL, { email: newEmail })
     }
 
+    // legal agreements are a must have
+    if (!hasAcceptedLegalAgreements(doc.data.legal) && !hasAcceptedLegalAgreements(legal)) {
+      throw new Error('Legal agreements not found')
+    }
+
     await doc.update({
       email,
+      legal: legal || doc.data.legal,
       social: (social || []).reduce((m, { type, value }) => {
         m[type] = value
         return m
@@ -74,11 +80,12 @@ class Db extends EventEmitter {
       return {}
     }
 
-    const { address, social, created, email } = doc.data
+    const { address, social, legal, created, email } = doc.data
 
     return {
       address,
       created,
+      legal,
       social: Object.keys(social || {}).reduce((m, type) => {
         m.push({
           type,

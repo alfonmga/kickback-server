@@ -21,16 +21,28 @@ input SocialMediaInput {
   value: String!
 }
 
+type LegalAgreement {
+  type: String!
+  accepted: Int!
+}
+
+input LegalAgreementInput {
+  type: String!
+  accepted: Int!
+}
+
 type UserProfile {
   created: Int!
   address: String!
   avatarUrl: String
   social: [SocialMedia]
+  legal: [LegalAgreement]
 }
 
 input UserProfileInput {
   email: String
   social: [SocialMediaInput]
+  legal: [LegalAgreementInput]
 }
 
 type LoginChallenge {

@@ -1,7 +1,7 @@
 const { events: contractEvents } = require('@noblocknoparty/contracts')
 const { parseLog } = require('ethereum-event-logs')
 
-const { ATTENDEE_STATUS } = require('../../constants/status')
+const { ATTENDEE_STATUS } = require('../../../constants/status')
 
 const eventAbis = Object.values(contractEvents)
 
@@ -25,66 +25,66 @@ module.exports = ({ log: parentLog, blockChain, db, eventQueue }) => {
       return m
     }, {})
 
-    const _process = (n, mapfn) => Promise.all((categorized[n] || []).map(mapfn))
+    const _processEvent = (n, mapfn) => Promise.all((categorized[n] || []).map(mapfn))
 
     // new parties
-    await _process(contractEvents.NewParty.name, async event => {
+    await _processEvent(contractEvents.NewParty.name, async event => {
       const instance = await PartyContract.at(event.args.deployedAddress)
 
       return db.updatePartyFromContract(instance)
     })
 
     // mark parties which have ended
-    await _process(contractEvents.EndParty.name, async event => {
+    await _processEvent(contractEvents.EndParty.name, async event => {
       const { address } = event
 
       return db.markPartyEnded(address)
     })
 
     // mark parties which have been cancelled
-    await _process(contractEvents.CancelParty.name, async event => {
+    await _processEvent(contractEvents.CancelParty.name, async event => {
       const { address } = event
 
       return db.markPartyCancelled(address)
     })
 
     // new owner
-    await _process(contractEvents.ChangeOwner.name, async event => {
+    await _processEvent(contractEvents.ChangeOwner.name, async event => {
       const { address, args: { newOwner } } = event
 
       return db.setNewPartyOwner(address, newOwner)
     })
 
     // add admin
-    await _process(contractEvents.AddAdmin.name, async event => {
+    await _processEvent(contractEvents.AddAdmin.name, async event => {
       const { address, args: { grantee } } = event
 
       return db.addPartyAdmin(address, grantee)
     })
 
     // remove admin
-    await _process(contractEvents.RemoveAdmin.name, async event => {
+    await _processEvent(contractEvents.RemoveAdmin.name, async event => {
       const { address, args: { grantee } } = event
 
       return db.removePartyAdmin(address, grantee)
     })
 
     // add new attendees
-    await _process(contractEvents.Register.name, async event => {
+    await _processEvent(contractEvents.Register.name, async event => {
       const { address, args: { addr: attendee } } = event
 
       return db.updateAttendeeStatus(address, attendee, ATTENDEE_STATUS.REGISTERED)
     })
 
     // mark attendees as attended
-    await _process(contractEvents.Attend.name, async event => {
+    await _processEvent(contractEvents.Attend.name, async event => {
       const { address, args: { addr: attendee } } = event
 
       return db.updateAttendeeStatus(address, attendee, ATTENDEE_STATUS.ATTENDED)
     })
 
     // mark attendees as having withdrawn payout
-    await _process(contractEvents.Withdraw.name, async event => {
+    await _processEvent(contractEvents.Withdraw.name, async event => {
       const { address, args: { addr: attendee } } = event
 
       return db.updateAttendeeStatus(address, attendee, ATTENDEE_STATUS.WITHDRAWN_PAYOUT)

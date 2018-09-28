@@ -11,6 +11,7 @@ import { NOTIFICATION } from '../constants/events'
 import { ATTENDEE_STATUS, PARTY_STATUS } from '../constants/status'
 import { VERIFY_EMAIL } from '../constants/notifications'
 import { SESSION_VALIDITY_SECONDS } from '../constants/session'
+import { TERMS_AND_CONDITIONS, PRIVACY_POLICY } from '../constants/legal'
 
 const wallet = EthHdWallet.fromMnemonic(generateMnemonic())
 
@@ -331,7 +332,9 @@ describe('ethereum', () => {
     })
 
     it('handles uppercase party address', async () => {
-      await db.updatePartyMeta(partyAddress.toUpperCase(), { name: 'test3' })
+      await db.updatePartyMeta(partyAddress.toUpperCase(), {
+        name: 'test3',
+      })
 
       const party = await loadParty(partyAddress)
 
@@ -569,12 +572,24 @@ describe('ethereum', () => {
   describe('updateUserProfile', () => {
     let userAddress
     let user
+    let legal
 
     beforeEach(async () => {
       userAddress = newAddr()
 
       await saveUser(userAddress, createUserProfile(userAddress))
       user = await loadUser(userAddress)
+
+      legal = [
+        {
+          type: TERMS_AND_CONDITIONS,
+          accepted: Date.now(),
+        },
+        {
+          type: PRIVACY_POLICY,
+          accepted: Date.now(),
+        },
+      ]
     })
 
     it('throws if address is invalid', async () => {
@@ -607,8 +622,44 @@ describe('ethereum', () => {
       }
     })
 
+    it('throws if legal agreements not found', async () => {
+      try {
+        await db.updateUserProfile(userAddress, {
+          email: 'test-newemail@kickback.events'
+        })
+      } catch (err) {
+        expect(err.message.toLowerCase()).toEqual(expect.stringContaining('legal agreements not found'))
+      }
+    })
+
+    it('throws if legal agreements are incomplete', async () => {
+      try {
+        await db.updateUserProfile(userAddress, {
+          email: 'test-newemail@kickback.events',
+          legal: [ legal[0] ],
+        })
+      } catch (err) {
+        expect(err.message.toLowerCase()).toEqual(expect.stringContaining('legal agreements not found'))
+      }
+    })
+
+    it('does not throw if legal agreement already in db', async () => {
+      await db.updateUserProfile(userAddress, {
+        legal
+      })
+
+      await db.updateUserProfile(userAddress, {})
+
+      const data = await loadUser(userAddress)
+
+      expect(data).toMatchObject({
+        legal
+      })
+    })
+
     it('updates social links', async () => {
       await db.updateUserProfile(userAddress, {
+        legal,
         social: [
           {
             type: 'insta',
@@ -631,7 +682,8 @@ describe('ethereum', () => {
 
     it('handles user address in uppercase', async () => {
       await db.updateUserProfile(userAddress.toUpperCase(), {
-        social: []
+        social: [],
+        legal
       })
 
       const data = await loadUser(userAddress)
@@ -643,7 +695,8 @@ describe('ethereum', () => {
 
     it('ignores same email being passed in', async () => {
       await db.updateUserProfile(userAddress, {
-        email: user.email.verified
+        email: user.email.verified,
+        legal
       })
 
       const data = await loadUser(userAddress)
@@ -653,7 +706,8 @@ describe('ethereum', () => {
 
     it('handles case when new email given', async () => {
       await db.updateUserProfile(userAddress, {
-        email: 'test-newemail@kickback.events'
+        email: 'test-newemail@kickback.events',
+        legal
       })
 
       const data = await loadUser(userAddress)
@@ -664,11 +718,12 @@ describe('ethereum', () => {
       })
     })
 
-    it('creates notificationw when new email given', async () => {
+    it('creates notification when new email given', async () => {
       db.notifyUser = jest.fn(() => Promise.resolve())
 
       await db.updateUserProfile(userAddress, {
-        email: 'test-newemail@kickback.events'
+        email: 'test-newemail@kickback.events',
+        legal,
       })
 
       expect(db.notifyUser).toHaveBeenCalledWith(userAddress, VERIFY_EMAIL, {
