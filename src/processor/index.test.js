@@ -8,6 +8,7 @@ import createLog from '../log'
 import { BLOCK, NOTIFICATION } from '../constants/events'
 import createProcessor from './'
 import { getNotificationSetupArgs, getNotificationArgs } from './tasks/sendNotificationEmail'
+import { getBPSetupArgs, getBPArgs } from './tasks/processBlockLogs'
 
 jest.mock('./tasks/sendNotificationEmail', () => {
   let setupArgs
@@ -26,7 +27,22 @@ jest.mock('./tasks/sendNotificationEmail', () => {
   return fn
 })
 
-jest.mock('./tasks/processBlockLogs', () => () => () => {})
+jest.mock('./tasks/processBlockLogs', () => {
+  let setupArgs
+  let blockArgs
+
+  const fn = args => {
+    setupArgs = args
+    return blockList => {
+      blockArgs = blockList
+    }
+  }
+
+  fn.getBPSetupArgs = () => setupArgs
+  fn.getBPArgs = () => blockArgs
+
+  return fn
+})
 
 describe('blockchain processor', () => {
   let deployer
@@ -34,6 +50,7 @@ describe('blockchain processor', () => {
   let blockChain
   let db
   let eventQueue
+  let lastBlockNumber
 
   beforeAll(async () => {
     const provider = Ganache.provider({
@@ -65,14 +82,15 @@ describe('blockchain processor', () => {
     })
 
     db = new EventEmitter()
-    db.getKey = async () => null
+    lastBlockNumber = null
+    db.getKey = async () => lastBlockNumber
 
     eventQueue = {}
-
-    await createProcessor({ log, eventQueue, db, blockChain })
   })
 
-  it('handles db notification events', () => {
+  it('handles db notification events', async () => {
+    await createProcessor({ log, eventQueue, db, blockChain })
+
     const setupArgs = getNotificationSetupArgs()
     expect(setupArgs.db).toEqual(db)
     expect(setupArgs.blockChain).toEqual(blockChain)
@@ -81,5 +99,38 @@ describe('blockchain processor', () => {
     db.emit(NOTIFICATION, 123)
 
     expect(getNotificationArgs()).toEqual(123)
+  })
+
+  it('starts processing blocks', async () => {
+    await createProcessor({ log, eventQueue, db, blockChain })
+
+    const setupArgs = getBPSetupArgs()
+    expect(setupArgs.db).toEqual(db)
+    expect(setupArgs.blockChain).toEqual(blockChain)
+    expect(setupArgs.eventQueue).toEqual(eventQueue)
+
+    const blockList = getBPArgs()
+    expect(blockList).toEqual([])
+
+    blockChain.emit(BLOCK, { number: 123 })
+    blockChain.emit(BLOCK, { number: 456 })
+
+    expect(blockList).toEqual([ 123, 456 ])
+  })
+
+  it('catches up on missed blocks', async () => {
+    lastBlockNumber = -5
+
+    await createProcessor({ log, eventQueue, db, blockChain })
+
+    const blockList = getBPArgs()
+    expect(blockList).toEqual([
+      -4,
+      -3,
+      -2,
+      -1,
+      0,
+      1
+    ])
   })
 })
