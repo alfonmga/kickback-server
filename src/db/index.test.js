@@ -8,7 +8,7 @@ import createLog from '../log'
 import createDb from './'
 import { getContract } from '../utils/contracts'
 import { NOTIFICATION } from '../constants/events'
-import { STATUS as ATTENDEE_STATUS } from '../constants/attendees'
+import { ATTENDEE_STATUS, PARTY_STATUS } from '../constants/status'
 import { VERIFY_EMAIL } from '../constants/notifications'
 import { SESSION_VALIDITY_SECONDS } from '../constants/session'
 
@@ -101,7 +101,7 @@ describe('ethereum', () => {
   })
 
   describe('getKey', () => {
-    it('returns nothing if key not set', async () => {
+    it('returns undefined if key not set', async () => {
       const id = `test-${Date.now()}`
 
       expect(await db.getKey(id)).toBeUndefined()
@@ -122,9 +122,11 @@ describe('ethereum', () => {
 
       await db.setKey(id, 'new value')
 
-      const { value } = await loadKey(id)
+      const { value, created, lastUpdated } = await loadKey(id)
 
       expect(value).toEqual('new value')
+      expect(created).toBeGreaterThan(0)
+      expect(lastUpdated).toEqual(created)
     })
 
     it('overwrites previous value', async () => {
@@ -134,9 +136,10 @@ describe('ethereum', () => {
 
       await db.setKey(id, 'new value')
 
-      const { value } = await loadKey(id)
+      const { value, lastUpdated } = await loadKey(id)
 
       expect(value).toEqual('new value')
+      expect(lastUpdated).toBeGreaterThan(0)
     })
   })
 
@@ -280,7 +283,65 @@ describe('ethereum', () => {
     })
   })
 
-  describe('addPartyFromContract', () => {
+  describe('updatePartyMeta', () => {
+    let partyAddress
+
+    beforeEach(async () => {
+      partyAddress = newAddr()
+
+      await saveParty(partyAddress, {
+        dummy: false,
+        name: 'name1',
+        description: 'desc1',
+        date: 'date1',
+        location: 'location1',
+      })
+    })
+
+    it('does nothing if party not found', async () => {
+      const invalidPartyAddress = newAddr()
+
+      await db.updatePartyMeta(invalidPartyAddress, {})
+
+      const party = await loadParty(invalidPartyAddress)
+
+      expect(party).toBeUndefined()
+    })
+
+    it('updates party meta if found', async () => {
+      await db.updatePartyMeta(partyAddress, {
+        name: 'name2',
+        description: 'desc2',
+        date: 'date2',
+        location: 'location2',
+        dummy: true,
+      })
+
+      const party = await loadParty(partyAddress)
+
+      expect(party).toMatchObject({
+        name: 'name2',
+        description: 'desc2',
+        date: 'date2',
+        location: 'location2',
+        dummy: false,
+      })
+
+      expect(party.lastUpdated).toBeGreaterThan(0)
+    })
+
+    it('handles uppercase party address', async () => {
+      await db.updatePartyMeta(partyAddress.toUpperCase(), { name: 'test3' })
+
+      const party = await loadParty(partyAddress)
+
+      expect(party).toMatchObject({
+        name: 'test3',
+      })
+    })
+  })
+
+  describe('updatePartyFromContract', () => {
     let party
 
     beforeEach(async () => {
@@ -291,22 +352,8 @@ describe('ethereum', () => {
       await party.grant([ accounts[2] ])
     })
 
-    it('does nothing if party already exists in db', async () => {
-      await saveParty(party.address, {
-        dummy: true
-      })
-
-      const unchanged = await loadParty(party.address)
-
-      await db.addPartyFromContract(party)
-
-      const data = await loadParty(party.address)
-
-      expect(data).toEqual(unchanged)
-    })
-
-    it('adds new party to db', async () => {
-      await db.addPartyFromContract(party)
+    it('creates new party in db', async () => {
+      await db.updatePartyFromContract(party)
 
       const data = await loadParty(party.address)
 
@@ -319,6 +366,7 @@ describe('ethereum', () => {
         attendees: 0,
         coolingPeriod: toHex(2),
         ended: false,
+        status: PARTY_STATUS.DEPLOYED
       })
 
       expect(data.owner).toEqualIgnoreCase(accounts[0])
@@ -327,6 +375,34 @@ describe('ethereum', () => {
 
       expect(data.created).toBeGreaterThan(0)
       expect(data.created).toEqual(data.lastUpdated)
+    })
+
+    it('updates party if it already exists in db', async () => {
+      await saveParty(party.address, {
+        dummy: true
+      })
+
+      await db.updatePartyFromContract(party)
+
+      const data = await loadParty(party.address)
+
+      expect(data).toMatchObject({
+        dummy: true,
+      })
+
+      expect(data).toMatchObject({
+        address: party.address.toLowerCase(),
+        network: blockChain.networkId,
+        name: 'test',
+        deposit: toHex(toWei('0.2', 'ether')),
+        attendeeLimit: 100,
+        attendees: 0,
+        coolingPeriod: toHex(2),
+        ended: false,
+        status: PARTY_STATUS.DEPLOYED
+      })
+
+      expect(data.lastUpdated).toBeGreaterThan(0)
     })
   })
 
@@ -414,10 +490,9 @@ describe('ethereum', () => {
 
       const data = await loadUser(userAddress)
 
-      expect(data.created).toEqual(user.created)
       expect(data.lastUpdated).toBeGreaterThan(user.lastUpdated)
       expect(data.login.challenge).toEqual(str)
-      expect(data.login.created).toEqual(data.lastUpdated)
+      expect(data.login.created).toBeGreaterThan(0)
     })
 
     it('creates new user', async () => {
@@ -427,7 +502,7 @@ describe('ethereum', () => {
 
       const data = await loadUser(addr)
 
-      expect(data.created).toBeDefined()
+      expect(data.created).toBeGreaterThan(0)
       expect(data.lastUpdated).toEqual(data.created)
       expect(data.login.challenge).toEqual(str)
     })
@@ -770,6 +845,8 @@ describe('ethereum', () => {
         ended: true,
         cancelled: false,
       })
+
+      expect(party.lastUpdated).toBeGreaterThan(0)
     })
 
     it('handles uppercase party address', async () => {
@@ -818,6 +895,8 @@ describe('ethereum', () => {
         ended: true,
         cancelled: true,
       })
+
+      expect(party.lastUpdated).toBeGreaterThan(0)
     })
 
     it('handles uppercase party address', async () => {
@@ -868,6 +947,8 @@ describe('ethereum', () => {
       expect(party).toMatchObject({
         admins: [ adminAddress ],
       })
+
+      expect(party.lastUpdated).toBeGreaterThan(0)
     })
 
     it('checks to see if admin already added', async () => {
@@ -946,6 +1027,8 @@ describe('ethereum', () => {
       expect(party).toMatchObject({
         admins: [ adminAddress2 ],
       })
+
+      expect(party.lastUpdated).toBeGreaterThan(0)
     })
 
     it('auto-lowercases addresses', async () => {
@@ -992,6 +1075,8 @@ describe('ethereum', () => {
       expect(party).toMatchObject({
         owner: newOwner
       })
+
+      expect(party.lastUpdated).toBeGreaterThan(0)
     })
 
     it('auto-lowercases addresses', async () => {

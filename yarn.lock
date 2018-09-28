@@ -4438,9 +4438,9 @@ ethereum-common@^0.0.18:
   version "0.0.18"
   resolved "https://registry.yarnpkg.com/ethereum-common/-/ethereum-common-0.0.18.tgz#2fdc3576f232903358976eb39da783213ff9523f"
 
-ethereum-event-logs@^1.1.0:
-  version "1.1.0"
-  resolved "https://registry.yarnpkg.com/ethereum-event-logs/-/ethereum-event-logs-1.1.0.tgz#5d2f8331a58424b98302de506253e5a1d8955a4f"
+ethereum-event-logs@^1.2.0:
+  version "1.2.0"
+  resolved "https://registry.yarnpkg.com/ethereum-event-logs/-/ethereum-event-logs-1.2.0.tgz#0d4f710b0203fd800b1f956aebe17dce0f9a87bf"
   dependencies:
     ethereumjs-abi "^0.6.5"
     ethers "^3.0.27"

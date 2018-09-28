@@ -50,6 +50,11 @@ type Attendee {
   status: AttendeeStatus!
 }
 
+input AttendeeInput {
+  address: String!
+  status; AttendeeStatus!
+}
+
 type Query {
   activeParties: [Party]
   attendees(party: String!): [Attendee]
@@ -59,5 +64,7 @@ type Query {
 type Mutation {
   createLoginChallenge(address: String!): LoginChallenge
   updateUserProfile(profile: UserProfileInput!): UserProfile
+  updatePartyMeta(party: String!, meta: PartyMetaInput!): Party
+  updateAttendeeStatus(party: String!, attendeee: AttendeeInput!): Attendee
 }
 `

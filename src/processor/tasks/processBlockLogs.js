@@ -1,7 +1,7 @@
 const { events: contractEvents } = require('@noblocknoparty/contracts')
 const { parseLog } = require('ethereum-event-logs')
 
-const { STATUS: ATTENDEE_STATUS } = require('../../constants/attendees')
+const { ATTENDEE_STATUS } = require('../../constants/status')
 
 const eventAbis = Object.values(contractEvents)
 
@@ -27,11 +27,11 @@ module.exports = ({ log: parentLog, blockChain, db, eventQueue }) => {
 
     const _process = (n, mapfn) => Promise.all((categorized[n] || []).map(mapfn))
 
-    // load in new parties
+    // new parties
     await _process(contractEvents.NewParty.name, async event => {
       const instance = await PartyContract.at(event.args.deployedAddress)
 
-      return db.addPartyFromContract(instance)
+      return db.updatePartyFromContract(instance)
     })
 
     // mark parties which have ended

@@ -6,6 +6,7 @@ const setupFirestoreDb = require('./firestore')
 const { NOTIFICATION } = require('../constants/events')
 const { SESSION_VALIDITY_SECONDS } = require('../constants/session')
 const { VERIFY_EMAIL } = require('../constants/notifications')
+const { PARTY_STATUS } = require('../constants/status')
 const { assertEthereumAddress, assertEmail } = require('../utils/validators')
 
 class Db extends EventEmitter {
@@ -21,14 +22,14 @@ class Db extends EventEmitter {
 
     const id = randStr(10)
 
-    await this._nativeDb.doc(`notification/${id}`).set({
+    const doc = await this._get(`notification/${id}`)
+
+    await doc.set({
       user: userAddress.toLowerCase(),
       type,
       data,
-      created: Date.now(),
-      lastUpdated: Date.now(),
-      seen: false, // if user has seen it
       email_sent: false, // if system has processed it by sending an email to user
+      seen: false,
     })
 
     this.emit(NOTIFICATION, id)
@@ -56,7 +57,6 @@ class Db extends EventEmitter {
     }
 
     await doc.update({
-      lastUpdated: Date.now(),
       email,
       social: (social || []).reduce((m, { type, value }) => {
         m[type] = value
@@ -114,14 +114,11 @@ class Db extends EventEmitter {
         challenge: `Hello! please sign this friendly message using your private key to start using KickBack (timestamp: ${Date.now()})`,
         created: Date.now()
       },
-      lastUpdated: Date.now()
     }
 
     const doc = await this._getUser(userAddress)
 
     if (!doc.exists) {
-      newProps.created = newProps.lastUpdated
-
       await doc.set(newProps)
     } else {
       await doc.update(newProps)
@@ -130,18 +127,32 @@ class Db extends EventEmitter {
     return newProps.login.challenge
   }
 
-  async addPartyFromContract (partyInstance) {
-    const { address } = partyInstance
-
+  async updatePartyMeta (address, data) {
     const doc = await this._getParty(address)
 
-    if (doc.exists) {
-      this._log.warn(`Party already exists in db: ${address}`)
+    if (!doc.exists) {
+      this._log.warn(`Party not found: ${address}`)
 
       return
     }
 
-    this._log.info(`Adding new party at: ${address}`)
+
+    const meta = [ 'name', 'description', 'date', 'location' ].reduce((m, k) => {
+      if (undefined !== data[k]) {
+        m[k] = data[k]
+      }
+      return m
+    }, {})
+
+    this._log.info(`Party ${address} meta update: ${meta}`)
+
+    await doc.update(meta)
+  }
+
+  async updatePartyFromContract (partyInstance) {
+    const { address } = partyInstance
+
+    const doc = await this._getParty(address)
 
     // fetch data from contract
     const [
@@ -162,7 +173,7 @@ class Db extends EventEmitter {
       partyInstance.ended()
     ])
 
-    await doc.set({
+    const props = {
       address: address.toLowerCase(),
       network: this._blockChain.networkId,
       name,
@@ -173,11 +184,18 @@ class Db extends EventEmitter {
       ended,
       owner: owner.toLowerCase(),
       admins: admins.map(a => a.toLowerCase()),
-      created: Date.now(),
-      lastUpdated: Date.now()
-    })
+      status: PARTY_STATUS.DEPLOYED,
+    }
 
-    this._log.info(`New party added to db: ${doc.id}`)
+    if (doc.exists) {
+      this._log.info(`Updating party from contract: ${address}`)
+
+      await doc.update(props)
+    } else {
+      this._log.info(`Insertng new party from contract: ${address}`)
+
+      await doc.set(props)
+    }
   }
 
   async getActiveParties ({ stalestFirst = false, limit = undefined } = {}) {
@@ -232,12 +250,9 @@ class Db extends EventEmitter {
         attendeeList.set({
           address: partyAddress,
           attendees: [ newEntry ],
-          created: Date.now(),
-          lastUpdated: Date.now(),
         }),
         party.update({
           attendees: 1,
-          lastUpdated: Date.now()
         })
       ])
     } else {
@@ -250,7 +265,6 @@ class Db extends EventEmitter {
 
         await attendeeList.update({
           attendees: list,
-          lastUpdated: Date.now(),
         })
       }
       // if attendee not found
@@ -258,11 +272,9 @@ class Db extends EventEmitter {
         await Promise.all([
           attendeeList.update({
             attendees: list.concat(newEntry),
-            lastUpdated: Date.now(),
           }),
           party.update({
             attendees: list.length + 1,
-            lastUpdated: Date.now()
           })
         ])
       }
@@ -345,7 +357,6 @@ class Db extends EventEmitter {
 
       await doc.update({
         ended: true,
-        lastUpdated: Date.now()
       })
     }
   }
@@ -361,17 +372,20 @@ class Db extends EventEmitter {
       await doc.update({
         cancelled: true,
         ended: true,
-        lastUpdated: Date.now()
       })
     }
   }
 
   async getKey (key) {
-    return (await this._nativeDb.doc(`setting/${this._id(key)}`).get()).get('value')
+    const doc = await this._get(`setting/${this._id(key)}`)
+
+    return doc.exists ? doc.data.value : undefined
   }
 
   async setKey (key, value) {
-    return this._nativeDb.doc(`setting/${this._id(key)}`).set({ value })
+    const doc = await this._get(`setting/${this._id(key)}`)
+
+    await doc.set({ value })
   }
 
   async _getUser (address, mustExist = false) {
@@ -400,6 +414,25 @@ class Db extends EventEmitter {
       ref.exists = true
       ref.data = doc.data()
     }
+
+    // wrap update()
+    ref.update = (orig => props => {
+      const ts = Date.now()
+      return orig.call(ref, {
+        ...props,
+        lastUpdated: ts
+      })
+    })(ref.update)
+
+    // wrap set()
+    ref.set = (orig => props => {
+      const ts = Date.now()
+      return orig.call(ref, {
+        ...props,
+        created: ts,
+        lastUpdated: ts
+      })
+    })(ref.set)
 
     return ref
   }

@@ -1,4 +1,4 @@
-const { STATUS: ATTENDEE_STATUS } = require('../constants/attendees')
+const { ATTENDEE_STATUS } = require('../constants/status')
 
 const assertUser = user => {
   if (!user) {
