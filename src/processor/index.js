@@ -13,7 +13,13 @@ module.exports = async ({ config, log: parentLog, eventQueue, db, blockChain }) 
 
     // work out which block number to start watching from
     const { transactionHash } = await blockChain.getDeployerContractInstance()
+
+    log.info(`Transaction hash for deployer contract deployment: ${transactionHash}`)
+
     const { blockNumber } = await blockChain.web3.eth.getTransactionReceipt(transactionHash)
+
+    log.info(`Block number for deployer contract deployment: ${blockNumber}`)
+
     // block after one in which deployer was deployed is our starting block
     lastBlockNumber = blockNumber + 1
   } else {
