@@ -1,4 +1,5 @@
 const bunyan = require('bunyan')
+const { BunyanStream: LogDnaStream } = require('logdna-bunyan')
 
 class Log {
   constructor (opts) {
@@ -8,7 +9,12 @@ class Log {
 
     ;[ 'trace', 'debug', 'info', 'warn', 'error' ].forEach(fn => {
       this[fn] = (...args) => {
-        this._log[fn].apply(this._log, [ {}, ...args ])
+        const obj = {}
+
+        // an error object should get passed through specially
+        obj.err = args.find(a => a.stack && a.message)
+
+        this._log[fn].apply(this._log, [ obj, ...args ])
       }
     })
   }
@@ -28,6 +34,15 @@ module.exports = config => new Log({
       level: config.LOG,
       stream: process.stdout,
     },
+    ...(config.LOGDNA_API_KEY ? [ {
+      type: 'raw',
+      level: config.LOG,
+      stream: new LogDnaStream({ key: config.LOGDNA_API_KEY }),
+    } ] : [])
   ],
-  appMode: config.APP_MODE
+  serializers: {
+    err: bunyan.stdSerializers.err
+  },
+  appMode: config.APP_MODE,
+  network: config.NETWORK,
 })
