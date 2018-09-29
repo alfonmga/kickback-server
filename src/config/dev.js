@@ -1,7 +1,6 @@
 module.exports = {
   ETHEREUM_ENDPOINT_WS: 'wss://ropsten.infura.io/ws',
   ETHEREUM_ENDPOINT_HTTP: 'https://ropsten.infura.io/',
-  LOGDNA_API_KEY: '5fcc8c0acd8cde3489fb894e399f707a',
   NETWORK: 'ropsten',
   FIREBASE: {
     url: 'https://kickback-dev.firebaseio.com',
