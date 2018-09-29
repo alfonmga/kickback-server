@@ -27,22 +27,32 @@ class Log {
   }
 }
 
-module.exports = config => new Log({
-  name: 'root',
-  streams: [
-    {
-      level: config.LOG,
-      stream: process.stdout,
-    },
-    ...(config.LOGDNA_API_KEY ? [ {
+module.exports = config => {
+  const streams = []
+
+  if (config.LOGDNA_API_KEY) {
+    console.log('Connecting logger to LogDNA ...')
+
+    streams.push({
       type: 'raw',
       level: config.LOG,
       stream: new LogDnaStream({ key: config.LOGDNA_API_KEY }),
-    } ] : [])
-  ],
-  serializers: {
-    err: bunyan.stdSerializers.err
-  },
-  appMode: config.APP_MODE,
-  ethereumNetwork: config.NETWORK,
-})
+    })
+  }
+
+  return new Log({
+    name: 'root',
+    streams: [
+      {
+        level: config.LOG,
+        stream: process.stdout,
+      },
+      ...streams,
+    ],
+    serializers: {
+      err: bunyan.stdSerializers.err
+    },
+    appMode: config.APP_MODE,
+    ethereumNetwork: config.NETWORK,
+  })
+}
