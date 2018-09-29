@@ -44,5 +44,5 @@ module.exports = config => new Log({
     err: bunyan.stdSerializers.err
   },
   appMode: config.APP_MODE,
-  network: config.NETWORK,
+  ethereumNetwork: config.NETWORK,
 })
