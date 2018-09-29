@@ -94,6 +94,7 @@ On CI we deploy to Zeit using [now](https://zeit.co/docs/getting-started/five-mi
 To use the same commands locally you will need to set the following environment
 variables (these also need to be set in [CI](https://travis-ci.org/noblocknoparty/server/settings)):
 
+* `LOGDNA_API_KEY` - obtained from LogDNA
 * `NOW_TOKEN` - obtained from https://zeit.co/account/tokens.
 * `FIREBASE_TOKEN` - obtained using `yarn firebase login:ci`
 * `CONFIG_ENCRYPTION_KEY` - obtained from our password vault
