@@ -107,7 +107,7 @@ module.exports = ({ config, log: parentLog, blockChain, db, eventQueue }) => {
           if (currentBlockNumber - blockNumber < config.BLOCK_CONFIRMATIONS) {
             log.debug(`Not enough confirmations to process block ${blockNumber}, need ${config.BLOCK_CONFIRMATIONS}`)
           } else {
-            log.info(`Processing block ${blockNumber} ...`)
+            log.debug(`Processing block ${blockNumber} ...`)
 
             // get its logs
             const logs = await blockChain.web3.eth.getPastLogs({
