@@ -59,6 +59,11 @@ module.exports = ({ db }) => {
       userProfile: async (_, { address }, { user }) => (
         db.getUserProfile(address, user && user.address === address)
       ),
+      myProfile: async (_, __, { user }) => {
+        await assertUser(user)
+
+        return db.getUserProfile(user.address, true)
+      },
       attendees: async (_, { address }) => db.getAttendees(address),
     },
     Mutation: {

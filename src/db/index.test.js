@@ -24,6 +24,16 @@ const createUserProfile = address => ({
   email: {
     verified: 'test@kickback.events'
   },
+  legal: [
+    {
+      type: TERMS_AND_CONDITIONS,
+      accepted: Date.now(),
+    },
+    {
+      type: PRIVACY_POLICY,
+      accepted: Date.now(),
+    },
+  ],
   social: {
     twitter: 'https://twitter.com/wearekickback'
   }
@@ -554,6 +564,15 @@ describe('ethereum', () => {
       })
     })
 
+    it('returns private info if my profile', async () => {
+      const ret = await db.getUserProfile(userAddress, true)
+
+      expect(ret.legal).toBeDefined()
+      expect(ret.legal.length).toEqual(2)
+      expect(ret.legal[0].type).toEqual(TERMS_AND_CONDITIONS)
+      expect(ret.legal[1].type).toEqual(PRIVACY_POLICY)
+    })
+
     it('handles user address in uppercase', async () => {
       const ret = await db.getUserProfile(userAddress.toUpperCase())
 
@@ -615,7 +634,11 @@ describe('ethereum', () => {
     beforeEach(async () => {
       userAddress = newAddr()
 
-      await saveUser(userAddress, createUserProfile(userAddress))
+      const newUser = createUserProfile(userAddress)
+      delete newUser.legal
+
+      await saveUser(userAddress, newUser)
+
       user = await loadUser(userAddress)
 
       legal = [

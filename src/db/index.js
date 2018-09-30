@@ -85,7 +85,6 @@ class Db extends EventEmitter {
     return {
       address,
       created,
-      legal,
       social: Object.keys(social || {}).reduce((m, type) => {
         m.push({
           type,
@@ -95,7 +94,7 @@ class Db extends EventEmitter {
         return m
       }, []),
       /* only want owner to see their own email address */
-      ...(isOwner ? { email } : {})
+      ...(isOwner ? { email, legal } : {})
     }
   }
 
