@@ -1,4 +1,4 @@
 module.exports = {
-  TERMS_AND_CONDITIONS: 'termsAndConditions',
-  PRIVACY_POLICY: 'privacyPolicy',
+  TERMS_AND_CONDITIONS: 'TERMS_AND_CONDITIONS',
+  PRIVACY_POLICY: 'PRIVACY_POLICY',
 }
