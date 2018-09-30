@@ -61,6 +61,8 @@ class Db extends EventEmitter {
       throw new Error('Legal agreements not found')
     }
 
+    this._log.info(`Updating profile for user ${userAddress} ...`)
+
     await doc.update({
       email,
       legal: legal || doc.data.legal,

@@ -32,20 +32,31 @@ input SocialMediaInput {
   value: String!
 }
 
+enum LegalAgreementType {
+  TERMS_AND_CONDITIONS
+  PRIVACY_POLICY
+}
+
 type LegalAgreement {
-  type: String!
-  accepted: Int!
+  type: LegalAgreementType!
+  accepted: String!
 }
 
 input LegalAgreementInput {
-  type: String!
-  accepted: Int!
+  type: LegalAgreementType!
+  accepted: String!
+}
+
+type EmailSettings {
+  verified: String
+  pending: String
 }
 
 type UserProfile {
-  created: Int!
-  address: String!
+  created: String
+  address: String
   social: [SocialMedia]
+  email: [EmailSettings]
   legal: [LegalAgreement]
 }
 
@@ -82,7 +93,6 @@ type Query {
   party(address: String!): Party
   attendees(address: String!): [Attendee]
   userProfile(address: String!): UserProfile
-  myProfile: UserProfile
 }
 
 type Mutation {

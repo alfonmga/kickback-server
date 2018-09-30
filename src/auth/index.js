@@ -1,6 +1,6 @@
 const jwt = require('koa-jwt')
 
-module.exports = ({ db, server, blockChain }) => {
+module.exports = ({ log, db, server, blockChain }) => {
   server.use(jwt({
     // our security comes from signing with user's private key, not arbitrary secrets here!
     secret: 'kickback',
@@ -27,6 +27,7 @@ module.exports = ({ db, server, blockChain }) => {
         // lowercase the address
         ctx.state.user.address = ctx.state.user.address.toLowerCase()
       } catch (err) {
+        log.debug(err)
         // user isn't authenticated :/
         ctx.state.user = ''
       }

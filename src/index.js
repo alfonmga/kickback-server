@@ -46,7 +46,7 @@ const init = async () => {
     await nextHandler()
   })
 
-  setupAuthMiddleware({ db, server, blockChain })
+  setupAuthMiddleware({ log, db, server, blockChain })
   setupGraphQLEndpoint({ db, server, blockChain })
 
   server.use(router.routes())

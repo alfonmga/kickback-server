@@ -27,11 +27,11 @@ const createUserProfile = address => ({
   legal: [
     {
       type: TERMS_AND_CONDITIONS,
-      accepted: Date.now(),
+      accepted: `${Date.now()}`,
     },
     {
       type: PRIVACY_POLICY,
-      accepted: Date.now(),
+      accepted: `${Date.now()}`,
     },
   ],
   social: {
@@ -644,11 +644,11 @@ describe('ethereum', () => {
       legal = [
         {
           type: TERMS_AND_CONDITIONS,
-          accepted: Date.now(),
+          accepted: `${Date.now()}`,
         },
         {
           type: PRIVACY_POLICY,
-          accepted: Date.now(),
+          accepted: `${Date.now()}`,
         },
       ]
     })
