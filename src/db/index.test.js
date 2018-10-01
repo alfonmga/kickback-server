@@ -627,7 +627,7 @@ describe('ethereum', () => {
     })
   })
 
-  describe.only('loginUser', () => {
+  describe('loginUser', () => {
     let userAddress
     let profile
 
