@@ -40,7 +40,7 @@ class Db extends EventEmitter {
   async loginUser (userAddress) {
     assertEthereumAddress(userAddress)
 
-    const doc = await this._getUser(userAddress, true)
+    const doc = await this._getUser(userAddress, { mustExist: true })
 
     this._log.info(`Updating login timestamp for user ${userAddress} ...`)
 
@@ -60,7 +60,7 @@ class Db extends EventEmitter {
       assertEmail(newEmail)
     }
 
-    const doc = await this._getUser(userAddress, true)
+    const doc = await this._getUser(userAddress, { mustExist: true })
 
     const { email = {} } = doc.data
 
@@ -116,7 +116,7 @@ class Db extends EventEmitter {
   }
 
   async getLoginChallenge (userAddress) {
-    const doc = await this._getUser(userAddress, true)
+    const doc = await this._getUser(userAddress, { mustExist: true })
 
     const { challenge, created = 0 } = (doc.data.login || {})
 
@@ -417,7 +417,7 @@ class Db extends EventEmitter {
     await doc.set({ value })
   }
 
-  async _getUser (address, mustExist = false) {
+  async _getUser (address, { mustExist = false } = {}) {
     const ref = await this._get(`user/${address.toLowerCase()}`)
 
     if (mustExist && !ref.exists) {
