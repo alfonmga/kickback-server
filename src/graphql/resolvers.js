@@ -1,6 +1,7 @@
 const safeGet = require('lodash.get')
 const { ATTENDEE_STATUS } = require('../constants/status')
 const { ADMIN, OWNER } = require('../constants/roles')
+const { stringsMatchIgnoreCase } = require('../utils/validators')
 
 const assertUser = async user => {
   if (!safeGet(user, 'address')) {
@@ -29,8 +30,8 @@ module.exports = ({ db }) => {
 
     const party = await db.getParty(partyAddress)
 
-    const isOwner = party && party.owner === user.address
-    const isAdmin = party && party.admins.find(a => a === user.address)
+    const isOwner = party && stringsMatchIgnoreCase(party.owner, user)
+    const isAdmin = party && party.admins.find(a => stringsMatchIgnoreCase(a, user.address))
 
     switch (role) {
       case ADMIN: {
@@ -56,9 +57,10 @@ module.exports = ({ db }) => {
     Query: {
       activeParties: async () => db.getActiveParties(),
       party: async (_, { address }) => db.getParty(address),
-      userProfile: async (_, { address }, { user }) => (
-        db.getUserProfile(address, user && user.address === address)
-      ),
+      userProfile: async (_, { address }, { user }) => {
+        console.log(user, address)
+        return db.getUserProfile(address, user && stringsMatchIgnoreCase(user.address, address))
+      },
       attendees: async (_, { address }) => db.getAttendees(address),
     },
     Mutation: {

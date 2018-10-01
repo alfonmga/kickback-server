@@ -7,7 +7,7 @@ const { NOTIFICATION } = require('../constants/events')
 const { SESSION_VALIDITY_SECONDS } = require('../constants/session')
 const { VERIFY_EMAIL } = require('../constants/notifications')
 const { PARTY_STATUS } = require('../constants/status')
-const { assertEthereumAddress, assertEmail, hasAcceptedLegalAgreements } = require('../utils/validators')
+const { stringsMatchIgnoreCase, assertEthereumAddress, assertEmail, hasAcceptedLegalAgreements } = require('../utils/validators')
 
 class Db extends EventEmitter {
   constructor ({ nativeDb, log, blockChain }) {
@@ -64,7 +64,7 @@ class Db extends EventEmitter {
 
     const { email = {} } = doc.data
 
-    if (newEmail && email.verified !== newEmail) {
+    if (newEmail && !stringsMatchIgnoreCase(email.verified, newEmail)) {
       email.pending = newEmail
 
       this.notifyUser(userAddress, VERIFY_EMAIL, { email: newEmail })
@@ -286,7 +286,7 @@ class Db extends EventEmitter {
       ])
     } else {
       const list = attendeeList.data.attendees
-      const index = list.findIndex(({ address: a }) => a === attendeeAddress)
+      const index = list.findIndex(({ address: a }) => stringsMatchIgnoreCase(a, attendeeAddress))
 
       // if attendee found
       if (0 <= index) {

@@ -1,5 +1,7 @@
 const jwt = require('koa-jwt')
 
+const { stringsMatchIgnoreCase } = require('../utils/validators')
+
 module.exports = ({ log, db, server, blockChain }) => {
   server.use(jwt({
     // our security comes from signing with user's private key, not arbitrary secrets here!
@@ -20,7 +22,7 @@ module.exports = ({ log, db, server, blockChain }) => {
 
         const signerKey = blockChain.web3.eth.accounts.recover(challenge, sig)
 
-        if (signerKey.toLowerCase() !== address.toLowerCase()) {
+        if (!stringsMatchIgnoreCase(signerKey, address)) {
           throw new Error(`Signer key mismatch: ${address}`)
         }
 
