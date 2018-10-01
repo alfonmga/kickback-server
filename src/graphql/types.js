@@ -54,6 +54,7 @@ type EmailSettings {
 
 type UserProfile {
   created: String
+  lastLogin: String,
   address: String
   social: [SocialMedia]
   email: [EmailSettings]
@@ -97,6 +98,7 @@ type Query {
 
 type Mutation {
   createLoginChallenge(address: String!): LoginChallenge
+  loginUser: UserProfile
   updateUserProfile(profile: UserProfileInput!): UserProfile
   updatePartyMeta(address: String!, meta: PartyMetaInput!): Party
   updateAttendeeStatus(address: String!, attendeee: AttendeeInput!): Attendee

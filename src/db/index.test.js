@@ -1,5 +1,6 @@
 import Ganache from 'ganache-core'
 import Web3 from 'web3'
+import delay from 'delay'
 import { toHex, toWei } from 'web3-utils'
 import { Conference } from '@noblocknoparty/contracts'
 import { generateMnemonic, EthHdWallet } from 'eth-hd-wallet'
@@ -623,6 +624,61 @@ describe('ethereum', () => {
       expect(doc).toMatchObject({
         name: 'name1'
       })
+    })
+  })
+
+  describe.only('loginUser', () => {
+    let userAddress
+    let profile
+
+    beforeEach(async () => {
+      userAddress = newAddr()
+      profile = createUserProfile(userAddress)
+
+      await saveUser(userAddress, profile)
+    })
+
+    it('throws if address is invalid', async () => {
+      try {
+        await db.loginUser('invalid')
+      } catch (err) {
+        expect(err).toBeDefined()
+      }
+    })
+
+    it('throws if user not found', async () => {
+      try {
+        await db.loginUser(newAddr())
+      } catch (err) {
+        expect(err).toBeDefined()
+      }
+    })
+
+    it('returns profile if user found', async () => {
+      const ret = await db.loginUser(userAddress)
+
+      expect(ret).toMatchObject({
+        address: userAddress,
+        email: {
+          verified: 'test@kickback.events'
+        },
+        social: [ {
+          type: 'twitter',
+          value: 'https://twitter.com/wearekickback',
+        } ]
+      })
+
+      expect(ret.lastLogin).toBeGreaterThan(0)
+    })
+
+    it('updates lastLogin timestamp every time', async () => {
+      const { lastLogin } = await db.loginUser(userAddress)
+
+      await delay(100)
+
+      const { lastLogin: lastLogin2 } = await db.loginUser(userAddress)
+
+      expect(lastLogin2).toBeGreaterThan(lastLogin)
     })
   })
 

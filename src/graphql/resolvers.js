@@ -63,6 +63,11 @@ module.exports = ({ db }) => {
     },
     Mutation: {
       createLoginChallenge: async (_, { address }) => db.createLoginChallenge(address),
+      loginUser: async (_, __, { user }) => {
+        await assertUser(user)
+
+        return db.loginUser(user.address)
+      },
       updateUserProfile: async (_, { profile }, { user }) => {
         await assertUser(user)
 

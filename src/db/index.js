@@ -37,6 +37,20 @@ class Db extends EventEmitter {
     return id
   }
 
+  async loginUser (userAddress) {
+    assertEthereumAddress(userAddress)
+
+    const doc = await this._getUser(userAddress, true)
+
+    this._log.info(`Updating login timestamp for user ${userAddress} ...`)
+
+    await doc.update({
+      lastLogin: Date.now()
+    })
+
+    return this.getUserProfile(userAddress, true)
+  }
+
   async updateUserProfile (userAddress, profile) {
     const { email: newEmail, social, legal } = profile
 
@@ -82,11 +96,12 @@ class Db extends EventEmitter {
       return {}
     }
 
-    const { address, social, legal, created, email } = doc.data
+    const { address, social, legal, created, lastLogin, email } = doc.data
 
     return {
       address,
       created,
+      lastLogin,
       social: Object.keys(social || {}).reduce((m, type) => {
         m.push({
           type,
