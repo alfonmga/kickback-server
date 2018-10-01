@@ -57,7 +57,7 @@ type UserProfile {
   lastLogin: String,
   address: String
   social: [SocialMedia]
-  email: [EmailSettings]
+  email: EmailSettings
   legal: [LegalAgreement]
 }
 
