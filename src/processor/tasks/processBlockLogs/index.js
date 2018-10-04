@@ -73,23 +73,30 @@ module.exports = ({ config, log: parentLog, blockChain, db, eventQueue }) => {
 
     // add new attendees
     await _processEvent(contractEvents.Register.name, async event => {
-      const { address, args: { addr: attendee } } = event
+      const { address, args: { addr: attendee, participantIndex: index } } = event
 
-      return db.updateAttendeeStatus(address, attendee, ATTENDEE_STATUS.REGISTERED)
+      await db.updateAttendeeStatus(address, attendee, {
+        status: ATTENDEE_STATUS.REGISTERED,
+        index
+      })
     })
 
     // mark attendees as attended
     await _processEvent(contractEvents.Attend.name, async event => {
       const { address, args: { addr: attendee } } = event
 
-      return db.updateAttendeeStatus(address, attendee, ATTENDEE_STATUS.ATTENDED)
+      return db.updateAttendeeStatus(address, attendee, {
+        status: ATTENDEE_STATUS.ATTENDED
+      })
     })
 
     // mark attendees as having withdrawn payout
     await _processEvent(contractEvents.Withdraw.name, async event => {
       const { address, args: { addr: attendee } } = event
 
-      return db.updateAttendeeStatus(address, attendee, ATTENDEE_STATUS.WITHDRAWN_PAYOUT)
+      return db.updateAttendeeStatus(address, attendee, {
+        status: ATTENDEE_STATUS.WITHDRAWN_PAYOUT
+      })
     })
   }
 

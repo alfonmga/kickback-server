@@ -251,7 +251,7 @@ class Db extends EventEmitter {
     return list.exists ? list.data.attendees : []
   }
 
-  async updateAttendeeStatus (partyAddress, attendeeAddress, status) {
+  async updateAttendeeStatus (partyAddress, attendeeAddress, { status, index } = {}) {
     partyAddress = partyAddress.toLowerCase()
 
     const party = await this._getParty(partyAddress)
@@ -264,11 +264,12 @@ class Db extends EventEmitter {
 
     attendeeAddress = attendeeAddress.toLowerCase()
 
-    this._log.info(`Update status of attendee ${attendeeAddress} at party ${partyAddress} to ${status}`)
+    this._log.info(`Update status of attendee ${attendeeAddress} at party ${partyAddress} to ${JSON.stringify(status)}`)
 
     const newEntry = {
       address: attendeeAddress,
       status,
+      ...(0 <= index ? { index } : null)
     }
 
     const attendeeList = await this._getAttendeeList(partyAddress)
@@ -286,18 +287,23 @@ class Db extends EventEmitter {
       ])
     } else {
       const list = attendeeList.data.attendees
-      const index = list.findIndex(({ address: a }) => stringsMatchIgnoreCase(a, attendeeAddress))
+      const listIndex = list.findIndex(
+        ({ address: a }) => stringsMatchIgnoreCase(a, attendeeAddress)
+      )
 
       // if attendee found
-      if (0 <= index) {
-        list.splice(index, 1, newEntry)
+      if (0 <= listIndex) {
+        // don't overwrite existing index unless we have a new value
+        newEntry.index = newEntry.index || list[listIndex].index
+
+        list.splice(listIndex, 1, newEntry)
 
         await attendeeList.update({
           attendees: list,
         })
       }
       // if attendee not found
-      else if (0 > index) {
+      else {
         await Promise.all([
           attendeeList.update({
             attendees: list.concat(newEntry),

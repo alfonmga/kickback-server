@@ -10,7 +10,6 @@ import createProcessor from './'
 jest.mock('ethereum-event-logs', () => ({ parseLog: logs => logs }))
 
 describe('process block logs', () => {
-  let accounts
   let log
   let config
   let blockChain
@@ -24,9 +23,6 @@ describe('process block logs', () => {
     const provider = Ganache.provider({
       total_accounts: 4,
     })
-
-    const { accounts: accountsMap } = provider.manager.state
-    accounts = Object.keys(accountsMap)
 
     const web3 = new Web3(provider)
 
@@ -318,7 +314,8 @@ describe('process block logs', () => {
         name: events.Register.name,
         address: '0x456',
         args: {
-          addr: '0x123'
+          addr: '0x123',
+          participantIndex: 2
         }
       }
     ])
@@ -331,7 +328,10 @@ describe('process block logs', () => {
 
     await delay(100)
 
-    expect(db.updateAttendeeStatus).toHaveBeenCalledWith('0x456', '0x123', ATTENDEE_STATUS.REGISTERED)
+    expect(db.updateAttendeeStatus).toHaveBeenCalledWith('0x456', '0x123', {
+      status: ATTENDEE_STATUS.REGISTERED,
+      index: 2,
+    })
   })
 
   it('marks attendees as attended', async () => {
@@ -354,7 +354,9 @@ describe('process block logs', () => {
 
     await delay(100)
 
-    expect(db.updateAttendeeStatus).toHaveBeenCalledWith('0x456', '0x123', ATTENDEE_STATUS.ATTENDED)
+    expect(db.updateAttendeeStatus).toHaveBeenCalledWith('0x456', '0x123', {
+      status: ATTENDEE_STATUS.ATTENDED
+    })
   })
 
   it('marks attendees as withdrawn payout', async () => {
@@ -377,7 +379,9 @@ describe('process block logs', () => {
 
     await delay(100)
 
-    expect(db.updateAttendeeStatus).toHaveBeenCalledWith('0x456', '0x123', ATTENDEE_STATUS.WITHDRAWN_PAYOUT)
+    expect(db.updateAttendeeStatus).toHaveBeenCalledWith('0x456', '0x123', {
+      status: ATTENDEE_STATUS.WITHDRAWN_PAYOUT
+    })
   })
 
   it('if processing passes then the block number gets updated in db', async () => {

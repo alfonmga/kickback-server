@@ -79,14 +79,21 @@ enum AttendeeStatus {
   UNKNOWN
 }
 
+# we only allow certain statuses to be externally updateable
+enum UpdateableAttendeeStatus {
+  REGISTERED # if they don't show up
+  SHOWED_UP # if they show up
+}
+
 type Attendee {
   address: String!
+  index: Int!
   status: AttendeeStatus!
 }
 
 input AttendeeInput {
   address: String!
-  status: AttendeeStatus!
+  status: UpdateableAttendeeStatus!
 }
 
 type Query {

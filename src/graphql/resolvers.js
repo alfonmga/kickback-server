@@ -89,7 +89,7 @@ module.exports = ({ db }) => {
         await assertPartyRole(partyAddress, user, ADMIN)
 
         return db.updateAttendeeStatus(
-          partyAddress, address, attendeeStatusToInternalStatus(status)
+          partyAddress, address, { status: attendeeStatusToInternalStatus(status) }
         )
       },
     },

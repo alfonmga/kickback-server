@@ -895,7 +895,10 @@ describe('ethereum', () => {
     it('does nothing if party not found', async () => {
       const invalidPartyAddress = newAddr()
 
-      await db.updateAttendeeStatus(invalidPartyAddress, newAddr(), ATTENDEE_STATUS.REGISTERED)
+      await db.updateAttendeeStatus(invalidPartyAddress, newAddr(), {
+        status: ATTENDEE_STATUS.REGISTERED,
+        index: 5
+      })
 
       const doc = await loadAttendeeList(partyAddress)
 
@@ -905,12 +908,15 @@ describe('ethereum', () => {
     it('creates attendee list and updates party attendees count if it does not exist yet', async () => {
       const attendeeAddress = newAddr()
 
-      await db.updateAttendeeStatus(partyAddress, attendeeAddress, ATTENDEE_STATUS.REGISTERED)
+      await db.updateAttendeeStatus(partyAddress, attendeeAddress, {
+        status: ATTENDEE_STATUS.REGISTERED,
+        index: 5
+      })
 
       const doc = await loadAttendeeList(partyAddress)
 
       expect(doc.attendees).toEqual([
-        { address: attendeeAddress, status: ATTENDEE_STATUS.REGISTERED }
+        { address: attendeeAddress, status: ATTENDEE_STATUS.REGISTERED, index: 5 }
       ])
       expect(doc.address).toEqual(partyAddress)
       expect(doc.created).toBeDefined()
@@ -925,7 +931,9 @@ describe('ethereum', () => {
       const attendeeAddress = newAddr()
 
       await db.updateAttendeeStatus(
-        partyAddress.toUpperCase(), attendeeAddress.toUpperCase(), ATTENDEE_STATUS.REGISTERED
+        partyAddress.toUpperCase(), attendeeAddress.toUpperCase(), {
+          status: ATTENDEE_STATUS.REGISTERED
+        }
       )
 
       const doc = await loadAttendeeList(partyAddress)
@@ -951,13 +959,16 @@ describe('ethereum', () => {
 
       const attendeeAddress = newAddr()
 
-      await db.updateAttendeeStatus(partyAddress, attendeeAddress, ATTENDEE_STATUS.REGISTERED)
+      await db.updateAttendeeStatus(partyAddress, attendeeAddress, {
+        status: ATTENDEE_STATUS.REGISTERED,
+        index: 3,
+      })
 
       const doc = await loadAttendeeList(partyAddress)
 
       expect(doc.attendees).toEqual([
         ...originalList,
-        { address: attendeeAddress, status: ATTENDEE_STATUS.REGISTERED },
+        { address: attendeeAddress, status: ATTENDEE_STATUS.REGISTERED, index: 3 },
       ])
 
       const party = await loadParty(partyAddress)
@@ -969,24 +980,58 @@ describe('ethereum', () => {
       const attendeeAddress = newAddr()
 
       const originalList = [
-        { address: attendeeAddress, status: ATTENDEE_STATUS.ATTENDED },
-        { address: newAddr(), status: ATTENDEE_STATUS.REGISTERED }
+        { address: attendeeAddress, status: ATTENDEE_STATUS.ATTENDED, index: 6 },
+        { address: newAddr(), status: ATTENDEE_STATUS.REGISTERED, index: 7 }
       ]
 
       await saveAttendeeList(partyAddress, originalList)
 
-      await db.updateAttendeeStatus(partyAddress, attendeeAddress, ATTENDEE_STATUS.WITHDRAWN_PAYOUT)
+      await db.updateAttendeeStatus(partyAddress, attendeeAddress, {
+        status: ATTENDEE_STATUS.WITHDRAWN_PAYOUT,
+      })
 
       const doc = await loadAttendeeList(partyAddress)
 
       expect(doc.attendees).toEqual([
-        { address: attendeeAddress, status: ATTENDEE_STATUS.WITHDRAWN_PAYOUT },
+        { address: attendeeAddress, status: ATTENDEE_STATUS.WITHDRAWN_PAYOUT, index: 6 },
         originalList[1],
       ])
 
       const party = await loadParty(partyAddress)
 
       expect(party.attendees).toEqual(0) // no change from before!
+    })
+
+    it('overrides attendee index only if valid new index value provided', async () => {
+      const attendeeAddress = newAddr()
+
+      const originalList = [
+        { address: attendeeAddress, status: ATTENDEE_STATUS.ATTENDED, index: 6 },
+      ]
+
+      await saveAttendeeList(partyAddress, originalList)
+
+      await db.updateAttendeeStatus(partyAddress, attendeeAddress, {
+        status: ATTENDEE_STATUS.WITHDRAWN_PAYOUT,
+        index: undefined
+      })
+
+      const doc = await loadAttendeeList(partyAddress)
+
+      expect(doc.attendees).toEqual([
+        { address: attendeeAddress, status: ATTENDEE_STATUS.WITHDRAWN_PAYOUT, index: 6 },
+      ])
+
+      await db.updateAttendeeStatus(partyAddress, attendeeAddress, {
+        status: ATTENDEE_STATUS.WITHDRAWN_PAYOUT,
+        index: 8
+      })
+
+      const doc2 = await loadAttendeeList(partyAddress)
+
+      expect(doc2.attendees).toEqual([
+        { address: attendeeAddress, status: ATTENDEE_STATUS.WITHDRAWN_PAYOUT, index: 8 },
+      ])
     })
   })
 
