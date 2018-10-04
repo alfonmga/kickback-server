@@ -50,6 +50,7 @@ The server has 3 running modes (can be set using the `APP_MODE` var in `.env` fi
   * `development` - _server connects to Ropsten network on Infura_
   * `production` - _server connects to Mainnet on Infura_
 
+
 **Setup Firestore database credentials**
 
 Note that there are 3 Firestore databases:
@@ -58,8 +59,8 @@ Note that there are 3 Firestore databases:
 * `kickback-dev` - used for the server running on the dev site against Ropsten
 * `kickback-live` - used for the server running on the production site against Maininet
 
-Ensure you have the `FIREBASE_TOKEN` environment variable set properly (obtain
-  it using `yarn firebase login:ci`).
+**Ensure you have the `FIREBASE_TOKEN` environment variable set properly (obtain
+  it using `yarn firebase login:ci`).**
 
 You will then need to setup the db indexes and rules (although they should be already):
 
