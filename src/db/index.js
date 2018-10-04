@@ -7,7 +7,13 @@ const { NOTIFICATION } = require('../constants/events')
 const { SESSION_VALIDITY_SECONDS } = require('../constants/session')
 const { VERIFY_EMAIL } = require('../constants/notifications')
 const { PARTY_STATUS } = require('../constants/status')
-const { stringsMatchIgnoreCase, assertEthereumAddress, assertEmail, hasAcceptedLegalAgreements } = require('../utils/validators')
+const {
+  stringsMatchIgnoreCase,
+  assertEthereumAddress,
+  assertEmail,
+  hasAcceptedLegalAgreements,
+  removeUndefinedValuesFromObject
+} = require('../utils/validators')
 
 class Db extends EventEmitter {
   constructor ({ nativeDb, log, blockChain }) {
@@ -221,7 +227,7 @@ class Db extends EventEmitter {
 
       await doc.update(props)
     } else {
-      this._log.info(`Insertng new party from contract: ${address}`)
+      this._log.info(`Inserting new party from contract: ${address}`)
 
       await doc.set(props)
     }
@@ -264,13 +270,16 @@ class Db extends EventEmitter {
 
     attendeeAddress = attendeeAddress.toLowerCase()
 
-    this._log.info(`Update status of attendee ${attendeeAddress} at party ${partyAddress} to ${JSON.stringify(status)}`)
-
     const newEntry = {
       address: attendeeAddress,
       status,
-      ...(0 <= index ? { index } : null)
     }
+
+    if (0 <= index) {
+      newEntry.index = index
+    }
+
+    this._log.info(`Update status of attendee ${attendeeAddress} at party ${partyAddress} to ${JSON.stringify(newEntry)}`)
 
     const attendeeList = await this._getAttendeeList(partyAddress)
 
@@ -294,7 +303,9 @@ class Db extends EventEmitter {
       // if attendee found
       if (0 <= listIndex) {
         // don't overwrite existing index unless we have a new value
-        newEntry.index = newEntry.index || list[listIndex].index
+        if (undefined === newEntry.index && undefined !== list[listIndex].index) {
+          newEntry.index = list[listIndex].index
+        }
 
         list.splice(listIndex, 1, newEntry)
 
@@ -452,6 +463,7 @@ class Db extends EventEmitter {
 
     // wrap update()
     ref.update = (orig => props => {
+      removeUndefinedValuesFromObject(props)
       const ts = Date.now()
       return orig.call(ref, {
         ...props,
@@ -461,6 +473,7 @@ class Db extends EventEmitter {
 
     // wrap set()
     ref.set = (orig => props => {
+      removeUndefinedValuesFromObject(props)
       const ts = Date.now()
       return orig.call(ref, {
         ...props,

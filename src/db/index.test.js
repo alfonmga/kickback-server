@@ -980,8 +980,8 @@ describe('ethereum', () => {
       const attendeeAddress = newAddr()
 
       const originalList = [
-        { address: attendeeAddress, status: ATTENDEE_STATUS.ATTENDED, index: 6 },
-        { address: newAddr(), status: ATTENDEE_STATUS.REGISTERED, index: 7 }
+        { address: attendeeAddress, status: ATTENDEE_STATUS.ATTENDED },
+        { address: newAddr(), status: ATTENDEE_STATUS.REGISTERED }
       ]
 
       await saveAttendeeList(partyAddress, originalList)
@@ -993,7 +993,7 @@ describe('ethereum', () => {
       const doc = await loadAttendeeList(partyAddress)
 
       expect(doc.attendees).toEqual([
-        { address: attendeeAddress, status: ATTENDEE_STATUS.WITHDRAWN_PAYOUT, index: 6 },
+        { address: attendeeAddress, status: ATTENDEE_STATUS.WITHDRAWN_PAYOUT },
         originalList[1],
       ])
 

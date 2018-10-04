@@ -75,7 +75,7 @@ module.exports = ({ config, log: parentLog, blockChain, db, eventQueue }) => {
     await _processEvent(contractEvents.Register.name, async event => {
       const { address, args: { addr: attendee, participantIndex: index } } = event
 
-      await db.updateAttendeeStatus(address, attendee, {
+      return db.updateAttendeeStatus(address, attendee, {
         status: ATTENDEE_STATUS.REGISTERED,
         index
       })
