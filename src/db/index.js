@@ -267,6 +267,10 @@ class Db extends EventEmitter {
       this._log.warn(`Party not found: ${partyAddress}`)
 
       return
+    } else if (party.data.ended || party.data.cancelled) {
+      this._log.warn(`Party ${partyAddress} already ended/cancelled, so cannot update status of attendee ${attendeeAddress}`)
+
+      return
     }
 
     attendeeAddress = attendeeAddress.toLowerCase()

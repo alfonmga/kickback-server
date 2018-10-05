@@ -887,15 +887,43 @@ describe('ethereum', () => {
     beforeEach(async () => {
       partyAddress = newAddr()
 
-      await saveParty(partyAddress, {
-        attendees: 0
-      })
+      await saveParty(partyAddress, {})
     })
 
     it('does nothing if party not found', async () => {
       const invalidPartyAddress = newAddr()
 
       await db.updateAttendeeStatus(invalidPartyAddress, newAddr(), {
+        status: ATTENDEE_STATUS.REGISTERED,
+        index: 5
+      })
+
+      const doc = await loadAttendeeList(partyAddress)
+
+      expect(doc).toBeUndefined()
+    })
+
+    it('does nothing if party cancelled', async () => {
+      await saveParty(partyAddress, {
+        cancelled: true,
+      })
+
+      await db.updateAttendeeStatus(partyAddress, newAddr(), {
+        status: ATTENDEE_STATUS.REGISTERED,
+        index: 5
+      })
+
+      const doc = await loadAttendeeList(partyAddress)
+
+      expect(doc).toBeUndefined()
+    })
+
+    it('does nothing if party ended', async () => {
+      await saveParty(partyAddress, {
+        ended: true,
+      })
+
+      await db.updateAttendeeStatus(partyAddress, newAddr(), {
         status: ATTENDEE_STATUS.REGISTERED,
         index: 5
       })
