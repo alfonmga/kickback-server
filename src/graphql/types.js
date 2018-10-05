@@ -11,8 +11,8 @@ type Party {
   coolingPeriod: String!
   attendeeLimit: Int!
   attendees: Int!
-  owner: String!
-  admins: [String]
+  owner: UserProfile!
+  admins: [UserProfile]!
 }
 
 input PartyMetaInput {
@@ -53,9 +53,9 @@ type EmailSettings {
 }
 
 type UserProfile {
+  address: String!
   created: String
-  lastLogin: String,
-  address: String
+  lastLogin: String
   social: [SocialMedia]
   email: EmailSettings
   legal: [LegalAgreement]
@@ -86,7 +86,7 @@ enum UpdateableAttendeeStatus {
 }
 
 type Attendee {
-  address: String!
+  user: UserProfile!
   index: Int!
   status: AttendeeStatus!
 }

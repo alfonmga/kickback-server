@@ -57,10 +57,9 @@ module.exports = ({ db }) => {
     Query: {
       activeParties: async () => db.getActiveParties(),
       party: async (_, { address }) => db.getParty(address),
-      userProfile: async (_, { address }, { user }) => {
-        console.log(user, address)
-        return db.getUserProfile(address, user && addressesMatch(user.address, address))
-      },
+      userProfile: async (_, { address }, { user }) => (
+        db.getUserProfile(address, user && addressesMatch(user.address, address))
+      ),
       attendees: async (_, { address }) => db.getAttendees(address),
     },
     Mutation: {
@@ -93,11 +92,22 @@ module.exports = ({ db }) => {
         )
       },
     },
+    Party: {
+      owner: async ({ owner }, _, { user }) => (
+        db.getUserProfile(owner, user && addressesMatch(user.address, owner))
+      ),
+      admins: async ({ admins }, _, { user }) => (
+        (admins || []).map(admin => (
+          db.getUserProfile(admin, user && addressesMatch(user.address, admin))
+        ))
+      )
+    },
     LoginChallenge: {
       str: s => s
     },
     Attendee: {
-      status: ({ status }) => internalStatusToAttendeeStatus(status)
+      status: ({ status }) => internalStatusToAttendeeStatus(status),
+      user: ({ address, social }) => ({ address, social })
     }
   }
 }

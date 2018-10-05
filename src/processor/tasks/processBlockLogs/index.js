@@ -105,6 +105,8 @@ module.exports = ({ config, log: parentLog, blockChain, db, eventQueue }) => {
       // get next block to process
       const blockNumber = blocksToProcess[0]
 
+      log.debug(`Next block number to process: ${blockNumber}`)
+
       let processed = false
 
       if (0 <= blockNumber) {
