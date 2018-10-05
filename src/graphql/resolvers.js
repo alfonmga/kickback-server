@@ -53,12 +53,24 @@ module.exports = ({ db }) => {
     throw new Error(`Must have role: ${role}`)
   }
 
+  const loadProfileOrJustReturnAddress = async (address, currentUser) => {
+    const profile = await db.getUserProfile(
+      address,
+      currentUser && addressesMatch(currentUser.address, address)
+    )
+
+    return {
+      ...profile,
+      address
+    }
+  }
+
   return {
     Query: {
       activeParties: async () => db.getActiveParties(),
       party: async (_, { address }) => db.getParty(address),
       userProfile: async (_, { address }, { user }) => (
-        db.getUserProfile(address, user && addressesMatch(user.address, address))
+        loadProfileOrJustReturnAddress(address, user)
       ),
       attendees: async (_, { address }) => db.getAttendees(address),
     },
@@ -94,11 +106,11 @@ module.exports = ({ db }) => {
     },
     Party: {
       owner: async ({ owner }, _, { user }) => (
-        db.getUserProfile(owner, user && addressesMatch(user.address, owner))
+        loadProfileOrJustReturnAddress(owner, user)
       ),
       admins: async ({ admins }, _, { user }) => (
         (admins || []).map(admin => (
-          db.getUserProfile(admin, user && addressesMatch(user.address, admin))
+          loadProfileOrJustReturnAddress(admin, user)
         ))
       )
     },
