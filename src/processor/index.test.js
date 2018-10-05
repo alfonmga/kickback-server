@@ -113,13 +113,18 @@ describe('blockchain processor', () => {
     expect(setupArgs.blockChain).toEqual(blockChain)
     expect(setupArgs.eventQueue).toEqual(eventQueue)
 
-    const blockList = getBPArgs()
-    expect(blockList).toEqual([])
+    const blockRange = getBPArgs()
+    expect(blockRange).toEqual({
+      start: 2
+    })
 
     blockChain.emit(BLOCK, { number: 123 })
     blockChain.emit(BLOCK, { number: 456 })
 
-    expect(blockList).toEqual([ 123, 456 ])
+    expect(blockRange).toEqual({
+      start: 2,
+      end: 456,
+    })
   })
 
   it('catches up on missed blocks', async () => {
@@ -127,14 +132,19 @@ describe('blockchain processor', () => {
 
     await createProcessor({ config, log, eventQueue, db, blockChain })
 
-    const blockList = getBPArgs()
-    expect(blockList).toEqual([
-      -4,
-      -3,
-      -2,
-      -1,
-      0,
-      1
-    ])
+    const blockRange = getBPArgs()
+
+    expect(blockRange).toEqual({
+      start: -4,
+      end: 1,
+    })
+
+    blockChain.emit(BLOCK, { number: 123 })
+    blockChain.emit(BLOCK, { number: 456 })
+
+    expect(blockRange).toEqual({
+      start: -4,
+      end: 456,
+    })
   })
 })

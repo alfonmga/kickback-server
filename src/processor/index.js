@@ -26,27 +26,28 @@ module.exports = async ({ config, log: parentLog, eventQueue, db, blockChain }) 
     lastBlockNumber += 1
   }
 
+  // ongoing range of blocks that need processing
+  const blocksToProcess = {
+    start: lastBlockNumber
+  }
+
   // now see what the latest block number is
   const latestBlockNumber = await blockChain.web3.eth.getBlockNumber()
-
-  // ongoing chain of blocks that need processing
-  const blocksToProcess = []
 
   if (latestBlockNumber >= lastBlockNumber) {
     log.info(`Will first process from blocks ${lastBlockNumber} to ${latestBlockNumber}`)
 
-    // fill up chain with block numbers
-    while (lastBlockNumber <= latestBlockNumber) {
-      blocksToProcess.push(lastBlockNumber)
-      lastBlockNumber += 1
-    }
+    blocksToProcess.end = latestBlockNumber
   } else {
     log.info('Block processor is fully up-to-date with blocks')
   }
 
   // now listen for new blocks
   blockChain.on(BLOCK, ({ number }) => {
-    blocksToProcess.push(number)
+    blocksToProcess.end = number
+    if (!blocksToProcess.start) {
+      blocksToProcess.start = number
+    }
   })
 
   // listen for notifications

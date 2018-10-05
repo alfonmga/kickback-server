@@ -102,51 +102,49 @@ module.exports = ({ config, log: parentLog, blockChain, db, eventQueue }) => {
 
   const _process = async blocksToProcess => (
     eventQueue.add(async () => {
-      // get next block to process
-      const blockNumber = blocksToProcess[0]
+      // get next block range to process
+      const { start, end } = blocksToProcess
 
-      log.debug(`Next block number to process: ${blockNumber}`)
-
-      let processed = false
-
-      if (0 <= blockNumber) {
+      if (start && end && start <= end) {
         try {
           const currentBlockNumber = await blockChain.web3.eth.getBlockNumber()
 
-          if (currentBlockNumber - blockNumber < config.BLOCK_CONFIRMATIONS) {
-            log.debug(`Not enough confirmations to process block ${blockNumber}, need ${config.BLOCK_CONFIRMATIONS}`)
-          } else {
-            log.debug(`Processing block ${blockNumber} ...`)
+          const maxEndByConfirmations = currentBlockNumber - config.BLOCK_CONFIRMATIONS
+          const cappedEnd = (end > maxEndByConfirmations) ? maxEndByConfirmations : end
+          // dont' do more than X no. of blocks at a time, so that
+          // we don't overload the infura/client node
+          const finalEnd = (cappedEnd - start > config.BLOCK_RANGE)
+            ? start + config.BLOCK_RANGE
+            : cappedEnd
+          const finalStart = start
 
-            // get its logs
+          if (finalEnd < finalStart) {
+            log.debug(`Not enough confirmations to process blocks ${start} - ${end}, need ${config.BLOCK_CONFIRMATIONS}`)
+          } else {
+            log.debug(`Processing blocks ${finalStart} - ${finalEnd} ...`)
+
+            // get logs
             const logs = await blockChain.web3.eth.getPastLogs({
-              fromBlock: toHex(blockNumber),
-              toBlock: toHex(blockNumber)
+              fromBlock: toHex(finalStart),
+              toBlock: toHex(finalEnd)
             })
 
             // process them
             await _processLogs(logs)
             // update the db
-            await db.setKey('lastBlockNumber', blockNumber)
-            // remove block from list so that we don't do it again
-            blocksToProcess.shift()
-            // we processed something!
-            processed = true
+            await db.setKey('lastBlockNumber', finalEnd)
+            // update processing range
+            blocksToProcess.start = finalEnd + 1
           }
         } catch (err) {
-          log.error(`Error processing block ${blockNumber}`, err)
+          log.error(`Error processing block range: ${start} - ${end}`, err)
         }
       }
 
-      // if no processing to do or processing failed then wait for a bit
-      if (processed && blocksToProcess.length) {
-        _process(blocksToProcess)
-      } else {
-        safeGet(config, 'testMode.setTimeout', setTimeout)(
-          () => _process(blocksToProcess),
-          10000 /* 10 seconds */
-        )
-      }
+      safeGet(config, 'testMode.setTimeout', setTimeout)(
+        () => _process(blocksToProcess),
+        10000 /* 10 seconds */
+      )
     }, { name: 'processBlockLogs' })
   )
 

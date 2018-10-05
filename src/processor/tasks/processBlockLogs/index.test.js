@@ -76,6 +76,7 @@ describe('process block logs', () => {
     }
 
     config = {
+      BLOCK_RANGE: 100,
       BLOCK_CONFIRMATIONS: 6,
       testMode: {
         setTimeout: fn => {
@@ -88,7 +89,7 @@ describe('process block logs', () => {
   it('does nothing if no blocks to process', async () => {
     processor = createProcessor({ config, log, blockChain, db, eventQueue })
 
-    await processor([])
+    await processor({})
 
     expect(eventQueue.add.mock.calls.length).toEqual(1)
     expect(eventQueue.add.mock.calls[0][1]).toEqual({ name: 'processBlockLogs' })
@@ -99,7 +100,7 @@ describe('process block logs', () => {
   it('waits some time before trying to process a block again', async () => {
     processor = createProcessor({ config, log, blockChain, db, eventQueue })
 
-    const blockNumbers = []
+    const blockNumbers = {}
 
     processor(blockNumbers)
 
@@ -107,7 +108,8 @@ describe('process block logs', () => {
 
     expect(blockChain.web3.eth.getBlockNumber).not.toHaveBeenCalled()
 
-    blockNumbers.push(0)
+    blockNumbers.start = 1
+    blockNumbers.end = 1
 
     resolveTestModeTimer()
 
@@ -120,7 +122,10 @@ describe('process block logs', () => {
     config.BLOCK_CONFIRMATIONS = 3
     blockChain.web3.blockNumber = 3
 
-    const blockNumbers = [ 1 ]
+    const blockNumbers = {
+      start: 1,
+      end: 1
+    }
 
     processor = createProcessor({ config, log, blockChain, db, eventQueue })
 
@@ -144,7 +149,10 @@ describe('process block logs', () => {
     config.BLOCK_CONFIRMATIONS = 1
     blockChain.web3.blockNumber = 4
 
-    const blockNumbers = [ 3, 4 ]
+    const blockNumbers = {
+      start: 3,
+      end: 4,
+    }
 
     processor = createProcessor({ config, log, blockChain, db, eventQueue })
 
@@ -154,7 +162,34 @@ describe('process block logs', () => {
 
     expect(blockChain.web3.eth.getPastLogs).toHaveBeenCalled()
     expect(db.setKey).toHaveBeenCalledWith('lastBlockNumber', 3)
-    expect(blockNumbers).toEqual([ 4 ])
+    expect(blockNumbers).toEqual({
+      start: 4,
+      end: 4,
+    })
+  })
+
+  it('only processes maximum BLOCK_RANGE blocks at a time', async () => {
+    config.BLOCK_RANGE = 15
+    config.BLOCK_CONFIRMATIONS = 1
+    blockChain.web3.blockNumber = 5000
+
+    const blockNumbers = {
+      start: 300,
+      end: 4000,
+    }
+
+    processor = createProcessor({ config, log, blockChain, db, eventQueue })
+
+    processor(blockNumbers)
+
+    await delay(100)
+
+    expect(blockChain.web3.eth.getPastLogs).toHaveBeenCalled()
+    expect(db.setKey).toHaveBeenCalledWith('lastBlockNumber', 315)
+    expect(blockNumbers).toEqual({
+      start: 316,
+      end: 4000,
+    })
   })
 
   it('catches processing error and does not update db and list in such cases', async () => {
@@ -162,7 +197,10 @@ describe('process block logs', () => {
     blockChain.web3.blockNumber = 4
     blockChain.web3.logs = Promise.reject(new Error('test'))
 
-    const blockNumbers = [ 3, 4 ]
+    const blockNumbers = {
+      start: 3,
+      end: 4,
+    }
 
     processor = createProcessor({ config, log, blockChain, db, eventQueue })
 
@@ -172,7 +210,10 @@ describe('process block logs', () => {
 
     expect(blockChain.web3.eth.getPastLogs).toHaveBeenCalled()
     expect(db.setKey).not.toHaveBeenCalled()
-    expect(blockNumbers).toEqual([ 3, 4 ])
+    expect(blockNumbers).toEqual({
+      start: 3,
+      end: 4,
+    })
   })
 
   it('adds new parties', async () => {
@@ -186,7 +227,10 @@ describe('process block logs', () => {
       }
     ])
 
-    const blockNumbers = [ 1 ]
+    const blockNumbers = {
+      start: 1,
+      end: 1,
+    }
 
     processor = createProcessor({ config, log, blockChain, db, eventQueue })
 
@@ -207,7 +251,10 @@ describe('process block logs', () => {
       }
     ])
 
-    const blockNumbers = [ 1 ]
+    const blockNumbers = {
+      start: 1,
+      end: 1,
+    }
 
     processor = createProcessor({ config, log, blockChain, db, eventQueue })
 
@@ -227,7 +274,10 @@ describe('process block logs', () => {
       }
     ])
 
-    const blockNumbers = [ 1 ]
+    const blockNumbers = {
+      start: 1,
+      end: 1,
+    }
 
     processor = createProcessor({ config, log, blockChain, db, eventQueue })
 
@@ -250,7 +300,10 @@ describe('process block logs', () => {
       }
     ])
 
-    const blockNumbers = [ 1 ]
+    const blockNumbers = {
+      start: 1,
+      end: 1,
+    }
 
     processor = createProcessor({ config, log, blockChain, db, eventQueue })
 
@@ -273,7 +326,10 @@ describe('process block logs', () => {
       }
     ])
 
-    const blockNumbers = [ 1 ]
+    const blockNumbers = {
+      start: 1,
+      end: 1,
+    }
 
     processor = createProcessor({ config, log, blockChain, db, eventQueue })
 
@@ -296,7 +352,10 @@ describe('process block logs', () => {
       }
     ])
 
-    const blockNumbers = [ 1 ]
+    const blockNumbers = {
+      start: 1,
+      end: 1,
+    }
 
     processor = createProcessor({ config, log, blockChain, db, eventQueue })
 
@@ -320,7 +379,10 @@ describe('process block logs', () => {
       }
     ])
 
-    const blockNumbers = [ 1 ]
+    const blockNumbers = {
+      start: 1,
+      end: 1,
+    }
 
     processor = createProcessor({ config, log, blockChain, db, eventQueue })
 
@@ -346,7 +408,10 @@ describe('process block logs', () => {
       }
     ])
 
-    const blockNumbers = [ 1 ]
+    const blockNumbers = {
+      start: 1,
+      end: 1,
+    }
 
     processor = createProcessor({ config, log, blockChain, db, eventQueue })
 
@@ -371,7 +436,10 @@ describe('process block logs', () => {
       }
     ])
 
-    const blockNumbers = [ 1 ]
+    const blockNumbers = {
+      start: 1,
+      end: 1,
+    }
 
     processor = createProcessor({ config, log, blockChain, db, eventQueue })
 
@@ -396,7 +464,10 @@ describe('process block logs', () => {
       }
     ])
 
-    const blockNumbers = [ 2 ]
+    const blockNumbers = {
+      start: 2,
+      end: 2,
+    }
 
     processor = createProcessor({ config, log, blockChain, db, eventQueue })
 
@@ -421,7 +492,10 @@ describe('process block logs', () => {
 
     db.updateAttendeeStatus = jest.fn(() => Promise.reject(new Error('test')))
 
-    const blockNumbers = [ 1 ]
+    const blockNumbers = {
+      start: 1,
+      end: 1,
+    }
 
     processor = createProcessor({ config, log, blockChain, db, eventQueue })
 
