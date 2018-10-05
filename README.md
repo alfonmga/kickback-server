@@ -16,28 +16,7 @@ More info on server is available [in the docs](https://github.com/noblocknoparty
 
 ## Running
 
-Pre-requisites:
-  * Node 8.11.4
-  * Yarn
-
-**Deploy contracts to local test network and create .env file**
-
-Clone the [contracts repo](https://githbu.com/noblocknoparty/contracts) into a sibling folder called `contracts` such that
-directory structure is as follows:
-
-```shell
-/my/path
-  /my/path/contracts    <- contracts repo
-  /my/path/server    <- server repo (this project)
-```
-
-Now go into the `contracts` repo folder and run:
-
-```shell
-yarn deploy:local
-```
-
-_Note: This will update the file `.env` to contain the deployer address and tx hash_.
+Please read [our full setup guide](https://github.com/noblocknoparty/docs/blob/master/RunningEverythingLocally.md)
 
 **App mode**
 
@@ -50,8 +29,7 @@ The server has 3 running modes (can be set using the `APP_MODE` var in `.env` fi
   * `development` - _server connects to Ropsten network on Infura_
   * `production` - _server connects to Mainnet on Infura_
 
-
-**Setup Firestore database credentials**
+**Firestore database**
 
 Note that there are 3 Firestore databases:
 
@@ -59,30 +37,7 @@ Note that there are 3 Firestore databases:
 * `kickback-dev` - used for the server running on the dev site against Ropsten
 * `kickback-live` - used for the server running on the production site against Maininet
 
-**Ensure you have the `FIREBASE_TOKEN` environment variable set properly (obtain
-  it using `yarn firebase login:ci`).**
-
-You will then need to setup the db indexes and rules (although they should be already):
-
-```shell
-yarn setupdb local
-```
-
-Before you can run the server you will also need to set the following environment
-variables into `.env` (values can be obtained from our password vault):
-
-```shell
-CONFIG_ENCRYPTION_IV
-CONFIG_ENCRYPTION_KEY
-```
-
-**Run server**
-
-Now you can run the server:
-
-```shell
-$ yarn start
-```
+**GraphQL**
 
 The GraphQL endpoint is at the `/graphql` URL path. If you load this path in a
 browser you will get the [GraphQL playground](https://github.com/prisma/graphql-playground).
