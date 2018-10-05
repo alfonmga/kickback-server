@@ -81,15 +81,6 @@ module.exports = ({ config, log: parentLog, blockChain, db, eventQueue }) => {
       })
     })
 
-    // mark attendees as attended
-    await _processEvent(contractEvents.Attend.name, async event => {
-      const { address, args: { addr: attendee } } = event
-
-      return db.updateAttendeeStatus(address, attendee, {
-        status: ATTENDEE_STATUS.ATTENDED
-      })
-    })
-
     // mark attendees as having withdrawn payout
     await _processEvent(contractEvents.Withdraw.name, async event => {
       const { address, args: { addr: attendee } } = event

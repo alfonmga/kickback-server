@@ -171,7 +171,6 @@ class Db extends EventEmitter {
       return
     }
 
-
     const meta = [ 'name', 'description', 'date', 'location' ].reduce((m, k) => {
       if (undefined !== data[k]) {
         m[k] = data[k]
@@ -197,7 +196,8 @@ class Db extends EventEmitter {
       deposit,
       limitOfParticipants,
       coolingPeriod,
-      ended
+      ended,
+      cancelled,
     ] = await Promise.all([
       partyInstance.owner(),
       partyInstance.getAdmins(),
@@ -205,7 +205,8 @@ class Db extends EventEmitter {
       partyInstance.deposit(),
       partyInstance.limitOfParticipants(),
       partyInstance.coolingPeriod(),
-      partyInstance.ended()
+      partyInstance.ended(),
+      partyInstance.cancelled(),
     ])
 
     const props = {
@@ -214,9 +215,9 @@ class Db extends EventEmitter {
       name,
       deposit: toHex(deposit),
       attendeeLimit: hexToNumber(toHex(limitOfParticipants)),
-      attendees: 0,
       coolingPeriod: toHex(coolingPeriod),
       ended,
+      cancelled,
       owner: owner.toLowerCase(),
       admins: admins.map(a => a.toLowerCase()),
       status: PARTY_STATUS.DEPLOYED,
@@ -290,9 +291,6 @@ class Db extends EventEmitter {
           address: partyAddress,
           attendees: [ newEntry ],
         }),
-        party.update({
-          attendees: 1,
-        })
       ])
     } else {
       const list = attendeeList.data.attendees
@@ -319,9 +317,6 @@ class Db extends EventEmitter {
           attendeeList.update({
             attendees: list.concat(newEntry),
           }),
-          party.update({
-            attendees: list.length + 1,
-          })
         ])
       }
     }

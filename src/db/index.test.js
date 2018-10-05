@@ -377,9 +377,9 @@ describe('ethereum', () => {
         name: 'test',
         deposit: toHex(toWei('0.2', 'ether')),
         attendeeLimit: 100,
-        attendees: 0,
         coolingPeriod: toHex(2),
         ended: false,
+        cancelled: false,
         status: PARTY_STATUS.DEPLOYED
       })
 
@@ -410,9 +410,9 @@ describe('ethereum', () => {
         name: 'test',
         deposit: toHex(toWei('0.2', 'ether')),
         attendeeLimit: 100,
-        attendees: 0,
         coolingPeriod: toHex(2),
         ended: false,
+        cancelled: false,
         status: PARTY_STATUS.DEPLOYED
       })
 
@@ -857,7 +857,7 @@ describe('ethereum', () => {
     it('returns list if found', async () => {
       const list = [
         { address: newAddr(), status: ATTENDEE_STATUS.REGISTERED },
-        { address: newAddr(), status: ATTENDEE_STATUS.ATTENDED },
+        { address: newAddr(), status: ATTENDEE_STATUS.SHOWED_UP },
       ]
 
       const party = newAddr()
@@ -870,7 +870,7 @@ describe('ethereum', () => {
     it('handles uppercase address', async () => {
       const list = [
         { address: newAddr(), status: ATTENDEE_STATUS.REGISTERED },
-        { address: newAddr(), status: ATTENDEE_STATUS.ATTENDED },
+        { address: newAddr(), status: ATTENDEE_STATUS.SHOWED_UP },
       ]
 
       const party = newAddr()
@@ -921,10 +921,6 @@ describe('ethereum', () => {
       expect(doc.address).toEqual(partyAddress)
       expect(doc.created).toBeDefined()
       expect(doc.created).toEqual(doc.lastUpdated)
-
-      const party = await loadParty(partyAddress)
-
-      expect(party.attendees).toEqual(1)
     })
 
     it('auto-lowercases all addresses', async () => {
@@ -944,15 +940,11 @@ describe('ethereum', () => {
       expect(doc.address).toEqual(partyAddress)
       expect(doc.created).toBeDefined()
       expect(doc.created).toEqual(doc.lastUpdated)
-
-      const party = await loadParty(partyAddress)
-
-      expect(party.attendees).toEqual(1)
     })
 
     it('appends to attendee list and updates party attendees count if attendee not already in list', async () => {
       const originalList = [
-        { address: newAddr(), status: ATTENDEE_STATUS.ATTENDED }
+        { address: newAddr(), status: ATTENDEE_STATUS.SHOWED_UP }
       ]
 
       await saveAttendeeList(partyAddress, originalList)
@@ -970,17 +962,13 @@ describe('ethereum', () => {
         ...originalList,
         { address: attendeeAddress, status: ATTENDEE_STATUS.REGISTERED, index: 3 },
       ])
-
-      const party = await loadParty(partyAddress)
-
-      expect(party.attendees).toEqual(2)
     })
 
     it('updates attendee list entry if attendee already in list', async () => {
       const attendeeAddress = newAddr()
 
       const originalList = [
-        { address: attendeeAddress, status: ATTENDEE_STATUS.ATTENDED },
+        { address: attendeeAddress, status: ATTENDEE_STATUS.SHOWED_UP },
         { address: newAddr(), status: ATTENDEE_STATUS.REGISTERED }
       ]
 
@@ -996,17 +984,13 @@ describe('ethereum', () => {
         { address: attendeeAddress, status: ATTENDEE_STATUS.WITHDRAWN_PAYOUT },
         originalList[1],
       ])
-
-      const party = await loadParty(partyAddress)
-
-      expect(party.attendees).toEqual(0) // no change from before!
     })
 
     it('overrides attendee index only if valid new index value provided', async () => {
       const attendeeAddress = newAddr()
 
       const originalList = [
-        { address: attendeeAddress, status: ATTENDEE_STATUS.ATTENDED, index: 6 },
+        { address: attendeeAddress, status: ATTENDEE_STATUS.SHOWED_UP, index: 6 },
       ]
 
       await saveAttendeeList(partyAddress, originalList)

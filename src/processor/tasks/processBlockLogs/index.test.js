@@ -396,34 +396,6 @@ describe('process block logs', () => {
     })
   })
 
-  it('marks attendees as attended', async () => {
-    blockChain.web3.blockNumber = 10
-    blockChain.web3.logs = Promise.resolve([
-      {
-        name: events.Attend.name,
-        address: '0x456',
-        args: {
-          addr: '0x123'
-        }
-      }
-    ])
-
-    const blockNumbers = {
-      start: 1,
-      end: 1,
-    }
-
-    processor = createProcessor({ config, log, blockChain, db, eventQueue })
-
-    processor(blockNumbers)
-
-    await delay(100)
-
-    expect(db.updateAttendeeStatus).toHaveBeenCalledWith('0x456', '0x123', {
-      status: ATTENDEE_STATUS.ATTENDED
-    })
-  })
-
   it('marks attendees as withdrawn payout', async () => {
     blockChain.web3.blockNumber = 10
     blockChain.web3.logs = Promise.resolve([

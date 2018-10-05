@@ -1,12 +1,12 @@
 const { ApolloServer } = require('apollo-server-koa')
 
-const types = require('./types')
+const schema = require('./schema')
 const createResolvers = require('./resolvers')
 
 module.exports = ({ db, server: app }) => {
   const server = new ApolloServer({
     introspection: true,
-    typeDefs: types,
+    typeDefs: schema,
     resolvers: createResolvers({ db }),
     context: ({ ctx: { state: { user } } }) => ({ user })
   })

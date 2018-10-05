@@ -10,9 +10,11 @@ type Party {
   deposit: String!
   coolingPeriod: String!
   attendeeLimit: Int!
-  attendees: Int!
+  attendees: [Attendee]!
   owner: UserProfile!
   admins: [UserProfile]!
+  ended: Boolean
+  cancelled: Boolean
 }
 
 input PartyMetaInput {
@@ -74,7 +76,6 @@ type LoginChallenge {
 enum AttendeeStatus {
   REGISTERED
   SHOWED_UP
-  ATTENDED
   WITHDRAWN_PAYOUT
   UNKNOWN
 }
@@ -99,7 +100,6 @@ input AttendeeInput {
 type Query {
   activeParties: [Party]
   party(address: String!): Party
-  attendees(address: String!): [Attendee]
   userProfile(address: String!): UserProfile
 }
 

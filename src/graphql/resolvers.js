@@ -72,7 +72,6 @@ module.exports = ({ db }) => {
       userProfile: async (_, { address }, { user }) => (
         loadProfileOrJustReturnAddress(address, user)
       ),
-      attendees: async (_, { address }) => db.getAttendees(address),
     },
     Mutation: {
       createLoginChallenge: async (_, { address }) => db.createLoginChallenge(address),
@@ -112,7 +111,8 @@ module.exports = ({ db }) => {
         (admins || []).map(admin => (
           loadProfileOrJustReturnAddress(admin, user)
         ))
-      )
+      ),
+      attendees: async ({ address }) => db.getAttendees(address),
     },
     LoginChallenge: {
       str: s => s
@@ -120,6 +120,6 @@ module.exports = ({ db }) => {
     Attendee: {
       status: ({ status }) => internalStatusToAttendeeStatus(status),
       user: ({ address, social }) => ({ address, social })
-    }
+    },
   }
 }
