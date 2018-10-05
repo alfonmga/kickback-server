@@ -108,6 +108,6 @@ type Mutation {
   loginUser: UserProfile
   updateUserProfile(profile: UserProfileInput!): UserProfile
   updatePartyMeta(address: String!, meta: PartyMetaInput!): Party
-  updateAttendeeStatus(address: String!, attendeee: AttendeeInput!): Attendee
+  updateAttendeeStatus(address: String!, attendee: AttendeeInput!): Attendee
 }
 `
