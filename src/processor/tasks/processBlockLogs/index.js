@@ -3,7 +3,7 @@ const { parseLog } = require('ethereum-event-logs')
 const safeGet = require('lodash.get')
 const { toHex } = require('web3-utils')
 
-const { ATTENDEE_STATUS } = require('../../../constants/status')
+const { PARTICIPANT_STATUS } = require('../../../constants/status')
 
 const eventAbis = Object.values(contractEvents)
 
@@ -71,12 +71,12 @@ module.exports = ({ config, log: parentLog, blockChain, db, eventQueue }) => {
       return db.removePartyAdmin(address, grantee)
     })
 
-    // add new attendees
+    // add new participants
     await _processEvent(contractEvents.Register.name, async event => {
-      const { address, args: { addr: attendee, participantIndex: index } } = event
+      const { address, args: { addr: participant, participantIndex: index } } = event
 
-      return db.updateAttendeeStatus(address, attendee, {
-        status: ATTENDEE_STATUS.REGISTERED,
+      return db.updateParticipantStatus(address, participant, {
+        status: PARTICIPANT_STATUS.REGISTERED,
         index
       })
     })
@@ -88,12 +88,12 @@ module.exports = ({ config, log: parentLog, blockChain, db, eventQueue }) => {
       return db.finalizeAttendance(address, maps)
     })
 
-    // mark attendees as having withdrawn payout
+    // mark participants as having withdrawn payout
     await _processEvent(contractEvents.Withdraw.name, async event => {
-      const { address, args: { addr: attendee } } = event
+      const { address, args: { addr: participant } } = event
 
-      return db.updateAttendeeStatus(address, attendee, {
-        status: ATTENDEE_STATUS.WITHDRAWN_PAYOUT
+      return db.updateParticipantStatus(address, participant, {
+        status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT
       })
     })
   }

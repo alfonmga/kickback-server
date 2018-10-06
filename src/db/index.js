@@ -7,7 +7,7 @@ const setupFirestoreDb = require('./firestore')
 const { NOTIFICATION } = require('../constants/events')
 const { SESSION_VALIDITY_SECONDS } = require('../constants/session')
 const { VERIFY_EMAIL } = require('../constants/notifications')
-const { PARTY_STATUS, ATTENDEE_STATUS } = require('../constants/status')
+const { PARTY_STATUS, PARTICIPANT_STATUS } = require('../constants/status')
 const {
   stringsMatchIgnoreCase,
   assertEthereumAddress,
@@ -215,7 +215,7 @@ class Db extends EventEmitter {
       network: this._blockChain.networkId,
       name,
       deposit: toHex(deposit),
-      attendeeLimit: hexToNumber(toHex(limitOfParticipants)),
+      participantLimit: hexToNumber(toHex(limitOfParticipants)),
       coolingPeriod: toHex(coolingPeriod),
       ended,
       cancelled,
@@ -254,10 +254,10 @@ class Db extends EventEmitter {
     return (await query.get()).docs.map(doc => doc.data())
   }
 
-  async getAttendees (partyAddress) {
-    const list = await this._getAttendeeList(partyAddress)
+  async getParticipants (partyAddress) {
+    const list = await this._getParticipantList(partyAddress)
 
-    return list.exists ? list.data.attendees : []
+    return list.exists ? list.data.participants : []
   }
 
   async finalizeAttendance (partyAddress, maps) {
@@ -275,28 +275,28 @@ class Db extends EventEmitter {
       return
     }
 
-    const attendeeList = await this._getAttendeeList(partyAddress)
+    const participantList = await this._getParticipantList(partyAddress)
 
-    if (!attendeeList.exists) {
-      this._log.warn(`No attendee list found for party ${partyAddress}`)
+    if (!participantList.exists) {
+      this._log.warn(`No participant list found for party ${partyAddress}`)
 
       return
     }
 
-    if (attendeeList.data.finalized) {
+    if (participantList.data.finalized) {
       this._log.warn(`Party ${partyAddress} already finalized`)
 
       return
     }
 
-    const { attendees = [] } = attendeeList.data
+    const { participants = [] } = participantList.data
 
     // sort
-    attendees.sort(({ index: indexA }, { index: indexB }) => (indexA < indexB ? -1 : 1))
+    participants.sort(({ index: indexA }, { index: indexB }) => (indexA < indexB ? -1 : 1))
 
     // check maps length
     const totalBits = maps.length * 256
-    const numMapsCorrect = totalBits >= attendees.length && totalBits - attendees.length < 256
+    const numMapsCorrect = totalBits >= participants.length && totalBits - participants.length < 256
     if (!numMapsCorrect) {
       this._log.warn(`Invalid no. of maps provided for finalizeing party ${partyAddress}`)
 
@@ -305,23 +305,23 @@ class Db extends EventEmitter {
 
     const mapBNs = maps.map(m => toBN(m))
     const zeroBN = toBN(0)
-    attendees.forEach((a, index) => {
+    participants.forEach((a, index) => {
       const mapIndex = parseInt(Math.floor(index / 256), 10)
       const bitIndex = index % 256
 
       const result = mapBNs[mapIndex].and(toBN(0).bincn(bitIndex))
 
-      a.status = result.gt(zeroBN) ? ATTENDEE_STATUS.SHOWED_UP : ATTENDEE_STATUS.REGISTERED
+      a.status = result.gt(zeroBN) ? PARTICIPANT_STATUS.SHOWED_UP : PARTICIPANT_STATUS.REGISTERED
     })
 
-    await attendeeList.set({
+    await participantList.set({
       address: partyAddress,
-      attendees: [ ...attendees ],
+      participants: [ ...participants ],
       finalized: true,
     })
   }
 
-  async updateAttendeeStatus (partyAddress, attendeeAddress, { status, index } = {}) {
+  async updateParticipantStatus (partyAddress, participantAddress, { status, index } = {}) {
     partyAddress = partyAddress.toLowerCase()
 
     const party = await this._getParty(partyAddress)
@@ -331,23 +331,23 @@ class Db extends EventEmitter {
 
       return
     } else if (party.data.ended || party.data.cancelled) {
-      this._log.warn(`Party ${partyAddress} already ended/cancelled, so cannot update status of attendee ${attendeeAddress}`)
+      this._log.warn(`Party ${partyAddress} already ended/cancelled, so cannot update status of participant ${participantAddress}`)
 
       return
     }
 
-    const attendeeList = await this._getAttendeeList(partyAddress)
+    const participantList = await this._getParticipantList(partyAddress)
 
-    if (safeGet(attendeeList, 'data.finalized')) {
-      this._log.warn(`Party ${partyAddress} already finalized, so cannot update status of attendee ${attendeeAddress}`)
+    if (safeGet(participantList, 'data.finalized')) {
+      this._log.warn(`Party ${partyAddress} already finalized, so cannot update status of participant ${participantAddress}`)
 
       return
     }
 
-    attendeeAddress = attendeeAddress.toLowerCase()
+    participantAddress = participantAddress.toLowerCase()
 
     const newEntry = {
-      address: attendeeAddress,
+      address: participantAddress,
       status,
     }
 
@@ -355,23 +355,23 @@ class Db extends EventEmitter {
       newEntry.index = index
     }
 
-    this._log.info(`Update status of attendee ${attendeeAddress} at party ${partyAddress} to ${JSON.stringify(newEntry)}`)
+    this._log.info(`Update status of participant ${participantAddress} at party ${partyAddress} to ${JSON.stringify(newEntry)}`)
 
-    // no attendee list exists yet, so create one
-    if (!attendeeList.exists) {
+    // no participant list exists yet, so create one
+    if (!participantList.exists) {
       await Promise.all([
-        attendeeList.set({
+        participantList.set({
           address: partyAddress,
-          attendees: [ newEntry ],
+          participants: [ newEntry ],
         }),
       ])
     } else {
-      const list = attendeeList.data.attendees
+      const list = participantList.data.participants
       const listIndex = list.findIndex(
-        ({ address: a }) => stringsMatchIgnoreCase(a, attendeeAddress)
+        ({ address: a }) => stringsMatchIgnoreCase(a, participantAddress)
       )
 
-      // if attendee found
+      // if participant found
       if (0 <= listIndex) {
         // don't overwrite existing index unless we have a new value
         if (undefined === newEntry.index && undefined !== list[listIndex].index) {
@@ -380,15 +380,15 @@ class Db extends EventEmitter {
 
         list.splice(listIndex, 1, newEntry)
 
-        await attendeeList.update({
-          attendees: list,
+        await participantList.update({
+          participants: list,
         })
       }
-      // if attendee not found
+      // if participant not found
       else {
         await Promise.all([
-          attendeeList.update({
-            attendees: list.concat(newEntry),
+          participantList.update({
+            participants: list.concat(newEntry),
           }),
         ])
       }
@@ -516,8 +516,8 @@ class Db extends EventEmitter {
     return this._get(`party/${this._id(address.toLowerCase())}`)
   }
 
-  async _getAttendeeList (address) {
-    return this._get(`attendeeList/${this._id(address.toLowerCase())}`)
+  async _getParticipantList (address) {
+    return this._get(`participantList/${this._id(address.toLowerCase())}`)
   }
 
   async _get (refPath) {

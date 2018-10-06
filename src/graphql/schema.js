@@ -10,8 +10,8 @@ type Party {
   address: String!
   deposit: String!
   coolingPeriod: String!
-  attendeeLimit: Int!
-  attendees: [Attendee]!
+  participantLimit: Int!
+  participants: [Participant]!
   owner: UserProfile!
   admins: [UserProfile]!
   ended: Boolean
@@ -75,7 +75,7 @@ type LoginChallenge {
   str: String!
 }
 
-enum AttendeeStatus {
+enum ParticipantStatus {
   REGISTERED
   SHOWED_UP
   WITHDRAWN_PAYOUT
@@ -83,20 +83,20 @@ enum AttendeeStatus {
 }
 
 # we only allow certain statuses to be externally updateable
-enum UpdateableAttendeeStatus {
+enum UpdateableParticipantStatus {
   REGISTERED # if they don't show up
   SHOWED_UP # if they show up
 }
 
-type Attendee {
+type Participant {
   user: UserProfile!
   index: Int!
-  status: AttendeeStatus!
+  status: ParticipantStatus!
 }
 
-input AttendeeInput {
+input ParticipantInput {
   address: String!
-  status: UpdateableAttendeeStatus!
+  status: UpdateableParticipantStatus!
 }
 
 type Query {
@@ -110,6 +110,6 @@ type Mutation {
   loginUser: UserProfile
   updateUserProfile(profile: UserProfileInput!): UserProfile
   updatePartyMeta(address: String!, meta: PartyMetaInput!): Party
-  updateAttendeeStatus(address: String!, attendee: AttendeeInput!): Attendee
+  updateParticipantStatus(address: String!, participant: ParticipantInput!): Participant
 }
 `

@@ -1,5 +1,5 @@
 const safeGet = require('lodash.get')
-const { ATTENDEE_STATUS } = require('../constants/status')
+const { PARTICIPANT_STATUS } = require('../constants/status')
 const { ADMIN, OWNER } = require('../constants/roles')
 const { addressesMatch } = require('../utils/validators')
 
@@ -9,14 +9,14 @@ const assertUser = async user => {
   }
 }
 
-const attendeeStatusToInternalStatus = status => (
-  ATTENDEE_STATUS[status] || ATTENDEE_STATUS.UNKNOWN
+const participantStatusToInternalStatus = status => (
+  PARTICIPANT_STATUS[status] || PARTICIPANT_STATUS.UNKNOWN
 )
 
-const internalStatusToAttendeeStatus = status => {
+const internalStatusToParticipantStatus = status => {
   // eslint-disable-next-line no-restricted-syntax
-  for (const key in ATTENDEE_STATUS) {
-    if (ATTENDEE_STATUS[key] === status) {
+  for (const key in PARTICIPANT_STATUS) {
+    if (PARTICIPANT_STATUS[key] === status) {
       return key
     }
   }
@@ -92,14 +92,14 @@ module.exports = ({ db }) => {
 
         return db.updatePartyMeta(partyAddress, meta)
       },
-      updateAttendeeStatus: async (_, {
+      updateParticipantStatus: async (_, {
         address: partyAddress,
-        attendee: { address, status }
+        participant: { address, status }
       }, { user }) => {
         await assertPartyRole(partyAddress, user, ADMIN)
 
-        return db.updateAttendeeStatus(
-          partyAddress, address, { status: attendeeStatusToInternalStatus(status) }
+        return db.updateParticipantStatus(
+          partyAddress, address, { status: participantStatusToInternalStatus(status) }
         )
       },
     },
@@ -112,13 +112,13 @@ module.exports = ({ db }) => {
           loadProfileOrJustReturnAddress(admin, user)
         ))
       ),
-      attendees: async ({ address }) => db.getAttendees(address),
+      participants: async ({ address }) => db.getParticipants(address),
     },
     LoginChallenge: {
       str: s => s
     },
-    Attendee: {
-      status: ({ status }) => internalStatusToAttendeeStatus(status),
+    Participant: {
+      status: ({ status }) => internalStatusToParticipantStatus(status),
       user: ({ address, social }) => ({ address, social })
     },
   }

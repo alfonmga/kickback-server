@@ -3,7 +3,7 @@ import Web3 from 'web3'
 import delay from 'delay'
 import { events } from '@noblocknoparty/contracts'
 
-import { ATTENDEE_STATUS } from '../../../constants/status'
+import { PARTICIPANT_STATUS } from '../../../constants/status'
 import createLog from '../../../log'
 import createProcessor from './'
 
@@ -62,7 +62,7 @@ describe('process block logs', () => {
       setNewPartyOwner: jest.fn(async () => {}),
       addPartyAdmin: jest.fn(async () => {}),
       removePartyAdmin: jest.fn(async () => {}),
-      updateAttendeeStatus: jest.fn(async () => {}),
+      updateParticipantStatus: jest.fn(async () => {}),
       finalizeAttendance: jest.fn(async () => {}),
       setKey: jest.fn(async () => {}),
     }
@@ -367,7 +367,7 @@ describe('process block logs', () => {
     expect(db.removePartyAdmin).toHaveBeenCalledWith('0x456', '0x123')
   })
 
-  it('adds party attendees', async () => {
+  it('adds party participants', async () => {
     blockChain.web3.blockNumber = 10
     blockChain.web3.logs = Promise.resolve([
       {
@@ -391,13 +391,13 @@ describe('process block logs', () => {
 
     await delay(100)
 
-    expect(db.updateAttendeeStatus).toHaveBeenCalledWith('0x456', '0x123', {
-      status: ATTENDEE_STATUS.REGISTERED,
+    expect(db.updateParticipantStatus).toHaveBeenCalledWith('0x456', '0x123', {
+      status: PARTICIPANT_STATUS.REGISTERED,
       index: 2,
     })
   })
 
-  it('finalizes attendees', async () => {
+  it('finalizes participants', async () => {
     blockChain.web3.blockNumber = 10
     blockChain.web3.logs = Promise.resolve([
       {
@@ -423,7 +423,7 @@ describe('process block logs', () => {
     expect(db.finalizeAttendance).toHaveBeenCalledWith('0x456', [ 1, 2, 3 ])
   })
 
-  it('marks attendees as withdrawn payout', async () => {
+  it('marks participants as withdrawn payout', async () => {
     blockChain.web3.blockNumber = 10
     blockChain.web3.logs = Promise.resolve([
       {
@@ -446,8 +446,8 @@ describe('process block logs', () => {
 
     await delay(100)
 
-    expect(db.updateAttendeeStatus).toHaveBeenCalledWith('0x456', '0x123', {
-      status: ATTENDEE_STATUS.WITHDRAWN_PAYOUT
+    expect(db.updateParticipantStatus).toHaveBeenCalledWith('0x456', '0x123', {
+      status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT
     })
   })
 
@@ -489,7 +489,7 @@ describe('process block logs', () => {
       }
     ])
 
-    db.updateAttendeeStatus = jest.fn(() => Promise.reject(new Error('test')))
+    db.updateParticipantStatus = jest.fn(() => Promise.reject(new Error('test')))
 
     const blockNumbers = {
       start: 1,

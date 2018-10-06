@@ -9,7 +9,7 @@ import createLog from '../log'
 import createDb from './'
 import { getContract } from '../utils/contracts'
 import { NOTIFICATION } from '../constants/events'
-import { ATTENDEE_STATUS, PARTY_STATUS } from '../constants/status'
+import { PARTICIPANT_STATUS, PARTY_STATUS } from '../constants/status'
 import { VERIFY_EMAIL } from '../constants/notifications'
 import { SESSION_VALIDITY_SECONDS } from '../constants/session'
 import { TERMS_AND_CONDITIONS, PRIVACY_POLICY } from '../constants/legal'
@@ -55,8 +55,8 @@ describe('ethereum', () => {
   let loadParty
   let saveParty
   let loadNotification
-  let loadAttendeeList
-  let saveAttendeeList
+  let loadParticipantList
+  let saveParticipantList
   let loadKey
   let saveKey
 
@@ -101,12 +101,12 @@ describe('ethereum', () => {
 
     loadNotification = async id => nativeDb.doc(`notification/${id}`).get().then(d => d.data())
 
-    saveAttendeeList = async (address, list, extra = {}) => nativeDb.doc(`attendeeList/${address.toLowerCase()}-${networkId}`).set({
+    saveParticipantList = async (address, list, extra = {}) => nativeDb.doc(`participantList/${address.toLowerCase()}-${networkId}`).set({
       address,
-      attendees: list,
+      participants: list,
       ...extra,
     })
-    loadAttendeeList = async address => nativeDb.doc(`attendeeList/${address.toLowerCase()}-${networkId}`).get().then(d => d.data())
+    loadParticipantList = async address => nativeDb.doc(`participantList/${address.toLowerCase()}-${networkId}`).get().then(d => d.data())
 
     saveKey = async (key, value) => nativeDb.doc(`setting/${key}-${networkId}`).set({ value })
     loadKey = async key => nativeDb.doc(`setting/${key}-${networkId}`).get().then(d => d.data())
@@ -377,7 +377,7 @@ describe('ethereum', () => {
         network: blockChain.networkId,
         name: 'test',
         deposit: toHex(toWei('0.2', 'ether')),
-        attendeeLimit: 100,
+        participantLimit: 100,
         coolingPeriod: toHex(2),
         ended: false,
         cancelled: false,
@@ -409,7 +409,7 @@ describe('ethereum', () => {
         network: blockChain.networkId,
         name: 'test',
         deposit: toHex(toWei('0.2', 'ether')),
-        attendeeLimit: 100,
+        participantLimit: 100,
         coolingPeriod: toHex(2),
         ended: false,
         cancelled: false,
@@ -846,39 +846,39 @@ describe('ethereum', () => {
     })
   })
 
-  describe('getAttendees', () => {
+  describe('getParticipants', () => {
     it('returns empty if not found', async () => {
-      expect(await db.getAttendees('invalid')).toEqual([])
+      expect(await db.getParticipants('invalid')).toEqual([])
     })
 
     it('returns list if found', async () => {
       const list = [
-        { address: newAddr(), status: ATTENDEE_STATUS.REGISTERED },
-        { address: newAddr(), status: ATTENDEE_STATUS.SHOWED_UP },
+        { address: newAddr(), status: PARTICIPANT_STATUS.REGISTERED },
+        { address: newAddr(), status: PARTICIPANT_STATUS.SHOWED_UP },
       ]
 
       const party = newAddr()
 
-      await saveAttendeeList(party, list)
+      await saveParticipantList(party, list)
 
-      expect(await db.getAttendees(party)).toEqual(list)
+      expect(await db.getParticipants(party)).toEqual(list)
     })
 
     it('handles uppercase address', async () => {
       const list = [
-        { address: newAddr(), status: ATTENDEE_STATUS.REGISTERED },
-        { address: newAddr(), status: ATTENDEE_STATUS.SHOWED_UP },
+        { address: newAddr(), status: PARTICIPANT_STATUS.REGISTERED },
+        { address: newAddr(), status: PARTICIPANT_STATUS.SHOWED_UP },
       ]
 
       const party = newAddr()
 
-      await saveAttendeeList(party, list)
+      await saveParticipantList(party, list)
 
-      expect(await db.getAttendees(party.toUpperCase())).toEqual(list)
+      expect(await db.getParticipants(party.toUpperCase())).toEqual(list)
     })
   })
 
-  describe('updateAttendeeStatus', () => {
+  describe('updateParticipantStatus', () => {
     let partyAddress
 
     beforeEach(async () => {
@@ -890,12 +890,12 @@ describe('ethereum', () => {
     it('does nothing if party not found', async () => {
       const invalidPartyAddress = newAddr()
 
-      await db.updateAttendeeStatus(invalidPartyAddress, newAddr(), {
-        status: ATTENDEE_STATUS.REGISTERED,
+      await db.updateParticipantStatus(invalidPartyAddress, newAddr(), {
+        status: PARTICIPANT_STATUS.REGISTERED,
         index: 5
       })
 
-      const doc = await loadAttendeeList(partyAddress)
+      const doc = await loadParticipantList(partyAddress)
 
       expect(doc).toBeUndefined()
     })
@@ -905,12 +905,12 @@ describe('ethereum', () => {
         cancelled: true,
       })
 
-      await db.updateAttendeeStatus(partyAddress, newAddr(), {
-        status: ATTENDEE_STATUS.REGISTERED,
+      await db.updateParticipantStatus(partyAddress, newAddr(), {
+        status: PARTICIPANT_STATUS.REGISTERED,
         index: 5
       })
 
-      const doc = await loadAttendeeList(partyAddress)
+      const doc = await loadParticipantList(partyAddress)
 
       expect(doc).toBeUndefined()
     })
@@ -920,12 +920,12 @@ describe('ethereum', () => {
         ended: true,
       })
 
-      await db.updateAttendeeStatus(partyAddress, newAddr(), {
-        status: ATTENDEE_STATUS.REGISTERED,
+      await db.updateParticipantStatus(partyAddress, newAddr(), {
+        status: PARTICIPANT_STATUS.REGISTERED,
         index: 5
       })
 
-      const doc = await loadAttendeeList(partyAddress)
+      const doc = await loadParticipantList(partyAddress)
 
       expect(doc).toBeUndefined()
     })
@@ -935,159 +935,159 @@ describe('ethereum', () => {
       const addr2 = newAddr()
 
       const originalList = [
-        { address: addr1, status: ATTENDEE_STATUS.SHOWED_UP, index: 1, },
-        { address: addr2, status: ATTENDEE_STATUS.REGISTERED, index: 2, },
+        { address: addr1, status: PARTICIPANT_STATUS.SHOWED_UP, index: 1, },
+        { address: addr2, status: PARTICIPANT_STATUS.REGISTERED, index: 2, },
       ]
 
-      await saveAttendeeList(partyAddress, originalList, {
+      await saveParticipantList(partyAddress, originalList, {
         finalized: true,
       })
 
-      await db.updateAttendeeStatus(partyAddress, addr1, {
-        status: ATTENDEE_STATUS.WITHDRAWN_PAYOUT,
+      await db.updateParticipantStatus(partyAddress, addr1, {
+        status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
         index: 5
       })
 
-      const doc = await loadAttendeeList(partyAddress)
+      const doc = await loadParticipantList(partyAddress)
 
-      expect(doc.attendees).toEqual(originalList)
+      expect(doc.participants).toEqual(originalList)
     })
 
-    it('creates attendee list and updates party attendees count if it does not exist yet', async () => {
-      const attendeeAddress = newAddr()
+    it('creates participant list and updates party participants count if it does not exist yet', async () => {
+      const participantAddress = newAddr()
 
-      await db.updateAttendeeStatus(partyAddress, attendeeAddress, {
-        status: ATTENDEE_STATUS.REGISTERED,
+      await db.updateParticipantStatus(partyAddress, participantAddress, {
+        status: PARTICIPANT_STATUS.REGISTERED,
         index: 5
       })
 
-      const doc = await loadAttendeeList(partyAddress)
+      const doc = await loadParticipantList(partyAddress)
 
-      expect(doc.attendees).toEqual([
-        { address: attendeeAddress, status: ATTENDEE_STATUS.REGISTERED, index: 5 }
+      expect(doc.participants).toEqual([
+        { address: participantAddress, status: PARTICIPANT_STATUS.REGISTERED, index: 5 }
       ])
       expect(doc.address).toEqual(partyAddress)
       expect(doc.lastUpdated).toBeDefined()
     })
 
     it('auto-lowercases all addresses', async () => {
-      const attendeeAddress = newAddr()
+      const participantAddress = newAddr()
 
-      await db.updateAttendeeStatus(
-        partyAddress.toUpperCase(), attendeeAddress.toUpperCase(), {
-          status: ATTENDEE_STATUS.REGISTERED
+      await db.updateParticipantStatus(
+        partyAddress.toUpperCase(), participantAddress.toUpperCase(), {
+          status: PARTICIPANT_STATUS.REGISTERED
         }
       )
 
-      const doc = await loadAttendeeList(partyAddress)
+      const doc = await loadParticipantList(partyAddress)
 
-      expect(doc.attendees).toEqual([
-        { address: attendeeAddress, status: ATTENDEE_STATUS.REGISTERED }
+      expect(doc.participants).toEqual([
+        { address: participantAddress, status: PARTICIPANT_STATUS.REGISTERED }
       ])
       expect(doc.address).toEqual(partyAddress)
       expect(doc.lastUpdated).toBeDefined()
     })
 
-    it('appends to attendee list and updates party attendees count if attendee not already in list', async () => {
+    it('appends to participant list and updates party participants count if participant not already in list', async () => {
       const originalList = [
-        { address: newAddr(), status: ATTENDEE_STATUS.SHOWED_UP }
+        { address: newAddr(), status: PARTICIPANT_STATUS.SHOWED_UP }
       ]
 
-      await saveAttendeeList(partyAddress, originalList)
+      await saveParticipantList(partyAddress, originalList)
 
-      const attendeeAddress = newAddr()
+      const participantAddress = newAddr()
 
-      await db.updateAttendeeStatus(partyAddress, attendeeAddress, {
-        status: ATTENDEE_STATUS.REGISTERED,
+      await db.updateParticipantStatus(partyAddress, participantAddress, {
+        status: PARTICIPANT_STATUS.REGISTERED,
         index: 3,
       })
 
-      const doc = await loadAttendeeList(partyAddress)
+      const doc = await loadParticipantList(partyAddress)
 
-      expect(doc.attendees).toEqual([
+      expect(doc.participants).toEqual([
         ...originalList,
-        { address: attendeeAddress, status: ATTENDEE_STATUS.REGISTERED, index: 3 },
+        { address: participantAddress, status: PARTICIPANT_STATUS.REGISTERED, index: 3 },
       ])
     })
 
-    it('updates attendee list entry if attendee already in list', async () => {
-      const attendeeAddress = newAddr()
+    it('updates participant list entry if participant already in list', async () => {
+      const participantAddress = newAddr()
 
       const originalList = [
-        { address: attendeeAddress, status: ATTENDEE_STATUS.SHOWED_UP },
-        { address: newAddr(), status: ATTENDEE_STATUS.REGISTERED }
+        { address: participantAddress, status: PARTICIPANT_STATUS.SHOWED_UP },
+        { address: newAddr(), status: PARTICIPANT_STATUS.REGISTERED }
       ]
 
-      await saveAttendeeList(partyAddress, originalList)
+      await saveParticipantList(partyAddress, originalList)
 
-      await db.updateAttendeeStatus(partyAddress, attendeeAddress, {
-        status: ATTENDEE_STATUS.WITHDRAWN_PAYOUT,
+      await db.updateParticipantStatus(partyAddress, participantAddress, {
+        status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
       })
 
-      const doc = await loadAttendeeList(partyAddress)
+      const doc = await loadParticipantList(partyAddress)
 
-      expect(doc.attendees).toEqual([
-        { address: attendeeAddress, status: ATTENDEE_STATUS.WITHDRAWN_PAYOUT },
+      expect(doc.participants).toEqual([
+        { address: participantAddress, status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT },
         originalList[1],
       ])
     })
 
-    it('overrides attendee index only if valid new index value provided', async () => {
-      const attendeeAddress = newAddr()
+    it('overrides participant index only if valid new index value provided', async () => {
+      const participantAddress = newAddr()
 
       const originalList = [
-        { address: attendeeAddress, status: ATTENDEE_STATUS.SHOWED_UP, index: 6 },
+        { address: participantAddress, status: PARTICIPANT_STATUS.SHOWED_UP, index: 6 },
       ]
 
-      await saveAttendeeList(partyAddress, originalList)
+      await saveParticipantList(partyAddress, originalList)
 
-      await db.updateAttendeeStatus(partyAddress, attendeeAddress, {
-        status: ATTENDEE_STATUS.WITHDRAWN_PAYOUT,
+      await db.updateParticipantStatus(partyAddress, participantAddress, {
+        status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
         index: undefined
       })
 
-      const doc = await loadAttendeeList(partyAddress)
+      const doc = await loadParticipantList(partyAddress)
 
-      expect(doc.attendees).toEqual([
-        { address: attendeeAddress, status: ATTENDEE_STATUS.WITHDRAWN_PAYOUT, index: 6 },
+      expect(doc.participants).toEqual([
+        { address: participantAddress, status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT, index: 6 },
       ])
 
-      await db.updateAttendeeStatus(partyAddress, attendeeAddress, {
-        status: ATTENDEE_STATUS.WITHDRAWN_PAYOUT,
+      await db.updateParticipantStatus(partyAddress, participantAddress, {
+        status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
         index: 8
       })
 
-      const doc2 = await loadAttendeeList(partyAddress)
+      const doc2 = await loadParticipantList(partyAddress)
 
-      expect(doc2.attendees).toEqual([
-        { address: attendeeAddress, status: ATTENDEE_STATUS.WITHDRAWN_PAYOUT, index: 8 },
+      expect(doc2.participants).toEqual([
+        { address: participantAddress, status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT, index: 8 },
       ])
     })
   })
 
   describe('finalizeAttendance', () => {
     let partyAddress
-    let attendees
-    let maxAttendees
+    let participants
+    let maxParticipants
 
     beforeEach(async () => {
       partyAddress = newAddr()
 
       await saveParty(partyAddress, {})
 
-      maxAttendees = 351
-      attendees = []
-      for (let i = 0; maxAttendees > i; i += 1) {
-        attendees.push(
+      maxParticipants = 351
+      participants = []
+      for (let i = 0; maxParticipants > i; i += 1) {
+        participants.push(
           {
             address: newAddr(),
             index: i + 1,
-            status: ATTENDEE_STATUS.WITHDRAWN_PAYOUT,
+            status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
           }
         )
       }
 
-      await saveAttendeeList(partyAddress, attendees)
+      await saveParticipantList(partyAddress, participants)
     })
 
     it('does nothing if party not found', async () => {
@@ -1095,9 +1095,9 @@ describe('ethereum', () => {
 
       await db.finalizeAttendance(invalidPartyAddress, [ 0, 0 ])
 
-      const doc = await loadAttendeeList(partyAddress)
+      const doc = await loadParticipantList(partyAddress)
 
-      expect(doc.attendees).toEqual(attendees)
+      expect(doc.participants).toEqual(participants)
     })
 
     it('does nothing if party cancelled', async () => {
@@ -1107,9 +1107,9 @@ describe('ethereum', () => {
 
       await db.finalizeAttendance(partyAddress, [ 0, 0 ])
 
-      const doc = await loadAttendeeList(partyAddress)
+      const doc = await loadParticipantList(partyAddress)
 
-      expect(doc.attendees).toEqual(attendees)
+      expect(doc.participants).toEqual(participants)
     })
 
     it('does nothing if party ended', async () => {
@@ -1119,74 +1119,74 @@ describe('ethereum', () => {
 
       await db.finalizeAttendance(partyAddress, [ 0, 0 ])
 
-      const doc = await loadAttendeeList(partyAddress)
+      const doc = await loadParticipantList(partyAddress)
 
-      expect(doc.attendees).toEqual(attendees)
+      expect(doc.participants).toEqual(participants)
     })
 
     it('does nothing if attendance already finalized', async () => {
-      await saveAttendeeList(partyAddress, attendees, {
+      await saveParticipantList(partyAddress, participants, {
         finalized: true
       })
 
       await db.finalizeAttendance(partyAddress, [ 0, 0 ])
 
-      const doc = await loadAttendeeList(partyAddress)
+      const doc = await loadParticipantList(partyAddress)
 
-      expect(doc.attendees).toEqual(attendees)
+      expect(doc.participants).toEqual(participants)
     })
 
     it('does nothing if not enough maps given', async () => {
       await db.finalizeAttendance(partyAddress, [ 0 ])
 
-      const doc = await loadAttendeeList(partyAddress)
+      const doc = await loadParticipantList(partyAddress)
 
-      expect(doc.attendees).toEqual(attendees)
+      expect(doc.participants).toEqual(participants)
     })
 
     it('does nothing if too many maps given', async () => {
       await db.finalizeAttendance(partyAddress, [ 0, 0, 0 ])
 
-      const doc = await loadAttendeeList(partyAddress)
+      const doc = await loadParticipantList(partyAddress)
 
-      expect(doc.attendees).toEqual(attendees)
+      expect(doc.participants).toEqual(participants)
     })
 
     it('finalizes attendance - p0', async () => {
       await db.finalizeAttendance(partyAddress, [ 1, 0 ])
 
-      const doc = await loadAttendeeList(partyAddress)
+      const doc = await loadParticipantList(partyAddress)
 
-      const expectedAttendees = [ ...attendees ]
-      for (let i = 0; attendees.length > i; i += 1) {
-        expectedAttendees[i].status = ATTENDEE_STATUS.REGISTERED
+      const expectedParticipants = [ ...participants ]
+      for (let i = 0; participants.length > i; i += 1) {
+        expectedParticipants[i].status = PARTICIPANT_STATUS.REGISTERED
       }
-      expectedAttendees[0].status = ATTENDEE_STATUS.SHOWED_UP
+      expectedParticipants[0].status = PARTICIPANT_STATUS.SHOWED_UP
 
-      expect(doc.attendees).toEqual(expectedAttendees)
+      expect(doc.participants).toEqual(expectedParticipants)
     })
 
     it('finalizes attendance - p0, p255, p257, 349, pMax', async () => {
       const maps = [
         toBN(0).bincn(0).bincn(255),
-        toBN(0).bincn(1).bincn(349 % 256).bincn((attendees.length - 1) % 256),
+        toBN(0).bincn(1).bincn(349 % 256).bincn((participants.length - 1) % 256),
       ]
 
       await db.finalizeAttendance(partyAddress, maps)
 
-      const doc = await loadAttendeeList(partyAddress)
+      const doc = await loadParticipantList(partyAddress)
 
-      const expectedAttendees = [ ...attendees ]
-      for (let i = 0; attendees.length > i; i += 1) {
-        expectedAttendees[i].status = ATTENDEE_STATUS.REGISTERED
+      const expectedParticipants = [ ...participants ]
+      for (let i = 0; participants.length > i; i += 1) {
+        expectedParticipants[i].status = PARTICIPANT_STATUS.REGISTERED
       }
-      expectedAttendees[0].status = ATTENDEE_STATUS.SHOWED_UP
-      expectedAttendees[255].status = ATTENDEE_STATUS.SHOWED_UP
-      expectedAttendees[257].status = ATTENDEE_STATUS.SHOWED_UP
-      expectedAttendees[349].status = ATTENDEE_STATUS.SHOWED_UP
-      expectedAttendees[expectedAttendees.length - 1].status = ATTENDEE_STATUS.SHOWED_UP
+      expectedParticipants[0].status = PARTICIPANT_STATUS.SHOWED_UP
+      expectedParticipants[255].status = PARTICIPANT_STATUS.SHOWED_UP
+      expectedParticipants[257].status = PARTICIPANT_STATUS.SHOWED_UP
+      expectedParticipants[349].status = PARTICIPANT_STATUS.SHOWED_UP
+      expectedParticipants[expectedParticipants.length - 1].status = PARTICIPANT_STATUS.SHOWED_UP
 
-      expect(doc.attendees).toEqual(expectedAttendees)
+      expect(doc.participants).toEqual(expectedParticipants)
       expect(doc.finalized).toEqual(true)
     })
 
@@ -1199,14 +1199,14 @@ describe('ethereum', () => {
 
       await db.finalizeAttendance(partyAddress, maps)
 
-      const doc = await loadAttendeeList(partyAddress)
+      const doc = await loadParticipantList(partyAddress)
 
-      const expectedAttendees = [ ...attendees ]
-      for (let i = 0; attendees.length > i; i += 1) {
-        expectedAttendees[i].status = ATTENDEE_STATUS.SHOWED_UP
+      const expectedParticipants = [ ...participants ]
+      for (let i = 0; participants.length > i; i += 1) {
+        expectedParticipants[i].status = PARTICIPANT_STATUS.SHOWED_UP
       }
 
-      expect(doc.attendees).toEqual(expectedAttendees)
+      expect(doc.participants).toEqual(expectedParticipants)
       expect(doc.finalized).toEqual(true)
     })
 
@@ -1215,14 +1215,14 @@ describe('ethereum', () => {
 
       await db.finalizeAttendance(partyAddress, maps)
 
-      const doc = await loadAttendeeList(partyAddress)
+      const doc = await loadParticipantList(partyAddress)
 
-      const expectedAttendees = [ ...attendees ]
-      for (let i = 0; attendees.length > i; i += 1) {
-        expectedAttendees[i].status = ATTENDEE_STATUS.REGISTERED
+      const expectedParticipants = [ ...participants ]
+      for (let i = 0; participants.length > i; i += 1) {
+        expectedParticipants[i].status = PARTICIPANT_STATUS.REGISTERED
       }
 
-      expect(doc.attendees).toEqual(expectedAttendees)
+      expect(doc.participants).toEqual(expectedParticipants)
       expect(doc.finalized).toEqual(true)
     })
   })
