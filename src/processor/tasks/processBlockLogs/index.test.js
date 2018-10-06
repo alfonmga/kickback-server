@@ -315,17 +315,37 @@ describe('process block logs', () => {
     expect(db.setNewPartyOwner).toHaveBeenCalledWith('0x456', '0x123')
   })
 
-  it('adds party admins', async () => {
+
+  it('adds party admins one at a time', async () => {
+    expect.assertions(103)
+
     blockChain.web3.blockNumber = 10
-    blockChain.web3.logs = Promise.resolve([
-      {
+
+    const logs = []
+    for (let i = 0; 100 > i; i += 1) {
+      logs.push({
         name: events.AddAdmin.name,
-        address: '0x456',
+        address: `0x456`,
         args: {
-          grantee: '0x123'
+          grantee: `0x123${i}`
         }
-      }
-    ])
+      })
+    }
+    blockChain.web3.logs = Promise.resolve(logs)
+
+    const finalList = []
+
+    let called = false
+    db.addPartyAdmin = jest.fn((_, grantee) => new Promise(resolve => {
+      setTimeout(
+        () => {
+          finalList.push(grantee)
+          resolve()
+        },
+        called ? 0 : 1000
+      )
+      called = true
+    }))
 
     const blockNumbers = {
       start: 1,
@@ -336,22 +356,47 @@ describe('process block logs', () => {
 
     processor(blockNumbers)
 
-    await delay(100)
+    await delay(2000)
 
-    expect(db.addPartyAdmin).toHaveBeenCalledWith('0x456', '0x123')
+    expect(db.addPartyAdmin).toHaveBeenCalledWith('0x456', '0x1230')
+    expect(db.addPartyAdmin).toHaveBeenCalledWith('0x456', '0x1239')
+
+    expect(db.addPartyAdmin).toHaveBeenCalledTimes(logs.length)
+    for (let i = 0; logs.length > i; i += 1) {
+      expect(finalList[i]).toEqual(`0x123${i}`)
+    }
   })
 
-  it('removes party admins', async () => {
+  it('removes party admins one at a time', async () => {
+    expect.assertions(103)
+
     blockChain.web3.blockNumber = 10
-    blockChain.web3.logs = Promise.resolve([
-      {
+
+    const logs = []
+    for (let i = 0; 100 > i; i += 1) {
+      logs.push({
         name: events.RemoveAdmin.name,
-        address: '0x456',
+        address: `0x456`,
         args: {
-          grantee: '0x123'
+          grantee: `0x123${i}`
         }
-      }
-    ])
+      })
+    }
+    blockChain.web3.logs = Promise.resolve(logs)
+
+    const finalList = []
+
+    let called = false
+    db.removePartyAdmin = jest.fn((_, grantee) => new Promise(resolve => {
+      setTimeout(
+        () => {
+          finalList.push(grantee)
+          resolve()
+        },
+        called ? 0 : 1000
+      )
+      called = true
+    }))
 
     const blockNumbers = {
       start: 1,
@@ -362,23 +407,48 @@ describe('process block logs', () => {
 
     processor(blockNumbers)
 
-    await delay(100)
+    await delay(2000)
 
-    expect(db.removePartyAdmin).toHaveBeenCalledWith('0x456', '0x123')
+    expect(db.removePartyAdmin).toHaveBeenCalledWith('0x456', '0x1230')
+    expect(db.removePartyAdmin).toHaveBeenCalledWith('0x456', '0x1239')
+
+    expect(db.removePartyAdmin).toHaveBeenCalledTimes(logs.length)
+    for (let i = 0; logs.length > i; i += 1) {
+      expect(finalList[i]).toEqual(`0x123${i}`)
+    }
   })
 
-  it('adds party participants', async () => {
+  it('registers participants one at a time', async () => {
+    expect.assertions(103)
+
     blockChain.web3.blockNumber = 10
-    blockChain.web3.logs = Promise.resolve([
-      {
+
+    const logs = []
+    for (let i = 0; 100 > i; i += 1) {
+      logs.push({
         name: events.Register.name,
         address: '0x456',
         args: {
-          addr: '0x123',
-          participantIndex: 2
+          addr: `0x123${i}`,
+          participantIndex: i
         }
-      }
-    ])
+      })
+    }
+    blockChain.web3.logs = Promise.resolve(logs)
+
+    const finalList = []
+
+    let called = false
+    db.updateParticipantStatus = jest.fn((_, addr) => new Promise(resolve => {
+      setTimeout(
+        () => {
+          finalList.push(addr)
+          resolve()
+        },
+        called ? 0 : 1000
+      )
+      called = true
+    }))
 
     const blockNumbers = {
       start: 1,
@@ -389,12 +459,77 @@ describe('process block logs', () => {
 
     processor(blockNumbers)
 
-    await delay(100)
+    await delay(2000)
 
-    expect(db.updateParticipantStatus).toHaveBeenCalledWith('0x456', '0x123', {
+    expect(db.updateParticipantStatus).toHaveBeenCalledWith('0x456', '0x1230', {
+      index: 0,
       status: PARTICIPANT_STATUS.REGISTERED,
-      index: 2,
     })
+    expect(db.updateParticipantStatus).toHaveBeenCalledWith('0x456', '0x1239', {
+      index: 9,
+      status: PARTICIPANT_STATUS.REGISTERED,
+    })
+
+    expect(db.updateParticipantStatus).toHaveBeenCalledTimes(logs.length)
+    for (let i = 0; logs.length > i; i += 1) {
+      expect(finalList[i]).toEqual(`0x123${i}`)
+    }
+  })
+
+
+  it('marks participants as withdrawn payout one at a time', async () => {
+    expect.assertions(103)
+
+    blockChain.web3.blockNumber = 10
+
+    const logs = []
+    for (let i = 0; 100 > i; i += 1) {
+      logs.push({
+        name: events.Withdraw.name,
+        address: '0x456',
+        args: {
+          addr: `0x123${i}`
+        }
+      })
+    }
+    blockChain.web3.logs = Promise.resolve(logs)
+
+    const finalList = []
+
+    let called = false
+    db.updateParticipantStatus = jest.fn((_, addr) => new Promise(resolve => {
+      setTimeout(
+        () => {
+          finalList.push(addr)
+          resolve()
+        },
+        called ? 0 : 1000
+      )
+      called = true
+    }))
+
+    const blockNumbers = {
+      start: 1,
+      end: 1,
+    }
+
+    processor = createProcessor({ config, log, blockChain, db, eventQueue })
+
+    processor(blockNumbers)
+
+    await delay(2000)
+
+    expect(db.updateParticipantStatus).toHaveBeenCalledWith('0x456', '0x1230', {
+      status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
+    })
+    expect(db.updateParticipantStatus).toHaveBeenCalledWith('0x456', '0x1239', {
+      status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
+    })
+
+    expect(db.updateParticipantStatus).toHaveBeenCalledTimes(logs.length)
+    for (let i = 0; logs.length > i; i += 1) {
+      expect(finalList[i]).toEqual(`0x123${i}`)
+    }
   })
 
   it('finalizes participants', async () => {
@@ -423,33 +558,6 @@ describe('process block logs', () => {
     expect(db.finalizeAttendance).toHaveBeenCalledWith('0x456', [ 1, 2, 3 ])
   })
 
-  it('marks participants as withdrawn payout', async () => {
-    blockChain.web3.blockNumber = 10
-    blockChain.web3.logs = Promise.resolve([
-      {
-        name: events.Withdraw.name,
-        address: '0x456',
-        args: {
-          addr: '0x123'
-        }
-      }
-    ])
-
-    const blockNumbers = {
-      start: 1,
-      end: 1,
-    }
-
-    processor = createProcessor({ config, log, blockChain, db, eventQueue })
-
-    processor(blockNumbers)
-
-    await delay(100)
-
-    expect(db.updateParticipantStatus).toHaveBeenCalledWith('0x456', '0x123', {
-      status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT
-    })
-  })
 
   it('if processing passes then the block number gets updated in db', async () => {
     blockChain.web3.blockNumber = 10

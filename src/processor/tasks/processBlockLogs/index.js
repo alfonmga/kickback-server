@@ -29,6 +29,10 @@ module.exports = ({ config, log: parentLog, blockChain, db, eventQueue }) => {
 
     const _processEvent = (n, mapfn) => Promise.all((categorized[n] || []).map(mapfn))
 
+    const _processEventSeq = (n, mapfn) => (categorized[n] || []).reduce((m, e) => (
+      m.then(() => mapfn(e))
+    ), Promise.resolve())
+
     // new parties
     await _processEvent(contractEvents.NewParty.name, async event => {
       const instance = await PartyContract.at(event.args.deployedAddress)
@@ -50,29 +54,29 @@ module.exports = ({ config, log: parentLog, blockChain, db, eventQueue }) => {
       return db.markPartyCancelled(address)
     })
 
-    // new owner
+    // new owners
     await _processEvent(contractEvents.ChangeOwner.name, async event => {
       const { address, args: { newOwner } } = event
 
       return db.setNewPartyOwner(address, newOwner)
     })
 
-    // add admin
-    await _processEvent(contractEvents.AddAdmin.name, async event => {
+    // add admins
+    await _processEventSeq(contractEvents.AddAdmin.name, async event => {
       const { address, args: { grantee } } = event
 
       return db.addPartyAdmin(address, grantee)
     })
 
-    // remove admin
-    await _processEvent(contractEvents.RemoveAdmin.name, async event => {
+    // remove admins
+    await _processEventSeq(contractEvents.RemoveAdmin.name, async event => {
       const { address, args: { grantee } } = event
 
       return db.removePartyAdmin(address, grantee)
     })
 
-    // add new participants
-    await _processEvent(contractEvents.Register.name, async event => {
+    // register participants
+    await _processEventSeq(contractEvents.Register.name, async event => {
       const { address, args: { addr: participant, participantIndex: index } } = event
 
       return db.updateParticipantStatus(address, participant, {
@@ -81,20 +85,20 @@ module.exports = ({ config, log: parentLog, blockChain, db, eventQueue }) => {
       })
     })
 
-    // finalize event
-    await _processEvent(contractEvents.Finalize.name, async event => {
-      const { address, args: { maps } } = event
-
-      return db.finalizeAttendance(address, maps)
-    })
-
     // mark participants as having withdrawn payout
-    await _processEvent(contractEvents.Withdraw.name, async event => {
+    await _processEventSeq(contractEvents.Withdraw.name, async event => {
       const { address, args: { addr: participant } } = event
 
       return db.updateParticipantStatus(address, participant, {
         status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT
       })
+    })
+
+    // finalize event
+    await _processEvent(contractEvents.Finalize.name, async event => {
+      const { address, args: { maps } } = event
+
+      return db.finalizeAttendance(address, maps)
     })
   }
 

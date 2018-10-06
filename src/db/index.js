@@ -359,12 +359,10 @@ class Db extends EventEmitter {
 
     // no participant list exists yet, so create one
     if (!participantList.exists) {
-      await Promise.all([
-        participantList.set({
-          address: partyAddress,
-          participants: [ newEntry ],
-        }),
-      ])
+      await participantList.set({
+        address: partyAddress,
+        participants: [ newEntry ],
+      })
     } else {
       const list = participantList.data.participants
       const listIndex = list.findIndex(
@@ -381,16 +379,14 @@ class Db extends EventEmitter {
         list.splice(listIndex, 1, newEntry)
 
         await participantList.update({
-          participants: list,
+          participants: [ ...list ],
         })
       }
       // if participant not found
       else {
-        await Promise.all([
-          participantList.update({
-            participants: list.concat(newEntry),
-          }),
-        ])
+        await participantList.update({
+          participants: [ ...list, newEntry ],
+        })
       }
     }
   }
@@ -429,7 +425,7 @@ class Db extends EventEmitter {
         this._log.info(`Party ${address} adds admin: ${adminAddress}`)
 
         await doc.update({
-          admins: admins.concat(adminAddress)
+          admins: [ ...admins, adminAddress ]
         })
       }
     }
@@ -455,7 +451,7 @@ class Db extends EventEmitter {
         admins.splice(pos, 1)
 
         await doc.update({
-          admins,
+          admins: [ ...admins ]
         })
       }
     }
