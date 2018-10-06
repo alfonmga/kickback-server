@@ -678,48 +678,6 @@ describe('process block logs', () => {
     ])
   })
 
-  it('registers participants before recording withdrawals', async () => {
-    blockChain.web3.blockNumber = 10
-
-    const logs = [
-      {
-        name: events.Withdraw.name,
-        address: '0x456',
-        args: {
-          addr: '0x123'
-        }
-      },
-      {
-        name: events.Register.name,
-        address: '0x456',
-        args: {
-          addr: '0x123',
-          participantIndex: 1
-        }
-      },
-    ]
-    blockChain.web3.logs = Promise.resolve(logs)
-
-    const blockNumbers = {
-      start: 1,
-      end: 1,
-    }
-
-    const called = []
-    db.updateParticipantStatus = (p, a, { status }) => called.push(status)
-
-    processor = createProcessor({ config, log, blockChain, db, eventQueue })
-
-    processor(blockNumbers)
-
-    await delay(200)
-
-    expect(called).toEqual([
-      PARTICIPANT_STATUS.REGISTERED,
-      PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
-    ])
-  })
-
   it('adds new parties before registering participants', async () => {
     blockChain.web3.blockNumber = 10
 
@@ -924,6 +882,84 @@ describe('process block logs', () => {
     expect(called).toEqual([
       'addPartyAdmin',
       'removePartyAdmin'
+    ])
+  })
+
+  it('cancels party before recording withdrawals', async () => {
+    blockChain.web3.blockNumber = 10
+
+    const logs = [
+      {
+        name: events.Withdraw.name,
+        address: '0x456',
+        args: {
+          addr: '0x123'
+        }
+      },
+      {
+        name: events.CancelParty.name,
+        address: '0x456',
+      },
+    ]
+    blockChain.web3.logs = Promise.resolve(logs)
+
+    const blockNumbers = {
+      start: 1,
+      end: 1,
+    }
+
+    const called = []
+    db.updateParticipantStatus = () => called.push('updateParticipantStatus')
+    db.markPartyCancelled = () => called.push('markPartyCancelled')
+
+    processor = createProcessor({ config, log, blockChain, db, eventQueue })
+
+    processor(blockNumbers)
+
+    await delay(200)
+
+    expect(called).toEqual([
+      'markPartyCancelled',
+      'updateParticipantStatus'
+    ])
+  })
+
+  it('ends party before recording withdrawals', async () => {
+    blockChain.web3.blockNumber = 10
+
+    const logs = [
+      {
+        name: events.Withdraw.name,
+        address: '0x456',
+        args: {
+          addr: '0x123'
+        }
+      },
+      {
+        name: events.EndParty.name,
+        address: '0x456',
+      },
+    ]
+    blockChain.web3.logs = Promise.resolve(logs)
+
+    const blockNumbers = {
+      start: 1,
+      end: 1,
+    }
+
+    const called = []
+    db.updateParticipantStatus = () => called.push('updateParticipantStatus')
+    db.markPartyEnded = () => called.push('markPartyEnded')
+
+    processor = createProcessor({ config, log, blockChain, db, eventQueue })
+
+    processor(blockNumbers)
+
+    await delay(200)
+
+    expect(called).toEqual([
+      'markPartyEnded',
+      'updateParticipantStatus'
     ])
   })
 

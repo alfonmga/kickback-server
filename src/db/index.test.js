@@ -205,7 +205,7 @@ describe('ethereum', () => {
     })
   })
 
-  describe('getActiveParties', () => {
+  describe('getParties', () => {
     beforeAll(async () => {
       await saveParty('testparty1', {
         network: 123,
@@ -247,7 +247,39 @@ describe('ethereum', () => {
     })
 
     it('returns all newest first by default', async () => {
-      const events = await db.getActiveParties()
+      const events = await db.getParties()
+
+      expect(events.length).toEqual(4)
+
+      expect(events[0]).toMatchObject({
+        address: 'testparty5',
+      })
+
+      expect(events[1]).toMatchObject({
+        address: 'testparty3',
+      })
+
+      expect(events[2]).toMatchObject({
+        address: 'testparty4',
+      })
+
+      expect(events[3]).toMatchObject({
+        address: 'testparty2',
+      })
+    })
+
+    it('can return limited results', async () => {
+      const events = await db.getParties({ limit: 1 })
+
+      expect(events.length).toEqual(1)
+
+      expect(events[0]).toMatchObject({
+        address: 'testparty5',
+      })
+    })
+
+    it('can return only active parties', async () => {
+      const events = await db.getParties({ onlyActive: true })
 
       expect(events.length).toEqual(3)
 
@@ -264,18 +296,8 @@ describe('ethereum', () => {
       })
     })
 
-    it('can return limited results', async () => {
-      const events = await db.getActiveParties({ limit: 1 })
-
-      expect(events.length).toEqual(1)
-
-      expect(events[0]).toMatchObject({
-        address: 'testparty5',
-      })
-    })
-
     it('can return in order stalest first', async () => {
-      const events = await db.getActiveParties({ stalestFirst: true })
+      const events = await db.getParties({ stalestFirst: true, onlyActive: true })
 
       expect(events.length).toEqual(3)
 
@@ -903,23 +925,6 @@ describe('ethereum', () => {
       expect(doc).toBeUndefined()
     })
 
-    it('does nothing if party cancelled', async () => {
-      await saveParty(partyAddress, {
-        cancelled: true,
-      })
-
-      const ret = await db.updateParticipantStatus(partyAddress, newAddr(), {
-        status: PARTICIPANT_STATUS.REGISTERED,
-        index: 5
-      })
-
-      expect(ret).toEqual({})
-
-      const doc = await loadParticipantList(partyAddress)
-
-      expect(doc).toBeUndefined()
-    })
-
     it('does nothing if party ended', async () => {
       await saveParty(partyAddress, {
         ended: true,
@@ -937,7 +942,55 @@ describe('ethereum', () => {
       expect(doc).toBeUndefined()
     })
 
+    it('does allow setting status to WITHDRAWN_PAYOUT even if party ended', async () => {
+      await saveParty(partyAddress, {
+        ended: true,
+      })
+      const addr1 = newAddr()
+      const ret = await db.updateParticipantStatus(partyAddress, addr1, {
+        status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
+        index: 5
+      })
+
+      expect(ret).not.toEqual({})
+
+      const doc = await loadParticipantList(partyAddress)
+
+      expect(doc.participants).toEqual([
+        {
+          address: addr1,
+          status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
+          index: 5
+        }
+      ])
+    })
+
     it('does nothing if attendance already finalized', async () => {
+      const addr1 = newAddr()
+      const addr2 = newAddr()
+
+      const originalList = [
+        { address: addr1, status: PARTICIPANT_STATUS.SHOWED_UP, index: 1, },
+        { address: addr2, status: PARTICIPANT_STATUS.REGISTERED, index: 2, },
+      ]
+
+      await saveParticipantList(partyAddress, originalList, {
+        finalized: true,
+      })
+
+      const ret = await db.updateParticipantStatus(partyAddress, addr1, {
+        status: PARTICIPANT_STATUS.REGISTERED,
+        index: 5
+      })
+
+      expect(ret).toEqual({})
+
+      const doc = await loadParticipantList(partyAddress)
+
+      expect(doc.participants).toEqual(originalList)
+    })
+
+    it('does allow setting status to WITHDRAWN_PAYOUT even if attendance already finalized', async () => {
       const addr1 = newAddr()
       const addr2 = newAddr()
 
@@ -955,11 +1008,14 @@ describe('ethereum', () => {
         index: 5
       })
 
-      expect(ret).toEqual({})
+      expect(ret).not.toEqual({})
 
       const doc = await loadParticipantList(partyAddress)
 
-      expect(doc.participants).toEqual(originalList)
+      expect(doc.participants).toEqual([
+        { address: addr1, status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT, index: 5, },
+        { address: addr2, status: PARTICIPANT_STATUS.REGISTERED, index: 2, },
+      ])
     })
 
     it('creates participant list and updates party participants count if it does not exist yet', async () => {

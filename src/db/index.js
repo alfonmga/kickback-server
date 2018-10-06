@@ -230,10 +230,13 @@ class Db extends EventEmitter {
     })
   }
 
-  async getActiveParties ({ stalestFirst = false, limit = undefined } = {}) {
+  async getParties ({ stalestFirst = false, limit = undefined, onlyActive = false } = {}) {
     let query = this._nativeDb.collection('party')
-      .where('ended', '==', false)
       .where('network', '==', this._blockChain.networkId)
+
+    if (onlyActive) {
+      query = query.where('ended', '==', false)
+    }
 
     if (stalestFirst) {
       query = query.orderBy('lastUpdated', 'asc')
@@ -326,16 +329,16 @@ class Db extends EventEmitter {
       this._log.warn(`Party not found: ${partyAddress}`)
 
       return {}
-    } else if (party.data.ended || party.data.cancelled) {
-      this._log.warn(`Party ${partyAddress} already ended/cancelled, so cannot update status of participant ${participantAddress}`)
+    } else if (party.data.ended && PARTICIPANT_STATUS.WITHDRAWN_PAYOUT !== status) {
+      this._log.warn(`Party ${partyAddress} already ended, so can only update status of participant ${participantAddress} to ${PARTICIPANT_STATUS.WITHDRAWN_PAYOUT}`)
 
       return {}
     }
 
     const participantList = await this._getParticipantList(partyAddress)
 
-    if (safeGet(participantList, 'data.finalized')) {
-      this._log.warn(`Party ${partyAddress} already finalized, so cannot update status of participant ${participantAddress}`)
+    if (safeGet(participantList, 'data.finalized') && PARTICIPANT_STATUS.WITHDRAWN_PAYOUT !== status) {
+      this._log.warn(`Party ${partyAddress} already finalized, so can only update status of participant ${participantAddress} to ${PARTICIPANT_STATUS.WITHDRAWN_PAYOUT}`)
 
       return {}
     }

@@ -71,15 +71,6 @@ module.exports = ({ config, log: parentLog, blockChain, db, eventQueue }) => {
       })
     })
 
-    // mark participants as having withdrawn payout
-    await _processEventSeq(contractEvents.Withdraw.name, async event => {
-      const { address, args: { addr: participant } } = event
-
-      return db.updateParticipantStatus(address, participant, {
-        status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT
-      })
-    })
-
     // finalize event
     await _processEvent(contractEvents.Finalize.name, async event => {
       const { address, args: { maps } } = event
@@ -99,6 +90,15 @@ module.exports = ({ config, log: parentLog, blockChain, db, eventQueue }) => {
       const { address } = event
 
       return db.markPartyCancelled(address)
+    })
+
+    // mark participants as having withdrawn payout
+    await _processEventSeq(contractEvents.Withdraw.name, async event => {
+      const { address, args: { addr: participant } } = event
+
+      return db.updateParticipantStatus(address, participant, {
+        status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT
+      })
     })
   }
 

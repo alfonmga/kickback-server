@@ -100,6 +100,7 @@ input ParticipantInput {
 }
 
 type Query {
+  allParties: [Party]
   activeParties: [Party]
   party(address: String!): Party
   userProfile(address: String!): UserProfile
