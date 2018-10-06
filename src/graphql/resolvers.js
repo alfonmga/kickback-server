@@ -67,7 +67,7 @@ module.exports = ({ db }) => {
 
   return {
     Query: {
-      allParties: async () => db.getAllParties(),
+      allParties: async () => db.getParties(),
       activeParties: async () => db.getParties({ onlyActive: true }),
       party: async (_, { address }) => db.getParty(address),
       userProfile: async (_, { address }, { user }) => (
