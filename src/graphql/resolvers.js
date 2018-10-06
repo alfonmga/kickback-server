@@ -30,7 +30,7 @@ module.exports = ({ db }) => {
 
     const party = await db.getParty(partyAddress)
 
-    const isOwner = party && addressesMatch(party.owner, user)
+    const isOwner = party && addressesMatch(party.owner, user.address)
     const isAdmin = party && party.admins.find(a => addressesMatch(a, user.address))
 
     switch (role) {
