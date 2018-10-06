@@ -21,7 +21,6 @@ const newAddr = () => wallet.generateAddresses(1).pop()
 const createUserProfile = address => ({
   address,
   lastUpdated: Date.now(),
-  created: Date.now(),
   email: {
     verified: 'test@kickback.events'
   },
@@ -102,9 +101,10 @@ describe('ethereum', () => {
 
     loadNotification = async id => nativeDb.doc(`notification/${id}`).get().then(d => d.data())
 
-    saveAttendeeList = async (address, list) => nativeDb.doc(`attendeeList/${address.toLowerCase()}-${networkId}`).set({
+    saveAttendeeList = async (address, list, extra = {}) => nativeDb.doc(`attendeeList/${address.toLowerCase()}-${networkId}`).set({
       address,
       attendees: list,
+      ...extra,
     })
     loadAttendeeList = async address => nativeDb.doc(`attendeeList/${address.toLowerCase()}-${networkId}`).get().then(d => d.data())
 
@@ -134,11 +134,10 @@ describe('ethereum', () => {
 
       await db.setKey(id, 'new value')
 
-      const { value, created, lastUpdated } = await loadKey(id)
+      const { value, lastUpdated } = await loadKey(id)
 
       expect(value).toEqual('new value')
-      expect(created).toBeGreaterThan(0)
-      expect(lastUpdated).toEqual(created)
+      expect(lastUpdated).toBeGreaterThan(0)
     })
 
     it('overwrites previous value', async () => {
@@ -190,8 +189,7 @@ describe('ethereum', () => {
         email_sent: false, // if system has processed it by sending an email to user
       })
 
-      expect(notification.created).toBeDefined()
-      expect(notification.created).toEqual(notification.lastUpdated)
+      expect(notification.lastUpdated).toBeDefined()
     })
 
     it('lowercases the user address', async () => {
@@ -387,8 +385,7 @@ describe('ethereum', () => {
       expect(data.admins.length).toEqual(1)
       expect(data.admins[0]).toEqualIgnoreCase(accounts[2])
 
-      expect(data.created).toBeGreaterThan(0)
-      expect(data.created).toEqual(data.lastUpdated)
+      expect(data.lastUpdated).toBeGreaterThan(0)
     })
 
     it('updates party if it already exists in db', async () => {
@@ -506,7 +503,6 @@ describe('ethereum', () => {
 
       expect(data.lastUpdated).toBeGreaterThan(user.lastUpdated)
       expect(data.login.challenge).toEqual(str)
-      expect(data.login.created).toBeGreaterThan(0)
     })
 
     it('creates new user', async () => {
@@ -516,8 +512,7 @@ describe('ethereum', () => {
 
       const data = await loadUser(addr)
 
-      expect(data.created).toBeGreaterThan(0)
-      expect(data.lastUpdated).toEqual(data.created)
+      expect(data.lastUpdated).toBeGreaterThan(0)
       expect(data.login.challenge).toEqual(str)
     })
 
@@ -555,7 +550,6 @@ describe('ethereum', () => {
 
       expect(ret).toEqual({
         address: userAddress,
-        created: user.created,
         social: [
           {
             type: 'twitter',
@@ -933,6 +927,29 @@ describe('ethereum', () => {
       expect(doc).toBeUndefined()
     })
 
+    it('does nothing if attendance already finalized', async () => {
+      const addr1 = newAddr()
+      const addr2 = newAddr()
+
+      const originalList = [
+        { address: addr1, status: ATTENDEE_STATUS.SHOWED_UP, index: 1, },
+        { address: addr2, status: ATTENDEE_STATUS.REGISTERED, index: 2, },
+      ]
+
+      await saveAttendeeList(partyAddress, originalList, {
+        finalized: true,
+      })
+
+      await db.updateAttendeeStatus(partyAddress, addr1, {
+        status: ATTENDEE_STATUS.WITHDRAWN_PAYOUT,
+        index: 5
+      })
+
+      const doc = await loadAttendeeList(partyAddress)
+
+      expect(doc.attendees).toEqual(originalList)
+    })
+
     it('creates attendee list and updates party attendees count if it does not exist yet', async () => {
       const attendeeAddress = newAddr()
 
@@ -947,8 +964,7 @@ describe('ethereum', () => {
         { address: attendeeAddress, status: ATTENDEE_STATUS.REGISTERED, index: 5 }
       ])
       expect(doc.address).toEqual(partyAddress)
-      expect(doc.created).toBeDefined()
-      expect(doc.created).toEqual(doc.lastUpdated)
+      expect(doc.lastUpdated).toBeDefined()
     })
 
     it('auto-lowercases all addresses', async () => {
@@ -966,8 +982,7 @@ describe('ethereum', () => {
         { address: attendeeAddress, status: ATTENDEE_STATUS.REGISTERED }
       ])
       expect(doc.address).toEqual(partyAddress)
-      expect(doc.created).toBeDefined()
-      expect(doc.created).toEqual(doc.lastUpdated)
+      expect(doc.lastUpdated).toBeDefined()
     })
 
     it('appends to attendee list and updates party attendees count if attendee not already in list', async () => {

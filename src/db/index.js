@@ -1,3 +1,4 @@
+const safeGet = require('lodash.get')
 const EventEmitter = require('eventemitter3')
 const { generate: randStr } = require('randomstring')
 const { toHex, hexToNumber } = require('web3-utils')
@@ -221,6 +222,7 @@ class Db extends EventEmitter {
       owner: owner.toLowerCase(),
       admins: admins.map(a => a.toLowerCase()),
       status: PARTY_STATUS.DEPLOYED,
+      created: Date.now(),
     }
 
     if (doc.exists) {
@@ -273,6 +275,14 @@ class Db extends EventEmitter {
       return
     }
 
+    const attendeeList = await this._getAttendeeList(partyAddress)
+
+    if (safeGet(attendeeList, 'data.finalized')) {
+      this._log.warn(`Party ${partyAddress} already finalized, so cannot update status of attendee ${attendeeAddress}`)
+
+      return
+    }
+
     attendeeAddress = attendeeAddress.toLowerCase()
 
     const newEntry = {
@@ -285,8 +295,6 @@ class Db extends EventEmitter {
     }
 
     this._log.info(`Update status of attendee ${attendeeAddress} at party ${partyAddress} to ${JSON.stringify(newEntry)}`)
-
-    const attendeeList = await this._getAttendeeList(partyAddress)
 
     // no attendee list exists yet, so create one
     if (!attendeeList.exists) {
@@ -476,7 +484,6 @@ class Db extends EventEmitter {
       const ts = Date.now()
       return orig.call(ref, {
         ...props,
-        created: ts,
         lastUpdated: ts
       })
     })(ref.set)

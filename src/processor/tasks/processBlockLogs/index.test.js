@@ -63,7 +63,8 @@ describe('process block logs', () => {
       addPartyAdmin: jest.fn(async () => {}),
       removePartyAdmin: jest.fn(async () => {}),
       updateAttendeeStatus: jest.fn(async () => {}),
-      setKey: jest.fn(async () => {})
+      finalizeAttendance: jest.fn(async () => {}),
+      setKey: jest.fn(async () => {}),
     }
 
     let setTimeoutCallback = null
@@ -394,6 +395,32 @@ describe('process block logs', () => {
       status: ATTENDEE_STATUS.REGISTERED,
       index: 2,
     })
+  })
+
+  it('finalizes attendees', async () => {
+    blockChain.web3.blockNumber = 10
+    blockChain.web3.logs = Promise.resolve([
+      {
+        name: events.Finalize.name,
+        address: '0x456',
+        args: {
+          maps: [ 1, 2, 3 ]
+        }
+      }
+    ])
+
+    const blockNumbers = {
+      start: 1,
+      end: 1,
+    }
+
+    processor = createProcessor({ config, log, blockChain, db, eventQueue })
+
+    processor(blockNumbers)
+
+    await delay(100)
+
+    expect(db.finalizeAttendance).toHaveBeenCalledWith('0x456', [ 1, 2, 3 ])
   })
 
   it('marks attendees as withdrawn payout', async () => {
