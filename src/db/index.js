@@ -1,13 +1,13 @@
 const safeGet = require('lodash.get')
 const EventEmitter = require('eventemitter3')
 const { generate: randStr } = require('randomstring')
-const { toHex, hexToNumber } = require('web3-utils')
+const { toBN, toHex, hexToNumber } = require('web3-utils')
 
 const setupFirestoreDb = require('./firestore')
 const { NOTIFICATION } = require('../constants/events')
 const { SESSION_VALIDITY_SECONDS } = require('../constants/session')
 const { VERIFY_EMAIL } = require('../constants/notifications')
-const { PARTY_STATUS } = require('../constants/status')
+const { PARTY_STATUS, ATTENDEE_STATUS } = require('../constants/status')
 const {
   stringsMatchIgnoreCase,
   assertEthereumAddress,
@@ -258,6 +258,67 @@ class Db extends EventEmitter {
     const list = await this._getAttendeeList(partyAddress)
 
     return list.exists ? list.data.attendees : []
+  }
+
+  async finalizeAttendance (partyAddress, maps) {
+    partyAddress = partyAddress.toLowerCase()
+
+    const party = await this._getParty(partyAddress)
+
+    if (!party.exists) {
+      this._log.warn(`Party not found: ${partyAddress}`)
+
+      return
+    } else if (party.data.ended || party.data.cancelled) {
+      this._log.warn(`Party ${partyAddress} already ended/cancelled, so cannot finalize`)
+
+      return
+    }
+
+    const attendeeList = await this._getAttendeeList(partyAddress)
+
+    if (!attendeeList.exists) {
+      this._log.warn(`No attendee list found for party ${partyAddress}`)
+
+      return
+    }
+
+    if (attendeeList.data.finalized) {
+      this._log.warn(`Party ${partyAddress} already finalized`)
+
+      return
+    }
+
+    const { attendees = [] } = attendeeList.data
+
+    // sort
+    attendees.sort(({ index: indexA }, { index: indexB }) => (indexA < indexB ? -1 : 1))
+
+    // check maps length
+    const totalBits = maps.length * 256
+    const numMapsCorrect = totalBits >= attendees.length && totalBits - attendees.length < 256
+    if (!numMapsCorrect) {
+      this._log.warn(`Invalid no. of maps provided for finalizeing party ${partyAddress}`)
+
+      return
+    }
+
+    const mapBNs = maps.map(m => toBN(m))
+    const zeroBN = toBN(0)
+    attendees.forEach((a, index) => {
+      const mapIndex = parseInt(Math.floor(index / 256), 10)
+      const bitIndex = index % 256
+
+      const result = mapBNs[mapIndex].and(toBN(0).bincn(bitIndex))
+
+      a.status = result.gt(zeroBN) ? ATTENDEE_STATUS.SHOWED_UP : ATTENDEE_STATUS.REGISTERED
+    })
+
+    await attendeeList.set({
+      address: partyAddress,
+      attendees: [ ...attendees ],
+      finalized: true,
+    })
   }
 
   async updateAttendeeStatus (partyAddress, attendeeAddress, { status, index } = {}) {

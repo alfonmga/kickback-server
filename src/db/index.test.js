@@ -1,7 +1,7 @@
 import Ganache from 'ganache-core'
 import Web3 from 'web3'
 import delay from 'delay'
-import { toHex, toWei } from 'web3-utils'
+import { toBN, toHex, toWei } from 'web3-utils'
 import { Conference } from '@noblocknoparty/contracts'
 import { generateMnemonic, EthHdWallet } from 'eth-hd-wallet'
 
@@ -1059,6 +1059,168 @@ describe('ethereum', () => {
       expect(doc2.attendees).toEqual([
         { address: attendeeAddress, status: ATTENDEE_STATUS.WITHDRAWN_PAYOUT, index: 8 },
       ])
+    })
+  })
+
+  describe('finalizeAttendance', () => {
+    let partyAddress
+    let attendees
+    let maxAttendees
+
+    beforeEach(async () => {
+      partyAddress = newAddr()
+
+      await saveParty(partyAddress, {})
+
+      maxAttendees = 351
+      attendees = []
+      for (let i = 0; maxAttendees > i; i += 1) {
+        attendees.push(
+          {
+            address: newAddr(),
+            index: i + 1,
+            status: ATTENDEE_STATUS.WITHDRAWN_PAYOUT,
+          }
+        )
+      }
+
+      await saveAttendeeList(partyAddress, attendees)
+    })
+
+    it('does nothing if party not found', async () => {
+      const invalidPartyAddress = newAddr()
+
+      await db.finalizeAttendance(invalidPartyAddress, [ 0, 0 ])
+
+      const doc = await loadAttendeeList(partyAddress)
+
+      expect(doc.attendees).toEqual(attendees)
+    })
+
+    it('does nothing if party cancelled', async () => {
+      await saveParty(partyAddress, {
+        cancelled: true,
+      })
+
+      await db.finalizeAttendance(partyAddress, [ 0, 0 ])
+
+      const doc = await loadAttendeeList(partyAddress)
+
+      expect(doc.attendees).toEqual(attendees)
+    })
+
+    it('does nothing if party ended', async () => {
+      await saveParty(partyAddress, {
+        ended: true,
+      })
+
+      await db.finalizeAttendance(partyAddress, [ 0, 0 ])
+
+      const doc = await loadAttendeeList(partyAddress)
+
+      expect(doc.attendees).toEqual(attendees)
+    })
+
+    it('does nothing if attendance already finalized', async () => {
+      await saveAttendeeList(partyAddress, attendees, {
+        finalized: true
+      })
+
+      await db.finalizeAttendance(partyAddress, [ 0, 0 ])
+
+      const doc = await loadAttendeeList(partyAddress)
+
+      expect(doc.attendees).toEqual(attendees)
+    })
+
+    it('does nothing if not enough maps given', async () => {
+      await db.finalizeAttendance(partyAddress, [ 0 ])
+
+      const doc = await loadAttendeeList(partyAddress)
+
+      expect(doc.attendees).toEqual(attendees)
+    })
+
+    it('does nothing if too many maps given', async () => {
+      await db.finalizeAttendance(partyAddress, [ 0, 0, 0 ])
+
+      const doc = await loadAttendeeList(partyAddress)
+
+      expect(doc.attendees).toEqual(attendees)
+    })
+
+    it('finalizes attendance - p0', async () => {
+      await db.finalizeAttendance(partyAddress, [ 1, 0 ])
+
+      const doc = await loadAttendeeList(partyAddress)
+
+      const expectedAttendees = [ ...attendees ]
+      for (let i = 0; attendees.length > i; i += 1) {
+        expectedAttendees[i].status = ATTENDEE_STATUS.REGISTERED
+      }
+      expectedAttendees[0].status = ATTENDEE_STATUS.SHOWED_UP
+
+      expect(doc.attendees).toEqual(expectedAttendees)
+    })
+
+    it('finalizes attendance - p0, p255, p257, 349, pMax', async () => {
+      const maps = [
+        toBN(0).bincn(0).bincn(255),
+        toBN(0).bincn(1).bincn(349 % 256).bincn((attendees.length - 1) % 256),
+      ]
+
+      await db.finalizeAttendance(partyAddress, maps)
+
+      const doc = await loadAttendeeList(partyAddress)
+
+      const expectedAttendees = [ ...attendees ]
+      for (let i = 0; attendees.length > i; i += 1) {
+        expectedAttendees[i].status = ATTENDEE_STATUS.REGISTERED
+      }
+      expectedAttendees[0].status = ATTENDEE_STATUS.SHOWED_UP
+      expectedAttendees[255].status = ATTENDEE_STATUS.SHOWED_UP
+      expectedAttendees[257].status = ATTENDEE_STATUS.SHOWED_UP
+      expectedAttendees[349].status = ATTENDEE_STATUS.SHOWED_UP
+      expectedAttendees[expectedAttendees.length - 1].status = ATTENDEE_STATUS.SHOWED_UP
+
+      expect(doc.attendees).toEqual(expectedAttendees)
+      expect(doc.finalized).toEqual(true)
+    })
+
+    it('finalizes attendance - all', async () => {
+      let bn = toBN(0)
+      for (let i = 0; 256 > i; i += 1) {
+        bn = bn.bincn(i)
+      }
+      const maps = [ bn.toString(16), bn.toString(16) ]
+
+      await db.finalizeAttendance(partyAddress, maps)
+
+      const doc = await loadAttendeeList(partyAddress)
+
+      const expectedAttendees = [ ...attendees ]
+      for (let i = 0; attendees.length > i; i += 1) {
+        expectedAttendees[i].status = ATTENDEE_STATUS.SHOWED_UP
+      }
+
+      expect(doc.attendees).toEqual(expectedAttendees)
+      expect(doc.finalized).toEqual(true)
+    })
+
+    it('finalizes attendance - none', async () => {
+      const maps = [ '0', '0' ]
+
+      await db.finalizeAttendance(partyAddress, maps)
+
+      const doc = await loadAttendeeList(partyAddress)
+
+      const expectedAttendees = [ ...attendees ]
+      for (let i = 0; attendees.length > i; i += 1) {
+        expectedAttendees[i].status = ATTENDEE_STATUS.REGISTERED
+      }
+
+      expect(doc.attendees).toEqual(expectedAttendees)
+      expect(doc.finalized).toEqual(true)
     })
   })
 
