@@ -37,7 +37,7 @@ module.exports = ({ config, log: parentLog, blockChain, db, eventQueue }) => {
     await _processEvent(contractEvents.NewParty.name, async event => {
       const instance = await PartyContract.at(event.args.deployedAddress)
 
-      return db.updatePartyFromContract(instance)
+      return db.addPartyFromContract(instance)
     })
 
     // new owners

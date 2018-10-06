@@ -56,7 +56,7 @@ describe('process block logs', () => {
     }
 
     db = {
-      updatePartyFromContract: jest.fn(async () => {}),
+      addPartyFromContract: jest.fn(async () => {}),
       markPartyEnded: jest.fn(async () => {}),
       markPartyCancelled: jest.fn(async () => {}),
       setNewPartyOwner: jest.fn(async () => {}),
@@ -240,7 +240,7 @@ describe('process block logs', () => {
     await delay(100)
 
     expect(partyContract.at).toHaveBeenCalledWith('0x456')
-    expect(db.updatePartyFromContract).toHaveBeenCalledWith('partyInstance')
+    expect(db.addPartyFromContract).toHaveBeenCalledWith('partyInstance')
   })
 
   it('mark parties which have ended', async () => {
@@ -748,7 +748,7 @@ describe('process block logs', () => {
 
     const called = []
     db.updateParticipantStatus = () => called.push('updateParticipantStatus')
-    db.updatePartyFromContract = () => called.push('updatePartyFromContract')
+    db.addPartyFromContract = () => called.push('addPartyFromContract')
 
     processor = createProcessor({ config, log, blockChain, db, eventQueue })
 
@@ -757,7 +757,7 @@ describe('process block logs', () => {
     await delay(200)
 
     expect(called).toEqual([
-      'updatePartyFromContract',
+      'addPartyFromContract',
       'updateParticipantStatus'
     ])
   })
@@ -788,7 +788,7 @@ describe('process block logs', () => {
     }
 
     const called = []
-    db.updatePartyFromContract = () => called.push('updatePartyFromContract')
+    db.addPartyFromContract = () => called.push('addPartyFromContract')
     db.setNewPartyOwner = () => called.push('setNewPartyOwner')
 
     processor = createProcessor({ config, log, blockChain, db, eventQueue })
@@ -798,7 +798,7 @@ describe('process block logs', () => {
     await delay(200)
 
     expect(called).toEqual([
-      'updatePartyFromContract',
+      'addPartyFromContract',
       'setNewPartyOwner'
     ])
   })
@@ -829,7 +829,7 @@ describe('process block logs', () => {
     }
 
     const called = []
-    db.updatePartyFromContract = () => called.push('updatePartyFromContract')
+    db.addPartyFromContract = () => called.push('addPartyFromContract')
     db.addPartyAdmin = () => called.push('addPartyAdmin')
 
     processor = createProcessor({ config, log, blockChain, db, eventQueue })
@@ -839,7 +839,7 @@ describe('process block logs', () => {
     await delay(200)
 
     expect(called).toEqual([
-      'updatePartyFromContract',
+      'addPartyFromContract',
       'addPartyAdmin'
     ])
   })
@@ -870,7 +870,7 @@ describe('process block logs', () => {
     }
 
     const called = []
-    db.updatePartyFromContract = () => called.push('updatePartyFromContract')
+    db.addPartyFromContract = () => called.push('addPartyFromContract')
     db.removePartyAdmin = () => called.push('removePartyAdmin')
 
     processor = createProcessor({ config, log, blockChain, db, eventQueue })
@@ -880,7 +880,7 @@ describe('process block logs', () => {
     await delay(200)
 
     expect(called).toEqual([
-      'updatePartyFromContract',
+      'addPartyFromContract',
       'removePartyAdmin'
     ])
   })

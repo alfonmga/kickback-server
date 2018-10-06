@@ -184,10 +184,18 @@ class Db extends EventEmitter {
     await doc.update(meta)
   }
 
-  async updatePartyFromContract (partyInstance) {
+  async addPartyFromContract (partyInstance) {
     const { address } = partyInstance
 
     const doc = await this._getParty(address)
+
+    if (doc.exists) {
+      this._log.warn(`Party ${address} already exists in db`)
+
+      return
+    }
+
+    this._log.info(`Inserting new party from contract: ${address} ...`)
 
     // fetch data from contract
     const [
@@ -197,8 +205,6 @@ class Db extends EventEmitter {
       deposit,
       limitOfParticipants,
       coolingPeriod,
-      ended,
-      cancelled,
     ] = await Promise.all([
       partyInstance.owner(),
       partyInstance.getAdmins(),
@@ -206,34 +212,22 @@ class Db extends EventEmitter {
       partyInstance.deposit(),
       partyInstance.limitOfParticipants(),
       partyInstance.coolingPeriod(),
-      partyInstance.ended(),
-      partyInstance.cancelled(),
     ])
 
-    const props = {
+    await doc.set({
       address: address.toLowerCase(),
       network: this._blockChain.networkId,
       name,
       deposit: toHex(deposit),
       participantLimit: hexToNumber(toHex(limitOfParticipants)),
       coolingPeriod: toHex(coolingPeriod),
-      ended,
-      cancelled,
+      ended: false,
+      cancelled: false,
       owner: owner.toLowerCase(),
       admins: admins.map(a => a.toLowerCase()),
       status: PARTY_STATUS.DEPLOYED,
       created: Date.now(),
-    }
-
-    if (doc.exists) {
-      this._log.info(`Updating party from contract: ${address}`)
-
-      await doc.update(props)
-    } else {
-      this._log.info(`Inserting new party from contract: ${address}`)
-
-      await doc.set(props)
-    }
+    })
   }
 
   async getActiveParties ({ stalestFirst = false, limit = undefined } = {}) {
@@ -302,6 +296,8 @@ class Db extends EventEmitter {
 
       return
     }
+
+    this._log.warn(`Finalizing attendance for party ${partyAddress} ...`)
 
     const mapBNs = maps.map(m => toBN(m))
     const zeroBN = toBN(0)

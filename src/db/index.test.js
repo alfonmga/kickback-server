@@ -356,7 +356,7 @@ describe('ethereum', () => {
     })
   })
 
-  describe('updatePartyFromContract', () => {
+  describe('addPartyFromContract', () => {
     let party
 
     beforeEach(async () => {
@@ -368,7 +368,7 @@ describe('ethereum', () => {
     })
 
     it('creates new party in db', async () => {
-      await db.updatePartyFromContract(party)
+      await db.addPartyFromContract(party)
 
       const data = await loadParty(party.address)
 
@@ -391,32 +391,33 @@ describe('ethereum', () => {
       expect(data.lastUpdated).toBeGreaterThan(0)
     })
 
-    it('updates party if it already exists in db', async () => {
+    it('does not record if party already ended as we will do this later on', async () => {
+      await party.cancel()
+
+      await db.addPartyFromContract(party)
+
+      const data = await loadParty(party.address)
+
+      expect(data).toMatchObject({
+        ended: false,
+        cancelled: false,
+      })
+    })
+
+    it('does nothing if it already exists in db', async () => {
       await saveParty(party.address, {
-        dummy: true
+        dummy: true,
+        name: 'test-original',
       })
 
-      await db.updatePartyFromContract(party)
+      await db.addPartyFromContract(party)
 
       const data = await loadParty(party.address)
 
       expect(data).toMatchObject({
         dummy: true,
+        name: 'test-original',
       })
-
-      expect(data).toMatchObject({
-        address: party.address.toLowerCase(),
-        network: blockChain.networkId,
-        name: 'test',
-        deposit: toHex(toWei('0.2', 'ether')),
-        participantLimit: 100,
-        coolingPeriod: toHex(2),
-        ended: false,
-        cancelled: false,
-        status: PARTY_STATUS.DEPLOYED
-      })
-
-      expect(data.lastUpdated).toBeGreaterThan(0)
     })
   })
 
