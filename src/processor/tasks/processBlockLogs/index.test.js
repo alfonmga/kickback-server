@@ -315,7 +315,6 @@ describe('process block logs', () => {
     expect(db.setNewPartyOwner).toHaveBeenCalledWith('0x456', '0x123')
   })
 
-
   it('adds party admins one at a time', async () => {
     expect.assertions(103)
 
@@ -476,7 +475,6 @@ describe('process block logs', () => {
     }
   })
 
-
   it('marks participants as withdrawn payout one at a time', async () => {
     expect.assertions(103)
 
@@ -558,6 +556,376 @@ describe('process block logs', () => {
     expect(db.finalizeAttendance).toHaveBeenCalledWith('0x456', [ 1, 2, 3 ])
   })
 
+  it('registers participants before ending the party', async () => {
+    blockChain.web3.blockNumber = 10
+
+    const logs = [
+      {
+        name: events.EndParty.name,
+        address: '0x456'
+      },
+      {
+        name: events.Register.name,
+        address: '0x456',
+        args: {
+          addr: '0x123',
+          participantIndex: 1
+        }
+      },
+    ]
+    blockChain.web3.logs = Promise.resolve(logs)
+
+    const blockNumbers = {
+      start: 1,
+      end: 1,
+    }
+
+    const called = []
+    db.updateParticipantStatus = () => called.push('updateParticipantStatus')
+    db.markPartyEnded = () => called.push('markPartyEnded')
+
+    processor = createProcessor({ config, log, blockChain, db, eventQueue })
+
+    processor(blockNumbers)
+
+    await delay(200)
+
+    expect(called).toEqual([
+      'updateParticipantStatus',
+      'markPartyEnded',
+    ])
+  })
+
+  it('registers participants before ending the party', async () => {
+    blockChain.web3.blockNumber = 10
+
+    const logs = [
+      {
+        name: events.CancelParty.name,
+        address: '0x456'
+      },
+      {
+        name: events.Register.name,
+        address: '0x456',
+        args: {
+          addr: '0x123',
+          participantIndex: 1
+        }
+      },
+    ]
+    blockChain.web3.logs = Promise.resolve(logs)
+
+    const blockNumbers = {
+      start: 1,
+      end: 1,
+    }
+
+    const called = []
+    db.updateParticipantStatus = () => called.push('updateParticipantStatus')
+    db.markPartyCancelled = () => called.push('markPartyCancelled')
+
+    processor = createProcessor({ config, log, blockChain, db, eventQueue })
+
+    processor(blockNumbers)
+
+    await delay(200)
+
+    expect(called).toEqual([
+      'updateParticipantStatus',
+      'markPartyCancelled',
+    ])
+  })
+
+  it('registers participants before finalizing the party', async () => {
+    blockChain.web3.blockNumber = 10
+
+    const logs = [
+      {
+        name: events.Finalize.name,
+        args: {
+          maps: []
+        }
+      },
+      {
+        name: events.Register.name,
+        address: '0x456',
+        args: {
+          addr: '0x123',
+          participantIndex: 1
+        }
+      },
+    ]
+    blockChain.web3.logs = Promise.resolve(logs)
+
+    const blockNumbers = {
+      start: 1,
+      end: 1,
+    }
+
+    const called = []
+    db.updateParticipantStatus = () => called.push('updateParticipantStatus')
+    db.finalizeAttendance = () => called.push('finalizeAttendance')
+
+    processor = createProcessor({ config, log, blockChain, db, eventQueue })
+
+    processor(blockNumbers)
+
+    await delay(200)
+
+    expect(called).toEqual([
+      'updateParticipantStatus',
+      'finalizeAttendance',
+    ])
+  })
+
+  it('registers participants before recording withdrawals', async () => {
+    blockChain.web3.blockNumber = 10
+
+    const logs = [
+      {
+        name: events.Withdraw.name,
+        address: '0x456',
+        args: {
+          addr: '0x123'
+        }
+      },
+      {
+        name: events.Register.name,
+        address: '0x456',
+        args: {
+          addr: '0x123',
+          participantIndex: 1
+        }
+      },
+    ]
+    blockChain.web3.logs = Promise.resolve(logs)
+
+    const blockNumbers = {
+      start: 1,
+      end: 1,
+    }
+
+    const called = []
+    db.updateParticipantStatus = (p, a, { status }) => called.push(status)
+
+    processor = createProcessor({ config, log, blockChain, db, eventQueue })
+
+    processor(blockNumbers)
+
+    await delay(200)
+
+    expect(called).toEqual([
+      PARTICIPANT_STATUS.REGISTERED,
+      PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
+    ])
+  })
+
+  it('adds new parties before registering participants', async () => {
+    blockChain.web3.blockNumber = 10
+
+    const logs = [
+      {
+        name: events.Register.name,
+        address: '0x456',
+        args: {
+          addr: '0x123',
+          participantIndex: 1
+        }
+      },
+      {
+        name: events.NewParty.name,
+        args: {
+          deployedAddress: '0x456',
+        },
+      }
+    ]
+    blockChain.web3.logs = Promise.resolve(logs)
+
+    const blockNumbers = {
+      start: 1,
+      end: 1,
+    }
+
+    const called = []
+    db.updateParticipantStatus = () => called.push('updateParticipantStatus')
+    db.updatePartyFromContract = () => called.push('updatePartyFromContract')
+
+    processor = createProcessor({ config, log, blockChain, db, eventQueue })
+
+    processor(blockNumbers)
+
+    await delay(200)
+
+    expect(called).toEqual([
+      'updatePartyFromContract',
+      'updateParticipantStatus'
+    ])
+  })
+
+  it('adds new parties before changing owners', async () => {
+    blockChain.web3.blockNumber = 10
+
+    const logs = [
+      {
+        name: events.ChangeOwner.name,
+        address: '0x456',
+        args: {
+          newOwner: '0x123'
+        }
+      },
+      {
+        name: events.NewParty.name,
+        args: {
+          deployedAddress: '0x456',
+        },
+      }
+    ]
+    blockChain.web3.logs = Promise.resolve(logs)
+
+    const blockNumbers = {
+      start: 1,
+      end: 1,
+    }
+
+    const called = []
+    db.updatePartyFromContract = () => called.push('updatePartyFromContract')
+    db.setNewPartyOwner = () => called.push('setNewPartyOwner')
+
+    processor = createProcessor({ config, log, blockChain, db, eventQueue })
+
+    processor(blockNumbers)
+
+    await delay(200)
+
+    expect(called).toEqual([
+      'updatePartyFromContract',
+      'setNewPartyOwner'
+    ])
+  })
+
+  it('adds new parties before adding admins', async () => {
+    blockChain.web3.blockNumber = 10
+
+    const logs = [
+      {
+        name: events.AddAdmin.name,
+        address: `0x456`,
+        args: {
+          grantee: '0x123'
+        }
+      },
+      {
+        name: events.NewParty.name,
+        args: {
+          deployedAddress: '0x456',
+        },
+      }
+    ]
+    blockChain.web3.logs = Promise.resolve(logs)
+
+    const blockNumbers = {
+      start: 1,
+      end: 1,
+    }
+
+    const called = []
+    db.updatePartyFromContract = () => called.push('updatePartyFromContract')
+    db.addPartyAdmin = () => called.push('addPartyAdmin')
+
+    processor = createProcessor({ config, log, blockChain, db, eventQueue })
+
+    processor(blockNumbers)
+
+    await delay(200)
+
+    expect(called).toEqual([
+      'updatePartyFromContract',
+      'addPartyAdmin'
+    ])
+  })
+
+  it('adds new parties before removing admins', async () => {
+    blockChain.web3.blockNumber = 10
+
+    const logs = [
+      {
+        name: events.RemoveAdmin.name,
+        address: `0x456`,
+        args: {
+          grantee: '0x123'
+        }
+      },
+      {
+        name: events.NewParty.name,
+        args: {
+          deployedAddress: '0x456',
+        },
+      }
+    ]
+    blockChain.web3.logs = Promise.resolve(logs)
+
+    const blockNumbers = {
+      start: 1,
+      end: 1,
+    }
+
+    const called = []
+    db.updatePartyFromContract = () => called.push('updatePartyFromContract')
+    db.removePartyAdmin = () => called.push('removePartyAdmin')
+
+    processor = createProcessor({ config, log, blockChain, db, eventQueue })
+
+    processor(blockNumbers)
+
+    await delay(200)
+
+    expect(called).toEqual([
+      'updatePartyFromContract',
+      'removePartyAdmin'
+    ])
+  })
+
+  it('adds admins before removing admins', async () => {
+    blockChain.web3.blockNumber = 10
+
+    const logs = [
+      {
+        name: events.RemoveAdmin.name,
+        address: `0x456`,
+        args: {
+          grantee: '0x123'
+        }
+      },
+      {
+        name: events.AddAdmin.name,
+        address: `0x456`,
+        args: {
+          grantee: '0x123'
+        }
+      },
+    ]
+    blockChain.web3.logs = Promise.resolve(logs)
+
+    const blockNumbers = {
+      start: 1,
+      end: 1,
+    }
+
+    const called = []
+    db.addPartyAdmin = () => called.push('addPartyAdmin')
+    db.removePartyAdmin = () => called.push('removePartyAdmin')
+
+    processor = createProcessor({ config, log, blockChain, db, eventQueue })
+
+    processor(blockNumbers)
+
+    await delay(200)
+
+    expect(called).toEqual([
+      'addPartyAdmin',
+      'removePartyAdmin'
+    ])
+  })
 
   it('if processing passes then the block number gets updated in db', async () => {
     blockChain.web3.blockNumber = 10

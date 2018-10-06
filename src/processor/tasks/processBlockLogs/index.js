@@ -40,20 +40,6 @@ module.exports = ({ config, log: parentLog, blockChain, db, eventQueue }) => {
       return db.updatePartyFromContract(instance)
     })
 
-    // mark parties which have ended
-    await _processEvent(contractEvents.EndParty.name, async event => {
-      const { address } = event
-
-      return db.markPartyEnded(address)
-    })
-
-    // mark parties which have been cancelled
-    await _processEvent(contractEvents.CancelParty.name, async event => {
-      const { address } = event
-
-      return db.markPartyCancelled(address)
-    })
-
     // new owners
     await _processEvent(contractEvents.ChangeOwner.name, async event => {
       const { address, args: { newOwner } } = event
@@ -99,6 +85,20 @@ module.exports = ({ config, log: parentLog, blockChain, db, eventQueue }) => {
       const { address, args: { maps } } = event
 
       return db.finalizeAttendance(address, maps)
+    })
+
+    // mark parties which have ended
+    await _processEvent(contractEvents.EndParty.name, async event => {
+      const { address } = event
+
+      return db.markPartyEnded(address)
+    })
+
+    // mark parties which have been cancelled
+    await _processEvent(contractEvents.CancelParty.name, async event => {
+      const { address } = event
+
+      return db.markPartyCancelled(address)
     })
   }
 
