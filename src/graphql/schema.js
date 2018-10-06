@@ -5,6 +5,7 @@ type Party {
   name: String!
   description: String
   location: String
+  image: String
   date: String
   address: String!
   deposit: String!
@@ -22,6 +23,7 @@ input PartyMetaInput {
   description: String
   date: String
   location: String
+  image: String
 }
 
 type SocialMedia {

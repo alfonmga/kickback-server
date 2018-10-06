@@ -172,7 +172,7 @@ class Db extends EventEmitter {
       return
     }
 
-    const meta = [ 'name', 'description', 'date', 'location' ].reduce((m, k) => {
+    const meta = [ 'name', 'description', 'date', 'location', 'image' ].reduce((m, k) => {
       if (undefined !== data[k]) {
         m[k] = data[k]
       }

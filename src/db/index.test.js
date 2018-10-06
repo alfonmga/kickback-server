@@ -305,6 +305,7 @@ describe('ethereum', () => {
         description: 'desc1',
         date: 'date1',
         location: 'location1',
+        image: 'image1',
       })
     })
 
@@ -324,6 +325,7 @@ describe('ethereum', () => {
         description: 'desc2',
         date: 'date2',
         location: 'location2',
+        image: 'image2',
         dummy: true,
       })
 
@@ -334,6 +336,7 @@ describe('ethereum', () => {
         description: 'desc2',
         date: 'date2',
         location: 'location2',
+        image: 'image2',
         dummy: false,
       })
 
