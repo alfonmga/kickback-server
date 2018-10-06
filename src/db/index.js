@@ -329,11 +329,11 @@ class Db extends EventEmitter {
     if (!party.exists) {
       this._log.warn(`Party not found: ${partyAddress}`)
 
-      return
+      return {}
     } else if (party.data.ended || party.data.cancelled) {
       this._log.warn(`Party ${partyAddress} already ended/cancelled, so cannot update status of participant ${participantAddress}`)
 
-      return
+      return {}
     }
 
     const participantList = await this._getParticipantList(partyAddress)
@@ -341,7 +341,7 @@ class Db extends EventEmitter {
     if (safeGet(participantList, 'data.finalized')) {
       this._log.warn(`Party ${partyAddress} already finalized, so cannot update status of participant ${participantAddress}`)
 
-      return
+      return {}
     }
 
     participantAddress = participantAddress.toLowerCase()
@@ -389,6 +389,8 @@ class Db extends EventEmitter {
         })
       }
     }
+
+    return newEntry
   }
 
   async setNewPartyOwner (address, newOwnerAddress) {

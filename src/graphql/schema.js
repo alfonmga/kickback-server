@@ -89,9 +89,9 @@ enum UpdateableParticipantStatus {
 }
 
 type Participant {
-  user: UserProfile!
-  index: Int!
-  status: ParticipantStatus!
+  user: UserProfile
+  index: Int
+  status: ParticipantStatus
 }
 
 input ParticipantInput {

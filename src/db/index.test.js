@@ -890,10 +890,12 @@ describe('ethereum', () => {
     it('does nothing if party not found', async () => {
       const invalidPartyAddress = newAddr()
 
-      await db.updateParticipantStatus(invalidPartyAddress, newAddr(), {
+      const ret = await db.updateParticipantStatus(invalidPartyAddress, newAddr(), {
         status: PARTICIPANT_STATUS.REGISTERED,
         index: 5
       })
+
+      expect(ret).toEqual({})
 
       const doc = await loadParticipantList(partyAddress)
 
@@ -905,10 +907,12 @@ describe('ethereum', () => {
         cancelled: true,
       })
 
-      await db.updateParticipantStatus(partyAddress, newAddr(), {
+      const ret = await db.updateParticipantStatus(partyAddress, newAddr(), {
         status: PARTICIPANT_STATUS.REGISTERED,
         index: 5
       })
+
+      expect(ret).toEqual({})
 
       const doc = await loadParticipantList(partyAddress)
 
@@ -920,10 +924,12 @@ describe('ethereum', () => {
         ended: true,
       })
 
-      await db.updateParticipantStatus(partyAddress, newAddr(), {
+      const ret = await db.updateParticipantStatus(partyAddress, newAddr(), {
         status: PARTICIPANT_STATUS.REGISTERED,
         index: 5
       })
+
+      expect(ret).toEqual({})
 
       const doc = await loadParticipantList(partyAddress)
 
@@ -943,10 +949,12 @@ describe('ethereum', () => {
         finalized: true,
       })
 
-      await db.updateParticipantStatus(partyAddress, addr1, {
+      const ret = await db.updateParticipantStatus(partyAddress, addr1, {
         status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
         index: 5
       })
+
+      expect(ret).toEqual({})
 
       const doc = await loadParticipantList(partyAddress)
 
@@ -956,9 +964,15 @@ describe('ethereum', () => {
     it('creates participant list and updates party participants count if it does not exist yet', async () => {
       const participantAddress = newAddr()
 
-      await db.updateParticipantStatus(partyAddress, participantAddress, {
+      const ret = await db.updateParticipantStatus(partyAddress, participantAddress, {
         status: PARTICIPANT_STATUS.REGISTERED,
         index: 5
+      })
+
+      expect(ret).toEqual({
+        address: participantAddress,
+        status: PARTICIPANT_STATUS.REGISTERED,
+        index: 5,
       })
 
       const doc = await loadParticipantList(partyAddress)
@@ -973,11 +987,16 @@ describe('ethereum', () => {
     it('auto-lowercases all addresses', async () => {
       const participantAddress = newAddr()
 
-      await db.updateParticipantStatus(
+      const ret = await db.updateParticipantStatus(
         partyAddress.toUpperCase(), participantAddress.toUpperCase(), {
           status: PARTICIPANT_STATUS.REGISTERED
         }
       )
+
+      expect(ret).toEqual({
+        address: participantAddress.toLowerCase(),
+        status: PARTICIPANT_STATUS.REGISTERED,
+      })
 
       const doc = await loadParticipantList(partyAddress)
 
@@ -997,7 +1016,13 @@ describe('ethereum', () => {
 
       const participantAddress = newAddr()
 
-      await db.updateParticipantStatus(partyAddress, participantAddress, {
+      const ret = await db.updateParticipantStatus(partyAddress, participantAddress, {
+        status: PARTICIPANT_STATUS.REGISTERED,
+        index: 3,
+      })
+
+      expect(ret).toEqual({
+        address: participantAddress,
         status: PARTICIPANT_STATUS.REGISTERED,
         index: 3,
       })
@@ -1020,7 +1045,12 @@ describe('ethereum', () => {
 
       await saveParticipantList(partyAddress, originalList)
 
-      await db.updateParticipantStatus(partyAddress, participantAddress, {
+      const ret = await db.updateParticipantStatus(partyAddress, participantAddress, {
+        status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
+      })
+
+      expect(ret).toEqual({
+        address: participantAddress,
         status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
       })
 
@@ -1041,9 +1071,15 @@ describe('ethereum', () => {
 
       await saveParticipantList(partyAddress, originalList)
 
-      await db.updateParticipantStatus(partyAddress, participantAddress, {
+      const ret = await db.updateParticipantStatus(partyAddress, participantAddress, {
         status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
         index: undefined
+      })
+
+      expect(ret).toEqual({
+        address: participantAddress,
+        status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
+        index: 6,
       })
 
       const doc = await loadParticipantList(partyAddress)
@@ -1052,9 +1088,15 @@ describe('ethereum', () => {
         { address: participantAddress, status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT, index: 6 },
       ])
 
-      await db.updateParticipantStatus(partyAddress, participantAddress, {
+      const ret2 = await db.updateParticipantStatus(partyAddress, participantAddress, {
         status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
         index: 8
+      })
+
+      expect(ret2).toEqual({
+        address: participantAddress,
+        status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
+        index: 8,
       })
 
       const doc2 = await loadParticipantList(partyAddress)
