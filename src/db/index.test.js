@@ -960,7 +960,8 @@ describe('ethereum', () => {
         {
           address: addr1,
           status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
-          index: 5
+          index: 5,
+          social: null,
         }
       ])
     })
@@ -1013,7 +1014,7 @@ describe('ethereum', () => {
       const doc = await loadParticipantList(partyAddress)
 
       expect(doc.participants).toEqual([
-        { address: addr1, status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT, index: 5, },
+        { address: addr1, status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT, index: 5, social: null },
         { address: addr2, status: PARTICIPANT_STATUS.REGISTERED, index: 2, },
       ])
     })
@@ -1030,12 +1031,18 @@ describe('ethereum', () => {
         address: participantAddress,
         status: PARTICIPANT_STATUS.REGISTERED,
         index: 5,
+        social: null,
       })
 
       const doc = await loadParticipantList(partyAddress)
 
       expect(doc.participants).toEqual([
-        { address: participantAddress, status: PARTICIPANT_STATUS.REGISTERED, index: 5 }
+        {
+          address: participantAddress,
+          status: PARTICIPANT_STATUS.REGISTERED,
+          index: 5,
+          social: null
+        }
       ])
       expect(doc.address).toEqual(partyAddress)
       expect(doc.lastUpdated).toBeDefined()
@@ -1053,12 +1060,13 @@ describe('ethereum', () => {
       expect(ret).toEqual({
         address: participantAddress.toLowerCase(),
         status: PARTICIPANT_STATUS.REGISTERED,
+        social: null,
       })
 
       const doc = await loadParticipantList(partyAddress)
 
       expect(doc.participants).toEqual([
-        { address: participantAddress, status: PARTICIPANT_STATUS.REGISTERED }
+        { address: participantAddress, status: PARTICIPANT_STATUS.REGISTERED, social: null }
       ])
       expect(doc.address).toEqual(partyAddress)
       expect(doc.lastUpdated).toBeDefined()
@@ -1082,13 +1090,19 @@ describe('ethereum', () => {
         address: participantAddress,
         status: PARTICIPANT_STATUS.REGISTERED,
         index: 3,
+        social: null,
       })
 
       const doc = await loadParticipantList(partyAddress)
 
       expect(doc.participants).toEqual([
         ...originalList,
-        { address: participantAddress, status: PARTICIPANT_STATUS.REGISTERED, index: 3 },
+        {
+          address: participantAddress,
+          status: PARTICIPANT_STATUS.REGISTERED,
+          index: 3,
+          social: null
+        },
       ])
     })
 
@@ -1109,12 +1123,13 @@ describe('ethereum', () => {
       expect(ret).toEqual({
         address: participantAddress,
         status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
+        social: null,
       })
 
       const doc = await loadParticipantList(partyAddress)
 
       expect(doc.participants).toEqual([
-        { address: participantAddress, status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT },
+        { address: participantAddress, status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT, social: null },
         originalList[1],
       ])
     })
@@ -1137,12 +1152,18 @@ describe('ethereum', () => {
         address: participantAddress,
         status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
         index: 6,
+        social: null,
       })
 
       const doc = await loadParticipantList(partyAddress)
 
       expect(doc.participants).toEqual([
-        { address: participantAddress, status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT, index: 6 },
+        {
+          address: participantAddress,
+          status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
+          index: 6,
+          social: null
+        },
       ])
 
       const ret2 = await db.updateParticipantStatus(partyAddress, participantAddress, {
@@ -1154,12 +1175,81 @@ describe('ethereum', () => {
         address: participantAddress,
         status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
         index: 8,
+        social: null,
       })
 
       const doc2 = await loadParticipantList(partyAddress)
 
       expect(doc2.participants).toEqual([
-        { address: participantAddress, status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT, index: 8 },
+        {
+          address: participantAddress,
+          status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
+          index: 8,
+          social: null
+        },
+      ])
+    })
+
+    it('overrides participant social links with ones in current profile', async () => {
+      const participantAddress = newAddr()
+
+      const originalList = [
+        {
+          address: participantAddress,
+          status: PARTICIPANT_STATUS.SHOWED_UP,
+          index: 6,
+          social: 123
+        },
+      ]
+
+      await saveParticipantList(partyAddress, originalList)
+
+      const ret = await db.updateParticipantStatus(partyAddress, participantAddress, {
+        status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
+        index: undefined
+      })
+
+      expect(ret).toEqual({
+        address: participantAddress,
+        status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
+        index: 6,
+        social: null,
+      })
+
+      const doc = await loadParticipantList(partyAddress)
+
+      expect(doc.participants).toEqual([
+        {
+          address: participantAddress,
+          status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
+          index: 6,
+          social: null
+        },
+      ])
+
+      db.getUserProfile = () => ({ social: 456 })
+
+      const ret2 = await db.updateParticipantStatus(partyAddress, participantAddress, {
+        status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
+        index: 8
+      })
+
+      expect(ret2).toEqual({
+        address: participantAddress,
+        status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
+        index: 8,
+        social: 456,
+      })
+
+      const doc2 = await loadParticipantList(partyAddress)
+
+      expect(doc2.participants).toEqual([
+        {
+          address: participantAddress,
+          status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
+          index: 8,
+          social: 456
+        },
       ])
     })
   })

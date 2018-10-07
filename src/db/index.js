@@ -348,6 +348,8 @@ class Db extends EventEmitter {
     const newEntry = {
       address: participantAddress,
       status,
+      // get their user profile to inject social link
+      social: safeGet(await this.getUserProfile(participantAddress), 'social', null)
     }
 
     if (0 <= index) {
