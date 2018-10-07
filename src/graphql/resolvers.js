@@ -120,7 +120,8 @@ module.exports = ({ db }) => {
     },
     Participant: {
       status: ({ status }) => internalStatusToParticipantStatus(status),
-      user: ({ address, social }) => ({ address, social })
+      user: ({ address, social }) => ({ address, social }),
+      index: ({ index }) => parseInt(index, 10),
     },
   }
 }

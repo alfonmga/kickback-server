@@ -289,7 +289,9 @@ class Db extends EventEmitter {
     const { participants = [] } = participantList.data
 
     // sort
-    participants.sort(({ index: indexA }, { index: indexB }) => (indexA < indexB ? -1 : 1))
+    participants.sort(({ index: indexA }, { index: indexB }) => (
+      (parseInt(indexA, 10) < parseInt(indexB, 10)) ? -1 : 1
+    ))
 
     // check maps length
     const totalBits = maps.length * 256
