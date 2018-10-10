@@ -22,7 +22,7 @@ const env = envalid.cleanEnv(process.env, {
 // eslint-disable-next-line import/no-dynamic-require
 const modeConfig = require(`./${env.APP_MODE}`)
 
-module.exports = {
+module.exports = Object.freeze({
   ...env,
   ...modeConfig,
-}
+})
