@@ -9,7 +9,6 @@
   },
   "env": {
     "LOG": "debug",
-    "BLOCK_CONFIRMATIONS": "0",
     "NODE_ENV": "production",
     "APP_MODE": "dev",
     "CONFIG_ENCRYPTION_KEY": "@config_encryption_key",
