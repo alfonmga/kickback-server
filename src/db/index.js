@@ -242,12 +242,6 @@ class Db extends EventEmitter {
       return
     }
 
-    if (!stringsMatchIgnoreCase(pendingParty.data.owner, owner)) {
-      this._log.warn(`Party ${address} has a matching pending party entry, but owner is differnet.`)
-
-      return
-    }
-
     const meta = this._extractPartyMeta(pendingParty.data)
 
     await doc.set({

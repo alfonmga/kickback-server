@@ -464,20 +464,9 @@ describe('ethereum', () => {
       expect(await loadParty(party.address)).toBeUndefined()
     })
 
-    it('does nothing if pending party entry owner value does not match', async () => {
-      await savePendingParty(id, {
-        owner: newAddr(),
-        name: 'test'
-      })
-
-      await db.addPartyFromContract(party)
-
-      expect(await loadParty(party.address)).toBeUndefined()
-    })
-
     it('creates new party entry and deletes the pending party entry', async () => {
       await savePendingParty(id, {
-        owner: accounts[0].toLowerCase(),
+        owner: accounts[1].toLowerCase() /* should be ignored */,
         name: 'test',
         shouldNotUse: 123,
       })
