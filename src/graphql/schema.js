@@ -39,6 +39,7 @@ input SocialMediaInput {
 enum LegalAgreementType {
   TERMS_AND_CONDITIONS
   PRIVACY_POLICY
+  MARKETING_INFO
 }
 
 type LegalAgreement {

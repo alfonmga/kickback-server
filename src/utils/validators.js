@@ -20,7 +20,8 @@ exports.hasAcceptedLegalAgreements = (legal = []) => {
   const terms = legal.find(l => l.type === TERMS_AND_CONDITIONS)
   const privacy = legal.find(p => p.type === PRIVACY_POLICY)
 
-  return (safeGet(terms, 'accepted') && safeGet(privacy, 'accepted'))
+  return safeGet(terms, 'accepted')
+    && safeGet(privacy, 'accepted')
 }
 
 exports.stringsMatchIgnoreCase = (a1, a2) => (typeof a1 === 'string') && (typeof a2 === 'string') && a1.toLowerCase() === a2.toLowerCase()

@@ -12,7 +12,7 @@ import { NOTIFICATION } from '../constants/events'
 import { PARTICIPANT_STATUS, PARTY_STATUS } from '../constants/status'
 import { VERIFY_EMAIL } from '../constants/notifications'
 import { SESSION_VALIDITY_SECONDS } from '../constants/session'
-import { TERMS_AND_CONDITIONS, PRIVACY_POLICY } from '../constants/legal'
+import { TERMS_AND_CONDITIONS, PRIVACY_POLICY, MARKETING_INFO } from '../constants/legal'
 
 const wallet = EthHdWallet.fromMnemonic(generateMnemonic())
 
@@ -31,6 +31,10 @@ const createUserProfile = address => ({
     },
     {
       type: PRIVACY_POLICY,
+      accepted: `${Date.now()}`,
+    },
+    {
+      type: MARKETING_INFO,
       accepted: `${Date.now()}`,
     },
   ],
@@ -589,9 +593,10 @@ describe('ethereum', () => {
       const ret = await db.getUserProfile(userAddress, true)
 
       expect(ret.legal).toBeDefined()
-      expect(ret.legal.length).toEqual(2)
+      expect(ret.legal.length).toEqual(3)
       expect(ret.legal[0].type).toEqual(TERMS_AND_CONDITIONS)
       expect(ret.legal[1].type).toEqual(PRIVACY_POLICY)
+      expect(ret.legal[2].type).toEqual(MARKETING_INFO)
     })
 
     it('handles user address in uppercase', async () => {
@@ -759,10 +764,16 @@ describe('ethereum', () => {
       }
     })
 
-    it('throws if legal agreements not found', async () => {
+    it('throws if required legal agreements not found', async () => {
       try {
         await db.updateUserProfile(userAddress, {
-          email: 'test-newemail@kickback.events'
+          email: 'test-newemail@kickback.events',
+          legal: [
+            {
+              type: MARKETING_INFO,
+              accepted: `${Date.now()}`,
+            }
+          ]
         })
       } catch (err) {
         expect(err.message.toLowerCase()).toEqual(expect.stringContaining('legal agreements not found'))
