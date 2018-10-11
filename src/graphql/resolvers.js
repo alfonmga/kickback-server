@@ -93,6 +93,11 @@ module.exports = ({ db }) => {
 
         return db.updatePartyMeta(partyAddress, meta)
       },
+      createPendingParty: async (_, { meta }, { user }) => {
+        await assertUser(user)
+
+        return db.createPendingParty(user.address, meta)
+      },
       updateParticipantStatus: async (_, {
         address: partyAddress,
         participant: { address, status }

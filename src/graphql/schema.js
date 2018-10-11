@@ -108,7 +108,7 @@ type Query {
 }
 
 type Mutation {
-  createPendingParty(data: PendingPartyInput!): ID
+  createPendingParty(meta: PartyMetaInput!): ID
   createLoginChallenge(address: String!): LoginChallenge
   loginUser: UserProfile
   updateUserProfile(profile: UserProfileInput!): UserProfile

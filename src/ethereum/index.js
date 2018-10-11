@@ -46,7 +46,7 @@ class EventWatcher {
     if (this._subscription) {
       this._log.info(`Re-subscribing to ${this._eventName}...`)
       // re-subscribe
-      this._subscription.subscribe(this._eventName)
+      this._subscription.subscribe()
     } else {
       this._log.info(`Subscribing to ${this._eventName}...`)
       this._subscription = this._web3.eth.subscribe(this._eventName)
