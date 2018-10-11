@@ -107,6 +107,8 @@ module.exports = ({ config, log: parentLog, blockChain, db, eventQueue }) => {
       // get next block range to process
       const { start, end } = blocksToProcess
 
+      log.debug(`Current block range: ${start} - ${end}`)
+
       if (start && end && start <= end) {
         try {
           const currentBlockNumber = await blockChain.web3.eth.getBlockNumber()
