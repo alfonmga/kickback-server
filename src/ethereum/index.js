@@ -7,11 +7,12 @@ const { BLOCK } = require('../constants/events')
 
 
 class EventWatcher {
-  constructor ({ log, eventName, web3, callback }) {
+  constructor ({ log, eventName, web3, checkActiveTimerDelay, callback }) {
     this._eventName = eventName
-    this._log = log
+    this._log = log.create(eventName)
     this._web3 = web3
     this._callback = callback
+    this._checkActiveTimerDelay = checkActiveTimerDelay
     this._setupSubscription()
   }
 
@@ -24,9 +25,17 @@ class EventWatcher {
   }
 
   _onData (data) {
+    clearTimeout(this._checkActiveTimer)
+
     this._log.trace(`${this._eventName} subscription event`, data)
 
     this._callback(data)
+
+    this._checkActiveTimer = setTimeout(() => {
+      this._log.info('Subscription does not seem to be active anymore, lets restart it...')
+
+      this._setupSubscription()
+    }, this._checkActiveTimerDelay)
   }
 
   _onError (err) {
@@ -35,9 +44,11 @@ class EventWatcher {
 
   _setupSubscription () {
     if (this._subscription) {
+      this._log.info(`Re-subscribing to ${this._eventName}...`)
       // re-subscribe
       this._subscription.subscribe(this._eventName)
     } else {
+      this._log.info(`Subscribing to ${this._eventName}...`)
       this._subscription = this._web3.eth.subscribe(this._eventName)
       this._subscription.on('data', this._onData.bind(this))
       this._subscription.on('error', this._onError.bind(this))
@@ -45,6 +56,7 @@ class EventWatcher {
   }
 
   async shutdown () {
+    clearTimeout(this._checkActiveTimer)
     this._subscription.removeAllListeners()
   }
 }
@@ -123,6 +135,7 @@ class Manager extends EventEmitter {
       log: this._log,
       eventName: filterName,
       web3: this.wsWeb3,
+      checkActiveTimerDelay: 120000, /* should get one block atleast every 2 minutes */
       callback
     })
   }
