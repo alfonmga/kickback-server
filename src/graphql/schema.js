@@ -19,7 +19,7 @@ type Party {
 }
 
 input PartyMetaInput {
-  name: String
+  name: String!
   description: String
   date: String
   location: String
@@ -108,6 +108,7 @@ type Query {
 }
 
 type Mutation {
+  createPendingParty(data: PendingPartyInput!): ID
   createLoginChallenge(address: String!): LoginChallenge
   loginUser: UserProfile
   updateUserProfile(profile: UserProfileInput!): UserProfile

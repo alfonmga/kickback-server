@@ -1,5 +1,6 @@
 import Ganache from 'ganache-core'
 import Web3 from 'web3'
+import uuid from 'uuid'
 import delay from 'delay'
 import { toBN, toHex, toWei } from 'web3-utils'
 import { Conference } from '@noblocknoparty/contracts'
@@ -9,7 +10,7 @@ import createLog from '../log'
 import createDb from './'
 import { getContract } from '../utils/contracts'
 import { NOTIFICATION } from '../constants/events'
-import { PARTICIPANT_STATUS, PARTY_STATUS } from '../constants/status'
+import { PARTICIPANT_STATUS } from '../constants/status'
 import { VERIFY_EMAIL } from '../constants/notifications'
 import { SESSION_VALIDITY_SECONDS } from '../constants/session'
 import { TERMS_AND_CONDITIONS, PRIVACY_POLICY, MARKETING_INFO } from '../constants/legal'
@@ -58,6 +59,9 @@ describe('ethereum', () => {
   let updateUser
   let loadParty
   let saveParty
+  let loadPendingParty
+  let savePendingParty
+  let deletePendingParty
   let loadNotification
   let loadParticipantList
   let saveParticipantList
@@ -66,7 +70,7 @@ describe('ethereum', () => {
 
   beforeAll(async () => {
     log = createLog({
-      LOG: 'warn',
+      LOG: 'info',
       APP_MODE: 'test'
     })
 
@@ -89,31 +93,37 @@ describe('ethereum', () => {
     db = await createDb({ config, log, blockChain })
     nativeDb = db._nativeDb
 
+    const extractData = d => d.data()
+
     saveUser = async (address, data) => nativeDb.doc(`user/${address.toLowerCase()}`).set({
       address,
       ...data
     })
     updateUser = async (address, data) => nativeDb.doc(`user/${address.toLowerCase()}`).update(data)
-    loadUser = async address => nativeDb.doc(`user/${address.toLowerCase()}`).get().then(d => d.data())
+    loadUser = async address => nativeDb.doc(`user/${address.toLowerCase()}`).get().then(extractData)
 
     saveParty = async (address, data) => nativeDb.doc(`party/${address.toLowerCase()}-${networkId}`).set({
       address,
       network: networkId,
       ...data
     })
-    loadParty = async address => nativeDb.doc(`party/${address.toLowerCase()}-${networkId}`).get().then(d => d.data())
+    loadParty = async address => nativeDb.doc(`party/${address.toLowerCase()}-${networkId}`).get().then(extractData)
 
-    loadNotification = async id => nativeDb.doc(`notification/${id}`).get().then(d => d.data())
+    savePendingParty = async (id, data) => nativeDb.doc(`pendingParty/${id}-${networkId}`).set(data)
+    loadPendingParty = async id => nativeDb.doc(`pendingParty/${id}-${networkId}`).get().then(extractData)
+    deletePendingParty = async id => nativeDb.doc(`pendingParty/${id}-${networkId}`).delete()
+
+    loadNotification = async id => nativeDb.doc(`notification/${id}`).get().then(extractData)
 
     saveParticipantList = async (address, list, extra = {}) => nativeDb.doc(`participantList/${address.toLowerCase()}-${networkId}`).set({
       address,
       participants: list,
       ...extra,
     })
-    loadParticipantList = async address => nativeDb.doc(`participantList/${address.toLowerCase()}-${networkId}`).get().then(d => d.data())
+    loadParticipantList = async address => nativeDb.doc(`participantList/${address.toLowerCase()}-${networkId}`).get().then(extractData)
 
     saveKey = async (key, value) => nativeDb.doc(`setting/${key}-${networkId}`).set({ value })
-    loadKey = async key => nativeDb.doc(`setting/${key}-${networkId}`).get().then(d => d.data())
+    loadKey = async key => nativeDb.doc(`setting/${key}-${networkId}`).get().then(extractData)
   })
 
   describe('getKey', () => {
@@ -326,7 +336,7 @@ describe('ethereum', () => {
       partyAddress = newAddr()
 
       await saveParty(partyAddress, {
-        dummy: false,
+        shouldNotUse: false,
         name: 'name1',
         description: 'desc1',
         date: 'date1',
@@ -352,7 +362,7 @@ describe('ethereum', () => {
         date: 'date2',
         location: 'location2',
         image: 'image2',
-        dummy: true,
+        shouldNotUse: true,
       })
 
       const party = await loadParty(partyAddress)
@@ -363,7 +373,7 @@ describe('ethereum', () => {
         date: 'date2',
         location: 'location2',
         image: 'image2',
-        dummy: false,
+        shouldNotUse: false,
       })
 
       expect(party.lastUpdated).toBeGreaterThan(0)
@@ -382,18 +392,96 @@ describe('ethereum', () => {
     })
   })
 
+  describe('createPendingParty', () => {
+    it('throws if name not set', async () => {
+      try {
+        await db.createPendingParty(newAddr(), {})
+      } catch (err) {
+        expect(err.message).toEqual(expect.stringContaining('name must be set'))
+      }
+    })
+
+    it('creates entry and returns the id', async () => {
+      const owner = newAddr()
+
+      const id = await db.createPendingParty(owner, {
+        name: 'party1',
+        description: 'desc1',
+        date: 'date1',
+        location: 'location1',
+        image: 'image1',
+        shouldNotUse: 123,
+      })
+
+      const doc = await loadPendingParty(id)
+
+      expect(doc).toMatchObject({
+        owner: owner.toLowerCase(),
+        name: 'party1',
+        description: 'desc1',
+        date: 'date1',
+        location: 'location1',
+        image: 'image1',
+      })
+    })
+  })
+
   describe('addPartyFromContract', () => {
+    let id
     let party
 
     beforeEach(async () => {
+      id = uuid()
+
       party = await getContract(Conference, web3, { from: accounts[0] }).new(
-        'test', toHex(toWei('0.2', 'ether')), 100, 2, 'test', accounts[0]
+        id, toHex(toWei('0.2', 'ether')), 100, 2, 'test', accounts[0]
       )
       // add additional admin
       await party.grant([ accounts[2] ])
     })
 
-    it('creates new party in db', async () => {
+    it('does nothing if it already exists in db', async () => {
+      await saveParty(party.address, {
+        shouldNotUse: true,
+        name: 'test-original',
+      })
+
+      await db.addPartyFromContract(party)
+
+      const data = await loadParty(party.address)
+
+      expect(data).toMatchObject({
+        shouldNotUse: true,
+        name: 'test-original',
+      })
+    })
+
+    it('does nothing if pending party entry not found', async () => {
+      await deletePendingParty(id)
+
+      await db.addPartyFromContract(party)
+
+      expect(await loadParty(party.address)).toBeUndefined()
+    })
+
+    it('does nothing if pending party entry owner value does not match', async () => {
+      await savePendingParty(id, {
+        owner: newAddr(),
+        name: 'test'
+      })
+
+      await db.addPartyFromContract(party)
+
+      expect(await loadParty(party.address)).toBeUndefined()
+    })
+
+    it('creates new party entry and deletes the pending party entry', async () => {
+      await savePendingParty(id, {
+        owner: accounts[0].toLowerCase(),
+        name: 'test',
+        shouldNotUse: 123,
+      })
+
       await db.addPartyFromContract(party)
 
       const data = await loadParty(party.address)
@@ -407,17 +495,24 @@ describe('ethereum', () => {
         coolingPeriod: toHex(2),
         ended: false,
         cancelled: false,
-        status: PARTY_STATUS.DEPLOYED
       })
 
       expect(data.owner).toEqualIgnoreCase(accounts[0])
       expect(data.admins.length).toEqual(1)
       expect(data.admins[0]).toEqualIgnoreCase(accounts[2])
+      expect(data.shouldNotUse).toBeUndefined()
 
       expect(data.lastUpdated).toBeGreaterThan(0)
+
+      expect(await loadPendingParty(id)).toBeUndefined()
     })
 
-    it('does not record if party already ended as we will do this later on', async () => {
+    it('does not record whether party has already ended as we will do this later on', async () => {
+      await savePendingParty(id, {
+        owner: accounts[0].toLowerCase(),
+        name: 'test'
+      })
+
       await party.cancel()
 
       await db.addPartyFromContract(party)
@@ -427,22 +522,6 @@ describe('ethereum', () => {
       expect(data).toMatchObject({
         ended: false,
         cancelled: false,
-      })
-    })
-
-    it('does nothing if it already exists in db', async () => {
-      await saveParty(party.address, {
-        dummy: true,
-        name: 'test-original',
-      })
-
-      await db.addPartyFromContract(party)
-
-      const data = await loadParty(party.address)
-
-      expect(data).toMatchObject({
-        dummy: true,
-        name: 'test-original',
       })
     })
   })
@@ -621,7 +700,7 @@ describe('ethereum', () => {
       partyAddress = newAddr()
 
       await saveParty(partyAddress, {
-        dummy: false,
+        shouldNotUse: false,
         name: 'name1',
         description: 'desc1',
         date: 'date1',

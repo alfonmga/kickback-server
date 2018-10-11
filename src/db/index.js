@@ -1,13 +1,13 @@
 const safeGet = require('lodash.get')
 const EventEmitter = require('eventemitter3')
-const { generate: randStr } = require('randomstring')
+const uuid = require('uuid')
 const { toBN, toHex, hexToNumber } = require('web3-utils')
 
 const setupFirestoreDb = require('./firestore')
 const { NOTIFICATION } = require('../constants/events')
 const { SESSION_VALIDITY_SECONDS } = require('../constants/session')
 const { VERIFY_EMAIL } = require('../constants/notifications')
-const { PARTY_STATUS, PARTICIPANT_STATUS } = require('../constants/status')
+const { PARTICIPANT_STATUS } = require('../constants/status')
 const {
   stringsMatchIgnoreCase,
   assertEthereumAddress,
@@ -27,7 +27,7 @@ class Db extends EventEmitter {
   async notifyUser (userAddress, type, data) {
     assertEthereumAddress(userAddress)
 
-    const id = randStr(10)
+    const id = uuid()
 
     const doc = await this._get(`notification/${id}`)
 
@@ -163,6 +163,27 @@ class Db extends EventEmitter {
     return doc.exists ? doc.data : null
   }
 
+  async createPendingParty (owner, data) {
+    const id = uuid()
+
+    if (!data.name) {
+      throw new Error('Pending party name must be set!')
+    }
+
+    const doc = await this._getPendingParty(id)
+
+    const meta = this._extractPartyMeta(data)
+
+    this._log.info(`Creating pending party ${id} for owner: ${owner} ...`)
+
+    await doc.set({
+      ...meta,
+      owner: owner.toLowerCase(),
+    })
+
+    return id
+  }
+
   async updatePartyMeta (address, data) {
     const doc = await this._getParty(address)
 
@@ -172,12 +193,7 @@ class Db extends EventEmitter {
       return
     }
 
-    const meta = [ 'name', 'description', 'date', 'location', 'image' ].reduce((m, k) => {
-      if (undefined !== data[k]) {
-        m[k] = data[k]
-      }
-      return m
-    }, {})
+    const meta = this._extractPartyMeta(data)
 
     this._log.info(`Party ${address} meta update: ${meta}`)
 
@@ -214,10 +230,30 @@ class Db extends EventEmitter {
       partyInstance.coolingPeriod(),
     ])
 
+    // fetch pending party
+    // name in contrat should match id of pending party doc! - this is how we
+    // ensure only parties we approve of can show up on our website, despite
+    // people calling our deployer contract directly!
+    const pendingParty = await this._getPendingParty(name)
+
+    if (!pendingParty.exists) {
+      this._log.warn(`Party ${address} does not have a matching pending party entry.`)
+
+      return
+    }
+
+    if (!stringsMatchIgnoreCase(pendingParty.data.owner, owner)) {
+      this._log.warn(`Party ${address} has a matching pending party entry, but owner is differnet.`)
+
+      return
+    }
+
+    const meta = this._extractPartyMeta(pendingParty.data)
+
     await doc.set({
+      ...meta,
       address: address.toLowerCase(),
       network: this._blockChain.networkId,
-      name,
       deposit: toHex(deposit),
       participantLimit: hexToNumber(toHex(limitOfParticipants)),
       coolingPeriod: toHex(coolingPeriod),
@@ -225,9 +261,11 @@ class Db extends EventEmitter {
       cancelled: false,
       owner: owner.toLowerCase(),
       admins: admins.map(a => a.toLowerCase()),
-      status: PARTY_STATUS.DEPLOYED,
       created: Date.now(),
     })
+
+    // delete pending party
+    await pendingParty.delete()
   }
 
   async getParties ({ stalestFirst = false, limit = undefined, onlyActive = false } = {}) {
@@ -517,6 +555,10 @@ class Db extends EventEmitter {
     return this._get(`party/${this._id(address.toLowerCase())}`)
   }
 
+  async _getPendingParty (id) {
+    return this._get(`pendingParty/${this._id(id)}`)
+  }
+
   async _getParticipantList (address) {
     return this._get(`participantList/${this._id(address.toLowerCase())}`)
   }
@@ -555,6 +597,15 @@ class Db extends EventEmitter {
 
   _id (str) {
     return `${str}-${this._blockChain.networkId}`
+  }
+
+  _extractPartyMeta (doc) {
+    return [ 'name', 'description', 'date', 'location', 'image' ].reduce((m, k) => {
+      if (undefined !== doc[k]) {
+        m[k] = doc[k]
+      }
+      return m
+    }, {})
   }
 }
 

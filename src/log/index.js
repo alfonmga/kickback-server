@@ -30,7 +30,9 @@ class Log {
 module.exports = config => {
   const streams = []
 
-  if (config.LOGDNA_API_KEY) {
+  const inTestMode = ('test' === config.APP_MODE)
+
+  if (config.LOGDNA_API_KEY && !inTestMode) {
     console.log('Connecting logger to LogDNA ...')
 
     streams.push({
@@ -42,7 +44,7 @@ module.exports = config => {
 
   return new Log({
     name: 'root',
-    streams: [
+    streams: inTestMode ? [] : [
       {
         level: config.LOG,
         stream: process.stdout,

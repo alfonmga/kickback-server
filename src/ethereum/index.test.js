@@ -19,7 +19,7 @@ describe('ethereum', () => {
 
   beforeAll(async () => {
     log = createLog({
-      LOG: 'warn',
+      LOG: 'info',
       APP_MODE: 'test'
     })
 
