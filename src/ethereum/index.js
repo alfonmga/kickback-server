@@ -7,14 +7,12 @@ const { BLOCK } = require('../constants/events')
 
 
 class EventWatcher {
-  constructor ({ log, eventName, lowLevelEmitter, callback }) {
+  constructor ({ log, eventName, web3, callback }) {
     this._eventName = eventName
     this._log = log
-    this._lowLevelEmitter = lowLevelEmitter
+    this._web3 = web3
     this._callback = callback
-
-    this._lowLevelEmitter.on('data', this._onData.bind(this))
-    this._lowLevelEmitter.on('error', this._onError.bind(this))
+    this._setupSubscription()
   }
 
   addListener (cb) {
@@ -35,8 +33,19 @@ class EventWatcher {
     this._log.error(`${this._eventName} subscription error`, err)
   }
 
+  _setupSubscription () {
+    if (this._subscription) {
+      // re-subscribe
+      this._subscription.subscribe(this._eventName)
+    } else {
+      this._subscription = this._web3.eth.subscribe(this._eventName)
+      this._subscription.on('data', this._onData.bind(this))
+      this._subscription.on('error', this._onError.bind(this))
+    }
+  }
+
   async shutdown () {
-    this._lowLevelEmitter.removeAllListeners()
+    this._subscription.removeAllListeners()
   }
 }
 
@@ -113,7 +122,7 @@ class Manager extends EventEmitter {
     return new EventWatcher({
       log: this._log,
       eventName: filterName,
-      lowLevelEmitter: this.wsWeb3.eth.subscribe(filterName),
+      web3: this.wsWeb3,
       callback
     })
   }

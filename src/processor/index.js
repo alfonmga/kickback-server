@@ -44,6 +44,8 @@ module.exports = async ({ config, log: parentLog, eventQueue, db, blockChain }) 
 
   // now listen for new blocks
   blockChain.on(BLOCK, ({ number }) => {
+    log.debug(`New block recieved: ${number}`)
+
     blocksToProcess.end = number
     if (!blocksToProcess.start) {
       blocksToProcess.start = number
