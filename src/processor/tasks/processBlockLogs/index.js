@@ -75,14 +75,7 @@ module.exports = ({ config, log: parentLog, blockChain, db, eventQueue }) => {
     await _processEvent(contractEvents.Finalize.name, async event => {
       const { address, args: { maps } } = event
 
-      return db.finalizeAttendance(address, maps)
-    })
-
-    // mark parties which have ended
-    await _processEvent(contractEvents.EndParty.name, async event => {
-      const { address } = event
-
-      return db.markPartyEnded(address)
+      return db.finalize(address, maps)
     })
 
     // mark parties which have been cancelled

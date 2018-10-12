@@ -434,7 +434,7 @@ describe('ethereum', () => {
       id = uuid()
 
       party = await getContract(Conference, web3, { from: accounts[0] }).new(
-        id, toHex(toWei('0.2', 'ether')), 100, 2, 'test', accounts[0]
+        id, toHex(toWei('0.2', 'ether')), 100, 2, accounts[0]
       )
       // add additional admin
       await party.grant([ accounts[2] ])
@@ -1333,7 +1333,7 @@ describe('ethereum', () => {
     })
   })
 
-  describe('finalizeAttendance', () => {
+  describe('finalize', () => {
     let partyAddress
     let participants
     let maxParticipants
@@ -1361,7 +1361,7 @@ describe('ethereum', () => {
     it('does nothing if party not found', async () => {
       const invalidPartyAddress = newAddr()
 
-      await db.finalizeAttendance(invalidPartyAddress, [ 0, 0 ])
+      await db.finalize(invalidPartyAddress, [ 0, 0 ])
 
       const doc = await loadParticipantList(partyAddress)
 
@@ -1373,7 +1373,7 @@ describe('ethereum', () => {
         cancelled: true,
       })
 
-      await db.finalizeAttendance(partyAddress, [ 0, 0 ])
+      await db.finalize(partyAddress, [ 0, 0 ])
 
       const doc = await loadParticipantList(partyAddress)
 
@@ -1385,7 +1385,7 @@ describe('ethereum', () => {
         ended: true,
       })
 
-      await db.finalizeAttendance(partyAddress, [ 0, 0 ])
+      await db.finalize(partyAddress, [ 0, 0 ])
 
       const doc = await loadParticipantList(partyAddress)
 
@@ -1397,7 +1397,7 @@ describe('ethereum', () => {
         finalized: true
       })
 
-      await db.finalizeAttendance(partyAddress, [ 0, 0 ])
+      await db.finalize(partyAddress, [ 0, 0 ])
 
       const doc = await loadParticipantList(partyAddress)
 
@@ -1405,7 +1405,7 @@ describe('ethereum', () => {
     })
 
     it('does nothing if not enough maps given', async () => {
-      await db.finalizeAttendance(partyAddress, [ 0 ])
+      await db.finalize(partyAddress, [ 0 ])
 
       const doc = await loadParticipantList(partyAddress)
 
@@ -1413,7 +1413,7 @@ describe('ethereum', () => {
     })
 
     it('does nothing if too many maps given', async () => {
-      await db.finalizeAttendance(partyAddress, [ 0, 0, 0 ])
+      await db.finalize(partyAddress, [ 0, 0, 0 ])
 
       const doc = await loadParticipantList(partyAddress)
 
@@ -1421,7 +1421,7 @@ describe('ethereum', () => {
     })
 
     it('finalizes attendance - p0', async () => {
-      await db.finalizeAttendance(partyAddress, [ 1, 0 ])
+      await db.finalize(partyAddress, [ 1, 0 ])
 
       const doc = await loadParticipantList(partyAddress)
 
@@ -1432,6 +1432,9 @@ describe('ethereum', () => {
       expectedParticipants[0].status = PARTICIPANT_STATUS.SHOWED_UP
 
       expect(doc.participants).toEqual(expectedParticipants)
+
+      const party = await loadParty(partyAddress)
+      expect(party.ended).toEqual(true)
     })
 
     it('finalizes attendance - p0, p255, p257, 349, pMax', async () => {
@@ -1440,7 +1443,7 @@ describe('ethereum', () => {
         toBN(0).bincn(1).bincn(349 % 256).bincn((participants.length - 1) % 256),
       ]
 
-      await db.finalizeAttendance(partyAddress, maps)
+      await db.finalize(partyAddress, maps)
 
       const doc = await loadParticipantList(partyAddress)
 
@@ -1456,6 +1459,9 @@ describe('ethereum', () => {
 
       expect(doc.participants).toEqual(expectedParticipants)
       expect(doc.finalized).toEqual(true)
+
+      const party = await loadParty(partyAddress)
+      expect(party.ended).toEqual(true)
     })
 
     it('finalizes attendance - all', async () => {
@@ -1465,7 +1471,7 @@ describe('ethereum', () => {
       }
       const maps = [ bn.toString(16), bn.toString(16) ]
 
-      await db.finalizeAttendance(partyAddress, maps)
+      await db.finalize(partyAddress, maps)
 
       const doc = await loadParticipantList(partyAddress)
 
@@ -1476,12 +1482,15 @@ describe('ethereum', () => {
 
       expect(doc.participants).toEqual(expectedParticipants)
       expect(doc.finalized).toEqual(true)
+
+      const party = await loadParty(partyAddress)
+      expect(party.ended).toEqual(true)
     })
 
     it('finalizes attendance - none', async () => {
       const maps = [ '0', '0' ]
 
-      await db.finalizeAttendance(partyAddress, maps)
+      await db.finalize(partyAddress, maps)
 
       const doc = await loadParticipantList(partyAddress)
 
@@ -1492,56 +1501,9 @@ describe('ethereum', () => {
 
       expect(doc.participants).toEqual(expectedParticipants)
       expect(doc.finalized).toEqual(true)
-    })
-  })
 
-  describe('markPartyEnded', () => {
-    it('does nothing if party not found', async () => {
-      const invalidPartyAddress = newAddr()
-
-      await db.markPartyEnded(invalidPartyAddress)
-
-      const party = await loadParty(invalidPartyAddress)
-
-      expect(party).toBeUndefined()
-    })
-
-    it('marks party as ended if found', async () => {
-      const address = newAddr()
-
-      await saveParty(address, {
-        ended: false,
-        cancelled: false,
-      })
-
-      await db.markPartyEnded(address)
-
-      const party = await loadParty(address)
-
-      expect(party).toMatchObject({
-        ended: true,
-        cancelled: false,
-      })
-
-      expect(party.lastUpdated).toBeGreaterThan(0)
-    })
-
-    it('handles uppercase party address', async () => {
-      const address = newAddr()
-
-      await saveParty(address, {
-        ended: false,
-        cancelled: false,
-      })
-
-      await db.markPartyEnded(address.toUpperCase())
-
-      const party = await loadParty(address)
-
-      expect(party).toMatchObject({
-        ended: true,
-        cancelled: false,
-      })
+      const party = await loadParty(partyAddress)
+      expect(party.ended).toEqual(true)
     })
   })
 

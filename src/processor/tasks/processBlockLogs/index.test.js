@@ -63,7 +63,7 @@ describe('process block logs', () => {
       addPartyAdmin: jest.fn(async () => {}),
       removePartyAdmin: jest.fn(async () => {}),
       updateParticipantStatus: jest.fn(async () => {}),
-      finalizeAttendance: jest.fn(async () => {}),
+      finalize: jest.fn(async () => {}),
       setKey: jest.fn(async () => {}),
     }
 
@@ -241,29 +241,6 @@ describe('process block logs', () => {
 
     expect(partyContract.at).toHaveBeenCalledWith('0x456')
     expect(db.addPartyFromContract).toHaveBeenCalledWith('partyInstance')
-  })
-
-  it('mark parties which have ended', async () => {
-    blockChain.web3.blockNumber = 10
-    blockChain.web3.logs = Promise.resolve([
-      {
-        name: events.EndParty.name,
-        address: '0x456'
-      }
-    ])
-
-    const blockNumbers = {
-      start: 1,
-      end: 1,
-    }
-
-    processor = createProcessor({ config, log, blockChain, db, eventQueue })
-
-    processor(blockNumbers)
-
-    await delay(100)
-
-    expect(db.markPartyEnded).toHaveBeenCalledWith('0x456')
   })
 
   it('marks parties which have been cancelled', async () => {
@@ -530,7 +507,7 @@ describe('process block logs', () => {
     }
   })
 
-  it('finalizes participants', async () => {
+  it('finalizes parties', async () => {
     blockChain.web3.blockNumber = 10
     blockChain.web3.logs = Promise.resolve([
       {
@@ -553,50 +530,10 @@ describe('process block logs', () => {
 
     await delay(100)
 
-    expect(db.finalizeAttendance).toHaveBeenCalledWith('0x456', [ 1, 2, 3 ])
+    expect(db.finalize).toHaveBeenCalledWith('0x456', [ 1, 2, 3 ])
   })
 
-  it('registers participants before ending the party', async () => {
-    blockChain.web3.blockNumber = 10
-
-    const logs = [
-      {
-        name: events.EndParty.name,
-        address: '0x456'
-      },
-      {
-        name: events.Register.name,
-        address: '0x456',
-        args: {
-          addr: '0x123',
-          participantIndex: 1
-        }
-      },
-    ]
-    blockChain.web3.logs = Promise.resolve(logs)
-
-    const blockNumbers = {
-      start: 1,
-      end: 1,
-    }
-
-    const called = []
-    db.updateParticipantStatus = () => called.push('updateParticipantStatus')
-    db.markPartyEnded = () => called.push('markPartyEnded')
-
-    processor = createProcessor({ config, log, blockChain, db, eventQueue })
-
-    processor(blockNumbers)
-
-    await delay(200)
-
-    expect(called).toEqual([
-      'updateParticipantStatus',
-      'markPartyEnded',
-    ])
-  })
-
-  it('registers participants before ending the party', async () => {
+  it('registers participants before cancelling the party', async () => {
     blockChain.web3.blockNumber = 10
 
     const logs = [
@@ -664,7 +601,7 @@ describe('process block logs', () => {
 
     const called = []
     db.updateParticipantStatus = () => called.push('updateParticipantStatus')
-    db.finalizeAttendance = () => called.push('finalizeAttendance')
+    db.finalize = () => called.push('finalize')
 
     processor = createProcessor({ config, log, blockChain, db, eventQueue })
 
@@ -674,7 +611,7 @@ describe('process block logs', () => {
 
     expect(called).toEqual([
       'updateParticipantStatus',
-      'finalizeAttendance',
+      'finalize',
     ])
   })
 
@@ -924,7 +861,7 @@ describe('process block logs', () => {
     ])
   })
 
-  it('ends party before recording withdrawals', async () => {
+  it('finalizes party before recording withdrawals', async () => {
     blockChain.web3.blockNumber = 10
 
     const logs = [
@@ -936,8 +873,10 @@ describe('process block logs', () => {
         }
       },
       {
-        name: events.EndParty.name,
-        address: '0x456',
+        name: events.Finalize.name,
+        args: {
+          maps: 123,
+        },
       },
     ]
     blockChain.web3.logs = Promise.resolve(logs)
@@ -949,7 +888,7 @@ describe('process block logs', () => {
 
     const called = []
     db.updateParticipantStatus = () => called.push('updateParticipantStatus')
-    db.markPartyEnded = () => called.push('markPartyEnded')
+    db.finalize = () => called.push('finalize')
 
     processor = createProcessor({ config, log, blockChain, db, eventQueue })
 
@@ -958,7 +897,7 @@ describe('process block logs', () => {
     await delay(200)
 
     expect(called).toEqual([
-      'markPartyEnded',
+      'finalize',
       'updateParticipantStatus'
     ])
   })

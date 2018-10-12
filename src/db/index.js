@@ -289,7 +289,7 @@ class Db extends EventEmitter {
     return list.exists ? list.data.participants : []
   }
 
-  async finalizeAttendance (partyAddress, maps) {
+  async finalize (partyAddress, maps) {
     partyAddress = partyAddress.toLowerCase()
 
     const party = await this._getParty(partyAddress)
@@ -347,11 +347,16 @@ class Db extends EventEmitter {
       a.status = result.gt(zeroBN) ? PARTICIPANT_STATUS.SHOWED_UP : PARTICIPANT_STATUS.REGISTERED
     })
 
-    await participantList.set({
-      address: partyAddress,
-      participants: [ ...participants ],
-      finalized: true,
-    })
+    await Promise.all([
+      participantList.set({
+        address: partyAddress,
+        participants: [ ...participants ],
+        finalized: true,
+      }),
+      party.update({
+        ended: true,
+      }),
+    ])
   }
 
   async updateParticipantStatus (partyAddress, participantAddress, { status, index } = {}) {
@@ -491,20 +496,6 @@ class Db extends EventEmitter {
           admins: [ ...admins ]
         })
       }
-    }
-  }
-
-  async markPartyEnded (address) {
-    address = address.toLowerCase()
-
-    const doc = await this._getParty(address)
-
-    if (doc.exists) {
-      this._log.info(`Party ${address} ended`)
-
-      await doc.update({
-        ended: true,
-      })
     }
   }
 
