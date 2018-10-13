@@ -1,7 +1,7 @@
 import Document, { Head, Main, NextScript } from 'next/document'
 
 export default class MyDocument extends Document {
-  static async getInitialProps(ctx) {
+  static async getInitialProps (ctx) {
     const initialProps = await Document.getInitialProps(ctx)
 
     return {
@@ -9,7 +9,7 @@ export default class MyDocument extends Document {
     }
   }
 
-  render() {
+  render () {
     return (
       <html>
         <Head>
@@ -17,7 +17,7 @@ export default class MyDocument extends Document {
         </Head>
         <body>
           <p>
-            {(process.env.MODE === 'production') ? (
+            {(process.env.APP_MODE === 'live') ? (
               <strong>This is the production backend server</strong>
             ) : (
               <strong>This is the development backend server</strong>
