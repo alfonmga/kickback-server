@@ -406,7 +406,7 @@ describe('process block logs', () => {
         address: '0x456',
         args: {
           addr: `0x123${i}`,
-          participantIndex: i
+          index: i
         }
       })
     }
@@ -546,7 +546,7 @@ describe('process block logs', () => {
         address: '0x456',
         args: {
           addr: '0x123',
-          participantIndex: 1
+          index: 1
         }
       },
     ]
@@ -588,7 +588,7 @@ describe('process block logs', () => {
         address: '0x456',
         args: {
           addr: '0x123',
-          participantIndex: 1
+          index: 1
         }
       },
     ]
@@ -624,7 +624,7 @@ describe('process block logs', () => {
         address: '0x456',
         args: {
           addr: '0x123',
-          participantIndex: 1
+          index: 1
         }
       },
       {

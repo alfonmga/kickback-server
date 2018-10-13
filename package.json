@@ -34,7 +34,7 @@
   "homepage": "https://github.com/noblocknoparty/server#readme",
   "dependencies": {
     "@koa/cors": "2",
-    "@noblocknoparty/contracts": "^0.16.0",
+    "@noblocknoparty/contracts": "^1.0.0",
     "apollo-server-koa": "^2.0.6",
     "bignumber.js": "^7.2.1",
     "bunyan": "^1.8.12",
