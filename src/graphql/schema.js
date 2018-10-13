@@ -101,6 +101,7 @@ input ParticipantInput {
 }
 
 type Query {
+  networkId: String
   allParties: [Party]
   activeParties: [Party]
   party(address: String!): Party

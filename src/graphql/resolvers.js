@@ -24,7 +24,7 @@ const internalStatusToParticipantStatus = status => {
   return 'UNKNOWN'
 }
 
-module.exports = ({ db }) => {
+module.exports = ({ db, blockChain }) => {
   const assertPartyRole = async (partyAddress, user, role) => {
     assertUser(user)
 
@@ -67,6 +67,7 @@ module.exports = ({ db }) => {
 
   return {
     Query: {
+      networkId: async () => blockChain.networkId,
       allParties: async () => db.getParties(),
       activeParties: async () => db.getParties({ onlyActive: true }),
       party: async (_, { address }) => db.getParty(address),
