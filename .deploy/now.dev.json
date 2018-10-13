@@ -1,5 +1,5 @@
 {
-  "name": "kickback-api",
+  "name": "kickback-api-dev",
   "alias": "dev.api.kickback.events",
   "scale": {
     "bru1": {
