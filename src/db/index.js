@@ -59,7 +59,7 @@ class Db extends EventEmitter {
   }
 
   async updateUserProfile (userAddress, profile) {
-    const { email: newEmail, social, legal } = profile
+    const { name, email: newEmail, social, legal } = profile
 
     assertEthereumAddress(userAddress)
 
@@ -87,6 +87,7 @@ class Db extends EventEmitter {
     await doc.update({
       email,
       legal: legal || doc.data.legal,
+      ...(name ? { name } : null),
       social: (social || []).reduce((m, { type, value }) => {
         m[type] = value
         return m
@@ -103,7 +104,7 @@ class Db extends EventEmitter {
       return {}
     }
 
-    const { address, social, legal, created, lastLogin, email } = doc.data
+    const { address, social, legal, created, lastLogin, email, name } = doc.data
 
     return {
       address,
@@ -118,7 +119,7 @@ class Db extends EventEmitter {
         return m
       }, []),
       /* only want owner to see their own email address */
-      ...(isOwner ? { email, legal } : {})
+      ...(isOwner ? { email, legal, name } : {})
     }
   }
 

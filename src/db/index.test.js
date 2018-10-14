@@ -21,6 +21,7 @@ const newAddr = () => wallet.generateAddresses(1).pop()
 
 const createUserProfile = address => ({
   address,
+  name: 'a bad name',
   lastUpdated: Date.now(),
   email: {
     verified: 'test@kickback.events'
@@ -893,6 +894,25 @@ describe('ethereum', () => {
         social: {
           insta: '@test'
         }
+      })
+    })
+
+    it('updates name', async () => {
+      await db.updateUserProfile(userAddress, {
+        legal,
+        name: 'my name',
+      })
+
+      const data = await loadUser(userAddress)
+
+      expect(data).toMatchObject({
+        email: {
+          verified: 'test@kickback.events'
+        },
+        social: {
+          insta: '@test'
+        },
+        name: 'my name',
       })
     })
 

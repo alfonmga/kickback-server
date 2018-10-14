@@ -61,6 +61,7 @@ type UserProfile {
   address: String!
   created: String
   lastLogin: String
+  name: String
   social: [SocialMedia]
   email: EmailSettings
   legal: [LegalAgreement]
@@ -68,6 +69,7 @@ type UserProfile {
 
 input UserProfileInput {
   email: String
+  name: String
   social: [SocialMediaInput]
   legal: [LegalAgreementInput]
 }
