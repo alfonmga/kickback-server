@@ -1387,7 +1387,7 @@ describe('db', () => {
         },
       ])
 
-      db._getUser = () => ({
+      db.getUserProfile = () => ({
         social: 456,
         realName: 'march',
         username: 'march234'
