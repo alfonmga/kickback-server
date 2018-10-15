@@ -153,7 +153,7 @@ class Manager extends EventEmitter {
           this._log.info('Trying again ...')
 
           resolve(this._connect())
-        }, 10000)
+        }, this._config.NODE_RECONNECT_DELAY)
       })
     }
   }
@@ -167,7 +167,7 @@ class Manager extends EventEmitter {
       log: this._log,
       eventName: filterName,
       web3: this.wsWeb3,
-      checkActiveTimerDelay: 120000, /* should get one block atleast every 2 minutes */
+      checkActiveTimerDelay: this._config.ACTIVECHECK_TIMER_DELAY,
       onFailActiveCheck: () => this._subscriptionNoLongerActive(),
       callback
     })

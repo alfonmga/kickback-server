@@ -9,6 +9,8 @@ const env = envalid.cleanEnv(process.env, {
   APP_MODE: str({ default: 'local' }),
   LOG: str({ default: 'debug' }),
   BLOCK_CONFIRMATIONS: num({ default: 0 }),
+  ACTIVECHECK_TIMER_DELAY: num({ default: 120000 }),
+  NODE_RECONNECT_DELAY: num({ default: 10000 }),
   BLOCK_RANGE: num({ default: 100 }),
   DEPLOYER_CONTRACT_ADDRESS: str({ default: '' }),
   DEPLOYER_TRANSACTION: str({ default: '' }),
