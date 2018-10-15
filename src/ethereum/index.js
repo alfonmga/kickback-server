@@ -7,12 +7,13 @@ const { BLOCK } = require('../constants/events')
 
 
 class EventWatcher {
-  constructor ({ log, eventName, web3, checkActiveTimerDelay, callback }) {
+  constructor ({ log, eventName, web3, checkActiveTimerDelay, onFailActiveCheck, callback }) {
     this._eventName = eventName
     this._log = log.create(eventName)
     this._web3 = web3
     this._callback = callback
     this._checkActiveTimerDelay = checkActiveTimerDelay
+    this._onFailActiveCheck = onFailActiveCheck
     this._setupSubscription()
   }
 
@@ -31,11 +32,7 @@ class EventWatcher {
 
     this._callback(data)
 
-    this._checkActiveTimer = setTimeout(() => {
-      this._log.info('Subscription does not seem to be active anymore, lets restart it...')
-
-      this._setupSubscription()
-    }, this._checkActiveTimerDelay)
+    this._restartActiveCheckTimer()
   }
 
   _onError (err) {
@@ -44,15 +41,23 @@ class EventWatcher {
 
   _setupSubscription () {
     if (this._subscription) {
-      this._log.info(`Re-subscribing to ${this._eventName}...`)
-      // re-subscribe
-      this._subscription.subscribe()
-    } else {
-      this._log.info(`Subscribing to ${this._eventName}...`)
-      this._subscription = this._web3.eth.subscribe(this._eventName)
-      this._subscription.on('data', this._onData.bind(this))
-      this._subscription.on('error', this._onError.bind(this))
+      this._subscription.removeAllListeners()
     }
+
+    this._log.info(`Subscribing to ${this._eventName}...`)
+    this._subscription = this._web3.eth.subscribe(this._eventName)
+    this._subscription.on('data', this._onData.bind(this))
+    this._subscription.on('error', this._onError.bind(this))
+
+    this._restartActiveCheckTimer()
+  }
+
+  _restartActiveCheckTimer () {
+    this._checkActiveTimer = setTimeout(async () => {
+      this._log.info('Subscription does not seem to be active anymore :/ ...')
+
+      await this._onFailActiveCheck()
+    }, this._checkActiveTimerDelay)
   }
 
   async shutdown () {
@@ -70,33 +75,15 @@ class Manager extends EventEmitter {
   }
 
   async init () {
-    this.wsWeb3 = new Web3(
-      this._config.provider
-        || new Web3.providers.WebsocketProvider(this._config.ETHEREUM_ENDPOINT_WS)
-    )
+    this._log.info('Initializing ...')
 
-    this.httpWeb3 = new Web3(
-      this._config.provider || new Web3.providers.HttpProvider(this._config.ETHEREUM_ENDPOINT_HTTP)
-    )
-
-    this._log.info(`Connected to '${this._config.NETWORK}' network, id: ${await this.httpWeb3.eth.net.getId()}`)
-
-    this._networkId = await this.httpWeb3.eth.net.getId()
-
-    this.deployer = await this.getDeployerContractInstance()
-
-    this._log.info(`Deployer address: ${this.deployer.address}`)
-
-    this.blockWatcher = await this._subscribe(
-      'newBlockHeaders', this._onBlockHeader.bind(this)
-    )
+    await this._connect()
   }
 
   async shutdown () {
-    await Promise.all([
-      (this.blockWatcher ? this.blockWatcher.shutdown() : Promise.resolve()),
-      (this.newPartyWatcher ? this.newPartyWatcher.shutdown() : Promise.resolve())
-    ])
+    if (this.blockWatcher) {
+      await this.blockWatcher.shutdown()
+    }
   }
 
   get networkId () {
@@ -126,6 +113,51 @@ class Manager extends EventEmitter {
     return getContract(Conference, this.wsWeb3)
   }
 
+  async _subscriptionNoLongerActive () {
+    this._log.info('Subscription does not seem to be working, so re-connecting ...')
+
+    await this.shutdown() // reset all resources
+    await this._connect()
+  }
+
+  async _connect () {
+    this._log.info(`Connecting to '${this._config.NETWORK}' network ...`)
+
+    try {
+      this.wsWeb3 = new Web3(
+        this._config.provider
+          || new Web3.providers.WebsocketProvider(this._config.ETHEREUM_ENDPOINT_WS)
+      )
+
+      this.httpWeb3 = new Web3(
+        this._config.provider ||
+          new Web3.providers.HttpProvider(this._config.ETHEREUM_ENDPOINT_HTTP)
+      )
+
+      this._networkId = await this.httpWeb3.eth.net.getId()
+
+      this._log.info(`Connected to '${this._config.NETWORK}' network, id: ${this._networkId}`)
+
+      this.deployer = await this.getDeployerContractInstance()
+
+      this._log.info(`Deployer address: ${this.deployer.address}`)
+
+      this.blockWatcher = await this._subscribe(
+        'newBlockHeaders', this._onBlockHeader.bind(this)
+      )
+    } catch (err) {
+      this._log.error('Connection failure', err)
+
+      await new Promise(resolve => {
+        setTimeout(() => {
+          this._log.info('Trying again ...')
+
+          resolve(this._connect())
+        }, this._config.NODE_RECONNECT_DELAY)
+      })
+    }
+  }
+
   async _onBlockHeader (blockHeader) {
     this.emit(BLOCK, blockHeader)
   }
@@ -135,7 +167,8 @@ class Manager extends EventEmitter {
       log: this._log,
       eventName: filterName,
       web3: this.wsWeb3,
-      checkActiveTimerDelay: 120000, /* should get one block atleast every 2 minutes */
+      checkActiveTimerDelay: this._config.ACTIVECHECK_TIMER_DELAY,
+      onFailActiveCheck: () => this._subscriptionNoLongerActive(),
       callback
     })
   }

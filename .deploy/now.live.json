@@ -8,7 +8,7 @@
     }
   },
   "env": {
-    "LOG": "info",
+    "LOG": "debug",
     "NODE_ENV": "production",
     "APP_MODE": "live",
     "CONFIG_ENCRYPTION_KEY": "@config_encryption_key",
