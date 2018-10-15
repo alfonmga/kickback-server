@@ -1,4 +1,5 @@
 const safeGet = require('lodash.get')
+const pick = require('lodash.pick')
 const EventEmitter = require('eventemitter3')
 const uuid = require('uuid')
 const { toBN, toHex, hexToNumber } = require('web3-utils')
@@ -59,7 +60,7 @@ class Db extends EventEmitter {
   }
 
   async updateUserProfile (userAddress, profile) {
-    const { name, email: newEmail, social, legal } = profile
+    const { realName, username, email: newEmail, social, legal } = profile
 
     assertEthereumAddress(userAddress)
 
@@ -69,7 +70,23 @@ class Db extends EventEmitter {
 
     const doc = await this._getUser(userAddress, { mustExist: true })
 
-    const { email = {} } = doc.data
+    const { username: existingUsername, email = {} } = doc.data
+
+    // cannot change username
+    if (existingUsername) {
+      if (username) {
+        throw new Error(`Cannot change username once set for user ${userAddress}`)
+      }
+    }
+    else {
+      // eslint-disable-next-line no-lonely-if
+      if (!username) {
+        // need username
+        throw new Error(`Username must be provided for user ${userAddress}`)
+      } else if (await this._isUsernameTaken(username)) {
+        throw new Error(`Username ${username} already taken, cannot use for user ${userAddress}`)
+      }
+    }
 
     if (newEmail && !stringsMatchIgnoreCase(email.verified, newEmail)) {
       email.pending = newEmail
@@ -79,7 +96,7 @@ class Db extends EventEmitter {
 
     // legal agreements are a must have
     if (!hasAcceptedLegalAgreements(doc.data.legal) && !hasAcceptedLegalAgreements(legal)) {
-      throw new Error('Legal agreements not found')
+      throw new Error('Legal agreements must be accepted')
     }
 
     this._log.info(`Updating profile for user ${userAddress} ...`)
@@ -87,7 +104,8 @@ class Db extends EventEmitter {
     await doc.update({
       email,
       legal: legal || doc.data.legal,
-      ...(name ? { name } : null),
+      ...(realName ? { realName } : null),
+      ...(username ? { username: username.toLowerCase() } : null),
       social: (social || []).reduce((m, { type, value }) => {
         m[type] = value
         return m
@@ -97,17 +115,18 @@ class Db extends EventEmitter {
     return this.getUserProfile(userAddress)
   }
 
-  async getUserProfile (userAddress, isOwner = false) {
+  async getUserProfile (userAddress, canViewPrivateFields = false) {
     const doc = await this._getUser(userAddress)
 
     if (!doc.exists) {
       return {}
     }
 
-    const { address, social, legal, created, lastLogin, email, name } = doc.data
+    const { address, social, legal, created, lastLogin, email, realName, username } = doc.data
 
     return {
       address,
+      username,
       created,
       lastLogin,
       social: Object.keys(social || {}).reduce((m, type) => {
@@ -118,8 +137,7 @@ class Db extends EventEmitter {
 
         return m
       }, []),
-      /* only want owner to see their own email address */
-      ...(isOwner ? { email, legal, name } : {})
+      ...(canViewPrivateFields ? { email, legal, realName } : {})
     }
   }
 
@@ -385,11 +403,13 @@ class Db extends EventEmitter {
 
     participantAddress = participantAddress.toLowerCase()
 
+    // get their profile (with all fields visible as we will extract only some)
+    const userProfile = await this.getUserProfile(participantAddress, true)
+
     const newEntry = {
       address: participantAddress,
       status,
-      // get their user profile to inject social link
-      social: safeGet(await this.getUserProfile(participantAddress), 'social', null)
+      ...pick(userProfile, 'social', 'username', 'realName'),
     }
 
     if (0 <= index) {
@@ -412,10 +432,12 @@ class Db extends EventEmitter {
 
       // if participant found
       if (0 <= listIndex) {
-        // don't overwrite existing index unless we have a new value
-        if (undefined === newEntry.index && undefined !== list[listIndex].index) {
-          newEntry.index = list[listIndex].index
-        }
+        // don't overwrite existing metadata unless we have new values
+        [ 'index', 'social', 'realName', 'username' ].forEach(key => {
+          if (undefined === newEntry[key] && undefined !== list[listIndex][key]) {
+            newEntry[key] = list[listIndex][key]
+          }
+        })
 
         list.splice(listIndex, 1, newEntry)
 
@@ -519,6 +541,14 @@ class Db extends EventEmitter {
     const doc = await this._get(`setting/${this._id(key)}`)
 
     return doc.exists ? doc.data.value : undefined
+  }
+
+  async _isUsernameTaken (username) {
+    const query = this._nativeDb.collection('user')
+      .where('username', '==', username.toLowerCase())
+      .limit(1)
+
+    return !!((await query.get()).docs.length)
   }
 
   async setKey (key, value) {

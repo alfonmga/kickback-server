@@ -25,24 +25,24 @@ const internalStatusToParticipantStatus = status => {
 }
 
 module.exports = ({ db, blockChain }) => {
-  const assertPartyRole = async (partyAddress, user, role) => {
-    assertUser(user)
+  const hasPartyRole = (party, user, role) => {
+    if (!party || !user) {
+      return false
+    }
 
-    const party = await db.getParty(partyAddress)
-
-    const isOwner = party && addressesMatch(party.owner, user.address)
-    const isAdmin = party && party.admins.find(a => addressesMatch(a, user.address))
+    const isOwner = addressesMatch(party.owner, user.address)
+    const isAdmin = party.admins.find(a => addressesMatch(a, user.address))
 
     switch (role) {
       case ADMIN: {
         if (isAdmin || isOwner) {
-          return
+          return true
         }
         break
       }
       case OWNER: {
         if (isOwner) {
-          return
+          return true
         }
         break
       }
@@ -50,7 +50,17 @@ module.exports = ({ db, blockChain }) => {
         break
     }
 
-    throw new Error(`Must have role: ${role}`)
+    return false
+  }
+
+  const assertPartyRole = async (partyAddress, user, role) => {
+    assertUser(user)
+
+    const party = await db.getParty(partyAddress)
+
+    if (!hasPartyRole(party, user, role)) {
+      throw new Error(`Must have role: ${role}`)
+    }
   }
 
   const loadProfileOrJustReturnAddress = async (address, currentUser) => {
@@ -119,14 +129,22 @@ module.exports = ({ db, blockChain }) => {
           loadProfileOrJustReturnAddress(admin, user)
         ))
       ),
-      participants: async ({ address }) => db.getParticipants(address),
+      participants: async (party, _, context) => {
+        context.isPartyAdmin = hasPartyRole(party, context.user, ADMIN)
+        return db.getParticipants(party.address)
+      },
     },
     LoginChallenge: {
       str: s => s
     },
     Participant: {
       status: ({ status }) => internalStatusToParticipantStatus(status),
-      user: ({ address, social }) => ({ address, social }),
+      user: ({ address, social, username, realName }, _, { isPartyAdmin }) => ({
+        address,
+        social,
+        username,
+        realName: isPartyAdmin ? realName : null,
+      }),
       index: ({ index }) => parseInt(index, 10),
     },
   }

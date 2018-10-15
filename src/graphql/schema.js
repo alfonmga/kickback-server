@@ -59,17 +59,19 @@ type EmailSettings {
 
 type UserProfile {
   address: String!
-  created: String
-  lastLogin: String
-  name: String
+  username: String
+  realName: String
   social: [SocialMedia]
   email: EmailSettings
   legal: [LegalAgreement]
+  created: String
+  lastLogin: String
 }
 
 input UserProfileInput {
   email: String
-  name: String
+  username: String
+  realName: String
   social: [SocialMediaInput]
   legal: [LegalAgreementInput]
 }

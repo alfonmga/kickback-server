@@ -44,6 +44,8 @@ describe('ethereum', () => {
       provider,
       NETWORK: 'test',
       DEPLOYER_CONTRACT_ADDRESS: deployer.address,
+      ACTIVECHECK_TIMER_DELAY: 120000,
+      NODE_RECONNECT_DELAY: 10000,
     }
   })
 

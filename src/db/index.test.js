@@ -21,7 +21,6 @@ const newAddr = () => wallet.generateAddresses(1).pop()
 
 const createUserProfile = address => ({
   address,
-  name: 'a bad name',
   lastUpdated: Date.now(),
   email: {
     verified: 'test@kickback.events'
@@ -45,7 +44,7 @@ const createUserProfile = address => ({
   }
 })
 
-describe('ethereum', () => {
+describe('db', () => {
   let log
   let provider
   let accounts
@@ -806,6 +805,7 @@ describe('ethereum', () => {
     it('throws if address is invalid', async () => {
       try {
         await db.updateUserProfile('invalid', {
+          username: userAddress,
           email: 'test-newemail@kickback.events'
         })
       } catch (err) {
@@ -816,6 +816,7 @@ describe('ethereum', () => {
     it('throws if email address is invalid', async () => {
       try {
         await db.updateUserProfile(userAddress, {
+          username: userAddress,
           email: 'test-newemail@kickbac'
         })
       } catch (err) {
@@ -826,6 +827,7 @@ describe('ethereum', () => {
     it('throws if user not found', async () => {
       try {
         await db.updateUserProfile(newAddr(), {
+          username: userAddress,
           email: 'test-newemail@kickback.events'
         })
       } catch (err) {
@@ -836,6 +838,7 @@ describe('ethereum', () => {
     it('throws if required legal agreements not found', async () => {
       try {
         await db.updateUserProfile(userAddress, {
+          username: userAddress,
           email: 'test-newemail@kickback.events',
           legal: [
             {
@@ -845,23 +848,82 @@ describe('ethereum', () => {
           ]
         })
       } catch (err) {
-        expect(err.message.toLowerCase()).toEqual(expect.stringContaining('legal agreements not found'))
+        expect(err.message.toLowerCase()).toEqual(expect.stringContaining('legal agreements must'))
       }
     })
 
     it('throws if legal agreements are incomplete', async () => {
       try {
         await db.updateUserProfile(userAddress, {
+          username: userAddress,
           email: 'test-newemail@kickback.events',
           legal: [ legal[0] ],
         })
       } catch (err) {
-        expect(err.message.toLowerCase()).toEqual(expect.stringContaining('legal agreements not found'))
+        expect(err.message.toLowerCase()).toEqual(expect.stringContaining('legal agreements must'))
       }
+    })
+
+    it('throws if username already set and trying to set again', async () => {
+      await db.updateUserProfile(userAddress, {
+        username: userAddress,
+        legal
+      })
+
+      try {
+        await db.updateUserProfile(userAddress, {
+          username: userAddress,
+        })
+      } catch (err) {
+        expect(err.message.toLowerCase()).toEqual(expect.stringContaining('cannot change username'))
+      }
+    })
+
+    it('throws if username not already set and not provided', async () => {
+      try {
+        await db.updateUserProfile(userAddress, {
+          legal
+        })
+      } catch (err) {
+        expect(err.message.toLowerCase()).toEqual(expect.stringContaining('username must be provided'))
+      }
+    })
+
+    it('throws if username already taken and ignores case', async () => {
+      const username = `Taken${userAddress.toUpperCase()}`
+
+      await saveUser(newAddr(), {
+        username: username.toLowerCase(),
+      })
+
+      try {
+        await db.updateUserProfile(userAddress, {
+          legal,
+          username: username.toUpperCase(),
+        })
+      } catch (err) {
+        expect(err.message.toLowerCase()).toEqual(expect.stringContaining('already taken'))
+      }
+    })
+
+    it('sets username once', async () => {
+      const username = `Taken${userAddress.toUpperCase()}`
+
+      await db.updateUserProfile(userAddress, {
+        legal,
+        username,
+      })
+
+      const data = await loadUser(userAddress)
+
+      expect(data).toMatchObject({
+        username: username.toLowerCase(),
+      })
     })
 
     it('does not throw if legal agreement already in db', async () => {
       await db.updateUserProfile(userAddress, {
+        username: userAddress,
         legal
       })
 
@@ -876,6 +938,7 @@ describe('ethereum', () => {
 
     it('updates social links', async () => {
       await db.updateUserProfile(userAddress, {
+        username: userAddress,
         legal,
         social: [
           {
@@ -897,27 +960,27 @@ describe('ethereum', () => {
       })
     })
 
-    it('updates name', async () => {
+    it('updates real name', async () => {
+      await saveUser(userAddress, {
+        realName: 'realname1'
+      })
+
       await db.updateUserProfile(userAddress, {
+        username: userAddress,
         legal,
-        name: 'my name',
+        realName: 'Ram Bo',
       })
 
       const data = await loadUser(userAddress)
 
       expect(data).toMatchObject({
-        email: {
-          verified: 'test@kickback.events'
-        },
-        social: {
-          insta: '@test'
-        },
-        name: 'my name',
+        realName: 'Ram Bo',
       })
     })
 
     it('handles user address in uppercase', async () => {
       await db.updateUserProfile(userAddress.toUpperCase(), {
+        username: userAddress,
         social: [],
         legal
       })
@@ -931,6 +994,7 @@ describe('ethereum', () => {
 
     it('ignores same email being passed in', async () => {
       await db.updateUserProfile(userAddress, {
+        username: userAddress,
         email: user.email.verified,
         legal
       })
@@ -942,6 +1006,7 @@ describe('ethereum', () => {
 
     it('handles case when new email given', async () => {
       await db.updateUserProfile(userAddress, {
+        username: userAddress,
         email: 'test-newemail@kickback.events',
         legal
       })
@@ -958,6 +1023,7 @@ describe('ethereum', () => {
       db.notifyUser = jest.fn(() => Promise.resolve())
 
       await db.updateUserProfile(userAddress, {
+        username: userAddress,
         email: 'test-newemail@kickback.events',
         legal,
       })
@@ -1060,7 +1126,6 @@ describe('ethereum', () => {
           address: addr1,
           status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
           index: 5,
-          social: null,
         }
       ])
     })
@@ -1113,7 +1178,7 @@ describe('ethereum', () => {
       const doc = await loadParticipantList(partyAddress)
 
       expect(doc.participants).toEqual([
-        { address: addr1, status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT, index: 5, social: null },
+        { address: addr1, status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT, index: 5 },
         { address: addr2, status: PARTICIPANT_STATUS.REGISTERED, index: 2, },
       ])
     })
@@ -1130,7 +1195,6 @@ describe('ethereum', () => {
         address: participantAddress,
         status: PARTICIPANT_STATUS.REGISTERED,
         index: 5,
-        social: null,
       })
 
       const doc = await loadParticipantList(partyAddress)
@@ -1140,7 +1204,6 @@ describe('ethereum', () => {
           address: participantAddress,
           status: PARTICIPANT_STATUS.REGISTERED,
           index: 5,
-          social: null
         }
       ])
       expect(doc.address).toEqual(partyAddress)
@@ -1159,13 +1222,12 @@ describe('ethereum', () => {
       expect(ret).toEqual({
         address: participantAddress.toLowerCase(),
         status: PARTICIPANT_STATUS.REGISTERED,
-        social: null,
       })
 
       const doc = await loadParticipantList(partyAddress)
 
       expect(doc.participants).toEqual([
-        { address: participantAddress, status: PARTICIPANT_STATUS.REGISTERED, social: null }
+        { address: participantAddress, status: PARTICIPANT_STATUS.REGISTERED }
       ])
       expect(doc.address).toEqual(partyAddress)
       expect(doc.lastUpdated).toBeDefined()
@@ -1189,7 +1251,6 @@ describe('ethereum', () => {
         address: participantAddress,
         status: PARTICIPANT_STATUS.REGISTERED,
         index: 3,
-        social: null,
       })
 
       const doc = await loadParticipantList(partyAddress)
@@ -1200,7 +1261,6 @@ describe('ethereum', () => {
           address: participantAddress,
           status: PARTICIPANT_STATUS.REGISTERED,
           index: 3,
-          social: null
         },
       ])
     })
@@ -1222,13 +1282,12 @@ describe('ethereum', () => {
       expect(ret).toEqual({
         address: participantAddress,
         status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
-        social: null,
       })
 
       const doc = await loadParticipantList(partyAddress)
 
       expect(doc.participants).toEqual([
-        { address: participantAddress, status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT, social: null },
+        { address: participantAddress, status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT },
         originalList[1],
       ])
     })
@@ -1251,7 +1310,6 @@ describe('ethereum', () => {
         address: participantAddress,
         status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
         index: 6,
-        social: null,
       })
 
       const doc = await loadParticipantList(partyAddress)
@@ -1261,7 +1319,6 @@ describe('ethereum', () => {
           address: participantAddress,
           status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
           index: 6,
-          social: null
         },
       ])
 
@@ -1274,7 +1331,6 @@ describe('ethereum', () => {
         address: participantAddress,
         status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
         index: 8,
-        social: null,
       })
 
       const doc2 = await loadParticipantList(partyAddress)
@@ -1284,12 +1340,11 @@ describe('ethereum', () => {
           address: participantAddress,
           status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
           index: 8,
-          social: null
         },
       ])
     })
 
-    it('overrides participant social links with ones in current profile', async () => {
+    it('overrides participant user profile data with what is in current profile', async () => {
       const participantAddress = newAddr()
 
       const originalList = [
@@ -1297,7 +1352,9 @@ describe('ethereum', () => {
           address: participantAddress,
           status: PARTICIPANT_STATUS.SHOWED_UP,
           index: 6,
-          social: 123
+          social: 123,
+          username: 'me',
+          realName: 'carlos matos',
         },
       ]
 
@@ -1312,7 +1369,9 @@ describe('ethereum', () => {
         address: participantAddress,
         status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
         index: 6,
-        social: null,
+        social: 123,
+        username: 'me',
+        realName: 'carlos matos',
       })
 
       const doc = await loadParticipantList(partyAddress)
@@ -1322,11 +1381,17 @@ describe('ethereum', () => {
           address: participantAddress,
           status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
           index: 6,
-          social: null
+          social: 123,
+          username: 'me',
+          realName: 'carlos matos',
         },
       ])
 
-      db.getUserProfile = () => ({ social: 456 })
+      db._getUser = () => ({
+        social: 456,
+        realName: 'march',
+        username: 'march234'
+      })
 
       const ret2 = await db.updateParticipantStatus(partyAddress, participantAddress, {
         status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
@@ -1338,6 +1403,8 @@ describe('ethereum', () => {
         status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
         index: 8,
         social: 456,
+        realName: 'march',
+        username: 'march234'
       })
 
       const doc2 = await loadParticipantList(partyAddress)
@@ -1347,7 +1414,9 @@ describe('ethereum', () => {
           address: participantAddress,
           status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
           index: 8,
-          social: 456
+          social: 456,
+          realName: 'march',
+          username: 'march234'
         },
       ])
     })

@@ -1,0 +1,18 @@
+{
+  "name": "kickback-api-rinkeby",
+  "alias": "rinkeby.api.kickback.events",
+  "scale": {
+    "bru1": {
+      "min": 1,
+      "max": 1
+    }
+  },
+  "env": {
+    "LOG": "debug",
+    "NODE_ENV": "production",
+    "APP_MODE": "rinkeby",
+    "CONFIG_ENCRYPTION_KEY": "@config_encryption_key",
+    "CONFIG_ENCRYPTION_IV": "@config_encryption_iv",
+    "LOGDNA_API_KEY": "@logdna_api_key"
+  }
+}
