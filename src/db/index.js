@@ -1,5 +1,4 @@
 const safeGet = require('lodash.get')
-const pick = require('lodash.pick')
 const EventEmitter = require('eventemitter3')
 const uuid = require('uuid')
 const { toBN, toHex, hexToNumber } = require('web3-utils')
@@ -409,7 +408,9 @@ class Db extends EventEmitter {
     const newEntry = {
       address: participantAddress,
       status,
-      ...pick(userProfile, 'social', 'username', 'realName'),
+      ...(userProfile.social ? { social: userProfile.social } : null),
+      ...(userProfile.username ? { username: userProfile.username } : null),
+      ...(userProfile.realName ? { realName: userProfile.realName } : null),
     }
 
     if (0 <= index) {
