@@ -112,9 +112,9 @@ module.exports = ({ db, blockChain }) => {
       updateParticipantStatus: async (_, {
         address: partyAddress,
         participant: { address, status }
-      }, { user }) => {
-        await assertPartyRole(partyAddress, user, ADMIN)
-
+      }, context) => {
+        await assertPartyRole(partyAddress, context.user, ADMIN)
+        context.isPartyAdmin = true
         return db.updateParticipantStatus(
           partyAddress, address, { status: participantStatusToInternalStatus(status) }
         )
