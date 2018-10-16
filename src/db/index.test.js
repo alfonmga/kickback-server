@@ -22,6 +22,7 @@ const newAddr = () => wallet.generateAddresses(1).pop()
 const createUserProfile = address => ({
   address,
   lastUpdated: Date.now(),
+  realName: 'my name',
   email: {
     verified: 'test@kickback.events'
   },
@@ -957,6 +958,33 @@ describe('db', () => {
         social: {
           insta: '@test'
         }
+      })
+    })
+
+    it('requires real name to be provided', async () => {
+      await saveUser(userAddress, {
+        realName: null
+      })
+
+      try {
+        await db.updateUserProfile(userAddress, {
+          username: userAddress,
+          legal,
+        })
+      } catch (err) {
+        expect(err.message.toLowerCase()).toEqual(expect.stringContaining('real name must be provided'))
+      }
+
+      await db.updateUserProfile(userAddress, {
+        username: userAddress,
+        legal,
+        realName: 'Test Name',
+      })
+
+      const data = await loadUser(userAddress)
+
+      expect(data).toMatchObject({
+        realName: 'Test Name',
       })
     })
 

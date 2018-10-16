@@ -69,7 +69,7 @@ class Db extends EventEmitter {
 
     const doc = await this._getUser(userAddress, { mustExist: true })
 
-    const { username: existingUsername, email = {} } = doc.data
+    const { username: existingUsername, realName: existingRealName, email = {} } = doc.data
 
     // cannot change username
     if (existingUsername) {
@@ -85,6 +85,12 @@ class Db extends EventEmitter {
       } else if (await this._isUsernameTaken(username)) {
         throw new Error(`Username ${username} already taken, cannot use for user ${userAddress}`)
       }
+    }
+
+    // need real name
+    const finalRealName = realName || existingRealName
+    if (!finalRealName) {
+      throw new Error(`Real name must be provided for user ${userAddress}`)
     }
 
     if (newEmail && !stringsMatchIgnoreCase(email.verified, newEmail)) {
@@ -103,8 +109,8 @@ class Db extends EventEmitter {
     await doc.update({
       email,
       legal: legal || doc.data.legal,
-      ...(realName ? { realName } : null),
-      ...(username ? { username: username.toLowerCase() } : null),
+      realName: finalRealName,
+      username: (username || existingUsername).toLowerCase(),
       social: (social || []).reduce((m, { type, value }) => {
         m[type] = value
         return m
