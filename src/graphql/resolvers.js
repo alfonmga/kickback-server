@@ -1,7 +1,8 @@
 const safeGet = require('lodash.get')
+const { addressesMatch } = require('@noblocknoparty/validation')
+
 const { PARTICIPANT_STATUS } = require('../constants/status')
 const { ADMIN, OWNER } = require('../constants/roles')
-const { addressesMatch } = require('../utils/validators')
 
 const assertUser = async user => {
   if (!safeGet(user, 'address')) {

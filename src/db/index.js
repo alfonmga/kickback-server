@@ -2,19 +2,22 @@ const safeGet = require('lodash.get')
 const EventEmitter = require('eventemitter3')
 const uuid = require('uuid')
 const { toBN, toHex, hexToNumber } = require('web3-utils')
+const {
+  assertRealName,
+  assertUsername,
+  assertEmailAddress,
+  assertEthereumAddress,
+  hasAcceptedLegalAgreements,
+  stringsMatchIgnoreCase,
+} = require('@noblocknoparty/validation')
 
 const setupFirestoreDb = require('./firestore')
 const { NOTIFICATION } = require('../constants/events')
 const { SESSION_VALIDITY_SECONDS } = require('../constants/session')
 const { VERIFY_EMAIL } = require('../constants/notifications')
 const { PARTICIPANT_STATUS } = require('../constants/status')
-const {
-  stringsMatchIgnoreCase,
-  assertEthereumAddress,
-  assertEmail,
-  hasAcceptedLegalAgreements,
-  removeUndefinedValuesFromObject
-} = require('../utils/validators')
+const { removeUndefinedValuesFromObject } = require('../utils/validators')
+
 
 class Db extends EventEmitter {
   constructor ({ nativeDb, log, blockChain }) {
@@ -64,7 +67,15 @@ class Db extends EventEmitter {
     assertEthereumAddress(userAddress)
 
     if (newEmail) {
-      assertEmail(newEmail)
+      assertEmailAddress(newEmail)
+    }
+
+    if (username) {
+      assertUsername(username)
+    }
+
+    if (realName) {
+      assertRealName(realName)
     }
 
     const doc = await this._getUser(userAddress, { mustExist: true })
