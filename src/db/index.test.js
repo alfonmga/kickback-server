@@ -806,7 +806,7 @@ describe('db', () => {
     it('throws if address is invalid', async () => {
       try {
         await db.updateUserProfile('invalid', {
-          username: userAddress,
+          username: userAddress.substr(0, 15),
           email: 'test-newemail@kickback.events'
         })
       } catch (err) {
@@ -817,7 +817,7 @@ describe('db', () => {
     it('throws if email address is invalid', async () => {
       try {
         await db.updateUserProfile(userAddress, {
-          username: userAddress,
+          username: userAddress.substr(0, 15),
           email: 'test-newemail@kickbac'
         })
       } catch (err) {
@@ -828,7 +828,7 @@ describe('db', () => {
     it('throws if user not found', async () => {
       try {
         await db.updateUserProfile(newAddr(), {
-          username: userAddress,
+          username: userAddress.substr(0, 15),
           email: 'test-newemail@kickback.events'
         })
       } catch (err) {
@@ -839,7 +839,7 @@ describe('db', () => {
     it('throws if required legal agreements not found', async () => {
       try {
         await db.updateUserProfile(userAddress, {
-          username: userAddress,
+          username: userAddress.substr(0, 15),
           email: 'test-newemail@kickback.events',
           legal: [
             {
@@ -856,7 +856,7 @@ describe('db', () => {
     it('throws if legal agreements are incomplete', async () => {
       try {
         await db.updateUserProfile(userAddress, {
-          username: userAddress,
+          username: userAddress.substr(0, 15),
           email: 'test-newemail@kickback.events',
           legal: [ legal[0] ],
         })
@@ -867,13 +867,13 @@ describe('db', () => {
 
     it('throws if username already set and trying to set again', async () => {
       await db.updateUserProfile(userAddress, {
-        username: userAddress,
+        username: userAddress.substr(0, 15),
         legal
       })
 
       try {
         await db.updateUserProfile(userAddress, {
-          username: userAddress,
+          username: userAddress.substr(0, 15),
         })
       } catch (err) {
         expect(err.message.toLowerCase()).toEqual(expect.stringContaining('cannot change username'))
@@ -891,7 +891,7 @@ describe('db', () => {
     })
 
     it('throws if username already taken and ignores case', async () => {
-      const username = `Taken${userAddress.toUpperCase()}`
+      const username = `Taken${userAddress.substr(0, 5).toUpperCase()}`
 
       await saveUser(newAddr(), {
         username: username.toLowerCase(),
@@ -908,7 +908,7 @@ describe('db', () => {
     })
 
     it('sets username once', async () => {
-      const username = `Taken${userAddress.toUpperCase()}`
+      const username = `Taken${userAddress.substr(0, 5).toUpperCase()}`
 
       await db.updateUserProfile(userAddress, {
         legal,
@@ -922,9 +922,36 @@ describe('db', () => {
       })
     })
 
+    it('throws on invalid username', async () => {
+      const username = `123456789012345678`
+
+      try {
+        await db.updateUserProfile(userAddress, {
+          legal,
+          username,
+        })
+      } catch (err) {
+        expect(err.message.toLowerCase()).toEqual(expect.stringContaining('invalid username'))
+      }
+    })
+
+    it('throws on invalid real name', async () => {
+      const realName = `1`
+
+      try {
+        await db.updateUserProfile(userAddress, {
+          legal,
+          realName,
+          username: userAddress.substr(0, 10)
+        })
+      } catch (err) {
+        expect(err.message.toLowerCase()).toEqual(expect.stringContaining('invalid real name'))
+      }
+    })
+
     it('does not throw if legal agreement already in db', async () => {
       await db.updateUserProfile(userAddress, {
-        username: userAddress,
+        username: userAddress.substr(0, 15),
         legal
       })
 
@@ -939,7 +966,7 @@ describe('db', () => {
 
     it('updates social links', async () => {
       await db.updateUserProfile(userAddress, {
-        username: userAddress,
+        username: userAddress.substr(0, 15),
         legal,
         social: [
           {
@@ -968,7 +995,7 @@ describe('db', () => {
 
       try {
         await db.updateUserProfile(userAddress, {
-          username: userAddress,
+          username: userAddress.substr(0, 15),
           legal,
         })
       } catch (err) {
@@ -976,7 +1003,7 @@ describe('db', () => {
       }
 
       await db.updateUserProfile(userAddress, {
-        username: userAddress,
+        username: userAddress.substr(0, 15),
         legal,
         realName: 'Test Name',
       })
@@ -994,7 +1021,7 @@ describe('db', () => {
       })
 
       await db.updateUserProfile(userAddress, {
-        username: userAddress,
+        username: userAddress.substr(0, 15),
         legal,
         realName: 'Ram Bo',
       })
@@ -1008,7 +1035,7 @@ describe('db', () => {
 
     it('handles user address in uppercase', async () => {
       await db.updateUserProfile(userAddress.toUpperCase(), {
-        username: userAddress,
+        username: userAddress.substr(0, 15),
         social: [],
         legal
       })
@@ -1022,7 +1049,7 @@ describe('db', () => {
 
     it('ignores same email being passed in', async () => {
       await db.updateUserProfile(userAddress, {
-        username: userAddress,
+        username: userAddress.substr(0, 15),
         email: user.email.verified,
         legal
       })
@@ -1034,7 +1061,7 @@ describe('db', () => {
 
     it('handles case when new email given', async () => {
       await db.updateUserProfile(userAddress, {
-        username: userAddress,
+        username: userAddress.substr(0, 15),
         email: 'test-newemail@kickback.events',
         legal
       })
@@ -1051,7 +1078,7 @@ describe('db', () => {
       db.notifyUser = jest.fn(() => Promise.resolve())
 
       await db.updateUserProfile(userAddress, {
-        username: userAddress,
+        username: userAddress.substr(0, 15),
         email: 'test-newemail@kickback.events',
         legal,
       })
