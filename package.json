@@ -41,6 +41,7 @@
   "dependencies": {
     "@koa/cors": "2",
     "@noblocknoparty/contracts": "^1.0.2",
+    "@noblocknoparty/validation": "^1.1.0",
     "apollo-server-koa": "^2.0.6",
     "bignumber.js": "^7.2.1",
     "bunyan": "^1.8.12",
