@@ -873,11 +873,30 @@ describe('db', () => {
 
       try {
         await db.updateUserProfile(userAddress, {
-          username: userAddress.substr(0, 15),
+          username: userAddress.substr(0, 8),
         })
       } catch (err) {
         expect(err.message.toLowerCase()).toEqual(expect.stringContaining('cannot change username'))
       }
+    })
+
+    it('but does not throw if username already set and trying to set again with same username', async () => {
+      const username = userAddress.substr(0, 15)
+
+      await db.updateUserProfile(userAddress, {
+        username,
+        legal
+      })
+
+      await db.updateUserProfile(userAddress, {
+        username,
+      })
+
+      const data = await loadUser(userAddress)
+
+      expect(data).toMatchObject({
+        username,
+      })
     })
 
     it('throws if username not already set and not provided', async () => {
@@ -1044,6 +1063,34 @@ describe('db', () => {
 
       expect(data).toMatchObject({
         social: {}
+      })
+    })
+
+    it('returns user profile with all fields', async () => {
+      const username = userAddress.substr(0, 15)
+
+      const social = [
+        {
+          type: 'insta',
+          value: '@test'
+        }
+      ]
+
+      const ret = await db.updateUserProfile(userAddress, {
+        username,
+        social,
+        legal
+      })
+
+      expect(ret).toMatchObject({
+        address: userAddress.toLowerCase(),
+        username,
+        social,
+        legal,
+        realName: 'my name',
+        email: {
+          verified: user.email.verified
+        },
       })
     })
 
