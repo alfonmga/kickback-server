@@ -84,7 +84,7 @@ class Db extends EventEmitter {
 
     // cannot change username
     if (existingUsername) {
-      if (username) {
+      if (username && username !== existingUsername) {
         throw new Error(`Cannot change username once set for user ${userAddress}`)
       }
     }
