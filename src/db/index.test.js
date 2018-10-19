@@ -1066,6 +1066,34 @@ describe('db', () => {
       })
     })
 
+    it('returns user profile with all fields', async () => {
+      const username = userAddress.substr(0, 15)
+
+      const social = [
+        {
+          type: 'insta',
+          value: '@test'
+        }
+      ]
+
+      const ret = await db.updateUserProfile(userAddress, {
+        username,
+        social,
+        legal
+      })
+
+      expect(ret).toMatchObject({
+        address: userAddress.toLowerCase(),
+        username,
+        social,
+        legal,
+        realName: 'my name',
+        email: {
+          verified: user.email.verified
+        },
+      })
+    })
+
     it('ignores same email being passed in', async () => {
       await db.updateUserProfile(userAddress, {
         username: userAddress.substr(0, 15),

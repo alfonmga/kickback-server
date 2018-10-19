@@ -128,7 +128,7 @@ class Db extends EventEmitter {
       }, {})
     })
 
-    return this.getUserProfile(userAddress)
+    return this.getUserProfile(userAddress, true)
   }
 
   async getUserProfile (userAddress, canViewPrivateFields = false) {
