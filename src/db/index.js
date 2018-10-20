@@ -9,7 +9,7 @@ const {
   assertEthereumAddress,
   hasAcceptedLegalAgreements,
   stringsMatchIgnoreCase,
-} = require('@noblocknoparty/validation')
+} = require('@noblocknoparty/shared')
 
 const setupFirestoreDb = require('./firestore')
 const { NOTIFICATION } = require('../constants/events')

@@ -1,5 +1,5 @@
 const jwt = require('koa-jwt')
-const { addressesMatch } = require('@noblocknoparty/validation')
+const { addressesMatch } = require('@noblocknoparty/shared')
 
 module.exports = ({ log, db, server, blockChain }) => {
   server.use(jwt({

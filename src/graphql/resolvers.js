@@ -1,5 +1,5 @@
 const safeGet = require('lodash.get')
-const { addressesMatch } = require('@noblocknoparty/validation')
+const { addressesMatch } = require('@noblocknoparty/shared')
 
 const { PARTICIPANT_STATUS } = require('../constants/status')
 const { ADMIN, OWNER } = require('../constants/roles')
