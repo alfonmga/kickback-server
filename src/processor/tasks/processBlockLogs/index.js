@@ -1,9 +1,8 @@
 const { events: contractEvents } = require('@noblocknoparty/contracts')
+const { PARTICIPANT_STATUS } = require('@noblocknoparty/shared')
 const { parseLog } = require('ethereum-event-logs')
 const safeGet = require('lodash.get')
 const { toHex } = require('web3-utils')
-
-const { PARTICIPANT_STATUS } = require('../../../constants/status')
 
 const eventAbis = Object.values(contractEvents)
 

@@ -2,8 +2,8 @@ import Ganache from 'ganache-core'
 import Web3 from 'web3'
 import delay from 'delay'
 import { events } from '@noblocknoparty/contracts'
+import { PARTICIPANT_STATUS } from '@noblocknoparty/shared'
 
-import { PARTICIPANT_STATUS } from '../../../constants/status'
 import createLog from '../../../log'
 import createProcessor from './'
 
