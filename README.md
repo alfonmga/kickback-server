@@ -57,7 +57,7 @@ variables (these also need to be set in [CI](https://travis-ci.org/noblocknopart
 * `CONFIG_ENCRYPTION_IV` - obtained from our password vault
 
 _Note: The last two encryption variables have also been setup in [Zeit](https://zeit.co/docs/getting-started/secrets), so if you change their
-values remember to update Zeit._
+values remember to update Zeit. All Zeit secrets we use are visible in `.deploy/now.live.json`._
 
 To deploy and alias the dev server URL in one go:
 
