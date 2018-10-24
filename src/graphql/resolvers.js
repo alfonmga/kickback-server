@@ -1,7 +1,6 @@
 const safeGet = require('lodash.get')
-const { addressesMatch } = require('@noblocknoparty/shared')
+const { addressesMatch, trimOrEmpty, PARTICIPANT_STATUS } = require('@noblocknoparty/shared')
 
-const { PARTICIPANT_STATUS } = require('../constants/status')
 const { ADMIN, OWNER } = require('../constants/roles')
 
 const assertUser = async user => {
@@ -25,7 +24,13 @@ const internalStatusToParticipantStatus = status => {
   return 'UNKNOWN'
 }
 
-module.exports = ({ db, blockChain }) => {
+module.exports = ({ config, db, blockChain }) => {
+  const assertSuperAdminPassword = password => {
+    if (trimOrEmpty(config.SUPERADMIN_PASSWORD) !== trimOrEmpty(password)) {
+      throw new Error('Incorrect superadmin password')
+    }
+  }
+
   const hasPartyRole = (party, user, role) => {
     if (!party || !user) {
       return false
@@ -105,7 +110,9 @@ module.exports = ({ db, blockChain }) => {
 
         return db.updatePartyMeta(partyAddress, meta)
       },
-      createPendingParty: async (_, { meta }, { user }) => {
+      createPendingParty: async (_, { meta, password }, { user }) => {
+        assertSuperAdminPassword(password)
+
         await assertUser(user)
 
         return db.createPendingParty(user.address, meta)

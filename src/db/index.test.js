@@ -4,16 +4,17 @@ import uuid from 'uuid'
 import delay from 'delay'
 import { toBN, toHex, toWei } from 'web3-utils'
 import { Conference } from '@noblocknoparty/contracts'
+import { PARTICIPANT_STATUS, LEGAL } from '@noblocknoparty/shared'
 import { generateMnemonic, EthHdWallet } from 'eth-hd-wallet'
 
 import createLog from '../log'
 import createDb from './'
 import { getContract } from '../utils/contracts'
 import { NOTIFICATION } from '../constants/events'
-import { PARTICIPANT_STATUS } from '../constants/status'
 import { VERIFY_EMAIL } from '../constants/notifications'
 import { SESSION_VALIDITY_SECONDS } from '../constants/session'
-import { TERMS_AND_CONDITIONS, PRIVACY_POLICY, MARKETING_INFO } from '../constants/legal'
+
+const { TERMS_AND_CONDITIONS, PRIVACY_POLICY, MARKETING_INFO } = LEGAL
 
 const wallet = EthHdWallet.fromMnemonic(generateMnemonic())
 
@@ -1595,20 +1596,20 @@ describe('db', () => {
       expect(doc.participants).toEqual(participants)
     })
 
-    it('does nothing if not enough maps given', async () => {
-      await db.finalize(partyAddress, [ 0 ])
-
-      const doc = await loadParticipantList(partyAddress)
-
-      expect(doc.participants).toEqual(participants)
+    it('throws if not enough maps given', async () => {
+      try {
+        await db.finalize(partyAddress, [ 0 ])
+      } catch (err) {
+        expect(err).toBeDefined()
+      }
     })
 
-    it('does nothing if too many maps given', async () => {
-      await db.finalize(partyAddress, [ 0, 0, 0 ])
-
-      const doc = await loadParticipantList(partyAddress)
-
-      expect(doc.participants).toEqual(participants)
+    it('throws if too many maps given', async () => {
+      try {
+        await db.finalize(partyAddress, [ 0, 0, 0 ])
+      } catch (err) {
+        expect(err).toBeDefined()
+      }
     })
 
     it('finalizes attendance - p0', async () => {

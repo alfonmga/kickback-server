@@ -15,6 +15,7 @@ const env = envalid.cleanEnv(process.env, {
   DEPLOYER_CONTRACT_ADDRESS: str({ default: '' }),
   DEPLOYER_TRANSACTION: str({ default: '' }),
   LOGDNA_API_KEY: str({ default: '' }),
+  SUPERADMIN_PASSWORD: str({ default: '' }),
   CONFIG_ENCRYPTION_IV: str(),
   CONFIG_ENCRYPTION_KEY: str()
 }, {

@@ -1,7 +1,7 @@
 const safeGet = require('lodash.get')
 const EventEmitter = require('eventemitter3')
 const uuid = require('uuid')
-const { toBN, toHex, hexToNumber } = require('web3-utils')
+const { toHex, hexToNumber } = require('web3-utils')
 const {
   assertRealName,
   assertUsername,
@@ -9,13 +9,14 @@ const {
   assertEthereumAddress,
   hasAcceptedLegalAgreements,
   stringsMatchIgnoreCase,
+  updateParticipantListFromMaps,
+  PARTICIPANT_STATUS,
 } = require('@noblocknoparty/shared')
 
 const setupFirestoreDb = require('./firestore')
 const { NOTIFICATION } = require('../constants/events')
 const { SESSION_VALIDITY_SECONDS } = require('../constants/session')
 const { VERIFY_EMAIL } = require('../constants/notifications')
-const { PARTICIPANT_STATUS } = require('../constants/status')
 const { removeUndefinedValuesFromObject } = require('../utils/validators')
 
 
@@ -355,32 +356,9 @@ class Db extends EventEmitter {
 
     const { participants = [] } = participantList.data
 
-    // sort
-    participants.sort(({ index: indexA }, { index: indexB }) => (
-      (parseInt(indexA, 10) < parseInt(indexB, 10)) ? -1 : 1
-    ))
-
-    // check maps length
-    const totalBits = maps.length * 256
-    const numMapsCorrect = totalBits >= participants.length && totalBits - participants.length < 256
-    if (!numMapsCorrect) {
-      this._log.warn(`Invalid no. of maps provided for finalizeing party ${partyAddress}`)
-
-      return
-    }
-
     this._log.warn(`Finalizing attendance for party ${partyAddress} ...`)
 
-    const mapBNs = maps.map(m => toBN(m))
-    const zeroBN = toBN(0)
-    participants.forEach((a, index) => {
-      const mapIndex = parseInt(Math.floor(index / 256), 10)
-      const bitIndex = index % 256
-
-      const result = mapBNs[mapIndex].and(toBN(0).bincn(bitIndex))
-
-      a.status = result.gt(zeroBN) ? PARTICIPANT_STATUS.SHOWED_UP : PARTICIPANT_STATUS.REGISTERED
-    })
+    updateParticipantListFromMaps(participants, maps)
 
     await Promise.all([
       participantList.set({
