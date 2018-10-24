@@ -105,12 +105,15 @@
     "eslint-plugin-react": "^7.1.0",
     "eslint-plugin-standard": "^3.0.1",
     "eth-hd-wallet": "^0.4.0",
+    "execa": "^1.0.0",
     "firebase-tools": "^4.2.1",
     "ganache-core": "^2.2.1",
     "geth-private": "^3.0.0",
     "http-server": "^0.11.1",
     "jest": "^23.6.0",
+    "mkdirp": "^0.5.1",
     "now": "^11.4.6",
+    "rimraf": "^2.6.2",
     "truffle": "^5.0.0-beta.0"
   }
 }
