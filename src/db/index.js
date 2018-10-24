@@ -267,7 +267,7 @@ class Db extends EventEmitter {
     ])
 
     // fetch pending party
-    // name in contrat should match id of pending party doc! - this is how we
+    // name in contract should match id of pending party doc! - this is how we
     // ensure only parties we approve of can show up on our website, despite
     // people calling our deployer contract directly!
     const pendingParty = await this._getPendingParty(name)
@@ -296,6 +296,49 @@ class Db extends EventEmitter {
 
     // delete pending party
     await pendingParty.delete()
+  }
+
+  async updatePartyFromContract (partyInstance) {
+    const { address } = partyInstance
+
+    const doc = await this._getParty(address)
+
+    if (!doc.exists) {
+      this._log.warn(`Party ${address} does not exist in db`)
+
+      return
+    }
+
+    this._log.info(`Update party from contract: ${address} ...`)
+
+    /*
+    NOTE: we deliberately do not load cancelled and ended vars as setting these
+    impacts other logic (such as updating participant status). This method here
+    is simply for updating meta details of the party
+     */
+
+    // fetch data from contract
+    const [
+      owner,
+      admins,
+      deposit,
+      limitOfParticipants,
+      coolingPeriod,
+    ] = await Promise.all([
+      partyInstance.owner(),
+      partyInstance.getAdmins(),
+      partyInstance.deposit(),
+      partyInstance.limitOfParticipants(),
+      partyInstance.coolingPeriod(),
+    ])
+
+    await doc.update({
+      deposit: toHex(deposit),
+      participantLimit: hexToNumber(toHex(limitOfParticipants)),
+      coolingPeriod: toHex(coolingPeriod),
+      owner: owner.toLowerCase(),
+      admins: admins.map(a => a.toLowerCase()),
+    })
   }
 
   async getParties ({ stalestFirst = false, limit = undefined, onlyActive = false } = {}) {

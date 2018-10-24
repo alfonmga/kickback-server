@@ -1,17 +1,16 @@
-const { generate: randStr } = require('randomstring')
+const uuid = require('uuid')
 
 const _idn = (id, name) => `${name}-${id}`
 
 class Scheduler {
-  constructor ({ log, eventQueue }) {
+  constructor ({ log }) {
     this._log = log.create('scheduler')
 
     this._jobs = {}
-    this._eventQueue = eventQueue
   }
 
   schedule (name, intervalSeconds, callback) {
-    const id = _idn(randStr(5), name)
+    const id = _idn(uuid(), name)
 
     this._log.info(`Schedule job ${id} to run every ${intervalSeconds} seconds`)
 
@@ -66,9 +65,7 @@ class Scheduler {
 
         job.lastRun = now
 
-        this._eventQueue.add(async () => callback(), {
-          name: id
-        })
+        callback()
       }
     })
 
