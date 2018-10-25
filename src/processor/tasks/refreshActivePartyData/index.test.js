@@ -81,7 +81,10 @@ describe('refresh active party data', () => {
       }
     ]
 
+    let updateParticipantStatusCall = 0
+
     db = {
+      updateProcessingOrder: [],
       updatePartyFromContract: jest.fn(async () => {}),
       getParties: jest.fn(async () => parties),
       getParticipants: jest.fn(async addr => (
@@ -93,7 +96,14 @@ describe('refresh active party data', () => {
           { address: accounts[3], status: PARTICIPANT_STATUS.SHOWED_UP, index: '5' }
         ]
       )),
-      updateParticipantStatus: jest.fn(async () => {}),
+      updateParticipantStatus: jest.fn((pa, a) => new Promise(resolve => {
+        // resolves faster with every new call
+        updateParticipantStatusCall += 1
+        setTimeout(() => {
+          db.updateProcessingOrder.push(a)
+          resolve()
+        }, (1000 - updateParticipantStatusCall * 200))
+      })),
     }
 
     config = {
@@ -121,33 +131,40 @@ describe('refresh active party data', () => {
 
     // for first party expect to have added new participant
     expect(db.updateParticipantStatus).toHaveBeenCalledTimes(4)
-    expect(db.updateParticipantStatus.mock.calls[0]).toEqual([
+    expect(db.updateParticipantStatus).toHaveBeenCalledWith(
       deployed[0].address,
       accounts[2].toLowerCase(), {
         status: PARTICIPANT_STATUS.REGISTERED,
         index: '1'
       }
-    ])
-    expect(db.updateParticipantStatus.mock.calls[1]).toEqual([
+    )
+    expect(db.updateParticipantStatus).toHaveBeenCalledWith(
       deployed[0].address,
       accounts[3].toLowerCase(), {
         status: PARTICIPANT_STATUS.SHOWED_UP,
         index: '7'
       }
-    ])
-    expect(db.updateParticipantStatus.mock.calls[2]).toEqual([
+    )
+    expect(db.updateParticipantStatus).toHaveBeenCalledWith(
       deployed[1].address,
       accounts[2].toLowerCase(), {
         status: PARTICIPANT_STATUS.SHOWED_UP,
         index: '4'
       }
-    ])
-    expect(db.updateParticipantStatus.mock.calls[3]).toEqual([
+    )
+    expect(db.updateParticipantStatus).toHaveBeenCalledWith(
       deployed[1].address,
       accounts[3].toLowerCase(), {
         status: PARTICIPANT_STATUS.SHOWED_UP,
         index: '5'
       }
+    )
+
+    expect(db.updateProcessingOrder).toEqual([
+      accounts[2].toLowerCase(),
+      accounts[2].toLowerCase(),
+      accounts[3].toLowerCase(),
+      accounts[3].toLowerCase(),
     ])
   })
 
