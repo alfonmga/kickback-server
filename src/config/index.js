@@ -11,6 +11,8 @@ const env = envalid.cleanEnv(process.env, {
   BLOCK_CONFIRMATIONS: num({ default: 0 }),
   ACTIVECHECK_TIMER_DELAY: num({ default: 120000 }),
   NODE_RECONNECT_DELAY: num({ default: 10000 }),
+  SYNC_DB_DELAY_SECONDS: num({ default: 3600 }),
+  SYNC_DB_BATCH_SIZE: num({ default: 100 }),
   BLOCK_RANGE: num({ default: 100 }),
   DEPLOYER_CONTRACT_ADDRESS: str({ default: '' }),
   DEPLOYER_TRANSACTION: str({ default: '' }),

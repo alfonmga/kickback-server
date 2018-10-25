@@ -517,6 +517,59 @@ describe('db', () => {
     })
   })
 
+  describe('updatePartyFromContract', () => {
+    let id
+    let party
+
+    beforeEach(async () => {
+      id = uuid()
+
+      party = await getContract(Conference, web3, { from: accounts[0] }).new(
+        id, toHex(toWei('0.2', 'ether')), 100, 2, accounts[0]
+      )
+
+      // add additional admin
+      await party.grant([ accounts[2] ])
+    })
+
+    it('does nothing if it does not already exist in db', async () => {
+      await db.updatePartyFromContract(party)
+
+      const data = await loadParty(party.address)
+
+      expect(data).toEqual(undefined)
+    })
+
+    it('updates the party entry', async () => {
+      await saveParty(party.address, {
+        owner: '0x',
+        cancelled: 123,
+        ended: 456,
+        admins: [],
+        participantLimit: 1,
+        deposit: '0x1',
+        coolingPeriod: '0x1',
+      })
+
+      await db.updatePartyFromContract(party)
+
+      const data = await loadParty(party.address)
+
+      expect(data).toMatchObject({
+        owner: accounts[0].toLowerCase(),
+        deposit: toHex(toWei('0.2', 'ether')),
+        participantLimit: 100,
+        coolingPeriod: toHex(2),
+        // party state vars (below) are not changed
+        ended: 456,
+        cancelled: 123,
+      })
+
+      expect(data.admins.length).toEqual(1)
+      expect(data.admins[0]).toEqualIgnoreCase(accounts[2])
+    })
+  })
+
   describe('getLoginChallenge', () => {
     let userAddress
 

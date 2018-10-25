@@ -11,6 +11,7 @@ const connectEthereum = require('./ethereum')
 const createProcessor = require('./processor')
 const setupGraphQLEndpoint = require('./graphql')
 const setupAuthMiddleware = require('./auth')
+const setupScheduler = require('./scheduler')
 
 const init = async () => {
   const app = next({ dev: config.NODE_ENV === 'development' })
@@ -19,10 +20,11 @@ const init = async () => {
 
   log.info(`App mode: ${config.APP_MODE}`)
 
+  const scheduler = setupScheduler({ log })
   const blockChain = await connectEthereum({ config, log })
   const db = await connectDb({ config, log, blockChain })
   const eventQueue = setupEventQueue({ log })
-  await createProcessor({ config, log, eventQueue, db, blockChain })
+  await createProcessor({ config, log, eventQueue, scheduler, db, blockChain })
 
   const server = new Koa()
   const router = new Router()

@@ -9,6 +9,24 @@ import { BLOCK, NOTIFICATION } from '../constants/events'
 import createProcessor from './'
 import { getNotificationSetupArgs, getNotificationArgs } from './tasks/sendNotificationEmail'
 import { getBPSetupArgs, getBPArgs } from './tasks/processBlockLogs'
+import { getSyncSetupArgs, getSyncArgs } from './tasks/refreshActivePartyData'
+
+jest.mock('./tasks/refreshActivePartyData', () => {
+  let setupArgs
+  let syncArgs
+
+  const fn = args => {
+    setupArgs = args
+    return na => {
+      syncArgs = na
+    }
+  }
+
+  fn.getSyncSetupArgs = () => setupArgs
+  fn.getSyncArgs = () => syncArgs
+
+  return fn
+})
 
 jest.mock('./tasks/sendNotificationEmail', () => {
   let setupArgs
@@ -51,6 +69,7 @@ describe('blockchain processor', () => {
   let blockChain
   let db
   let eventQueue
+  let scheduler
   let lastBlockNumber
 
   beforeAll(async () => {
@@ -79,6 +98,10 @@ describe('blockchain processor', () => {
   beforeEach(async () => {
     config = {}
 
+    scheduler = {
+      schedule: jest.fn()
+    }
+
     log = createLog({
       LOG: 'info',
       APP_MODE: 'test'
@@ -92,7 +115,7 @@ describe('blockchain processor', () => {
   })
 
   it('handles db notification events', async () => {
-    await createProcessor({ config, log, eventQueue, db, blockChain })
+    await createProcessor({ config, log, eventQueue, db, blockChain, scheduler })
 
     const setupArgs = getNotificationSetupArgs()
     expect(setupArgs.db).toEqual(db)
@@ -104,8 +127,27 @@ describe('blockchain processor', () => {
     expect(getNotificationArgs()).toEqual(123)
   })
 
+  it('schedules sync task', async () => {
+    config.SYNC_DB_DELAY_SECONDS = 1200
+    await createProcessor({ config, log, eventQueue, db, blockChain, scheduler })
+
+    const setupArgs = getSyncSetupArgs()
+    expect(setupArgs.db).toEqual(db)
+    expect(setupArgs.blockChain).toEqual(blockChain)
+    expect(setupArgs.eventQueue).toEqual(eventQueue)
+
+    expect(scheduler.schedule).toHaveBeenCalledTimes(1)
+    expect(scheduler.schedule.mock.calls[0].slice(0, 2)).toEqual([ 'refreshActivePartyData', 1200 ])
+
+    const fn = scheduler.schedule.mock.calls[0][2]
+
+    fn(123)
+
+    expect(getSyncArgs()).toEqual(123)
+  })
+
   it('starts processing blocks', async () => {
-    await createProcessor({ config, log, eventQueue, db, blockChain })
+    await createProcessor({ config, log, eventQueue, db, blockChain, scheduler })
 
     const setupArgs = getBPSetupArgs()
     expect(setupArgs.config).toEqual(config)
@@ -130,7 +172,7 @@ describe('blockchain processor', () => {
   it('catches up on missed blocks', async () => {
     lastBlockNumber = -5
 
-    await createProcessor({ config, log, eventQueue, db, blockChain })
+    await createProcessor({ config, log, eventQueue, db, blockChain, scheduler })
 
     const blockRange = getBPArgs()
 
