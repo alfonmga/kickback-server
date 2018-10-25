@@ -1,3 +1,4 @@
+const { WritableStream } = require('memory-streams')
 const bunyan = require('bunyan')
 const { BunyanStream: LogDnaStream } = require('logdna-bunyan')
 
@@ -42,9 +43,19 @@ module.exports = config => {
     })
   }
 
+  let str
+  if (inTestMode) {
+    str = new WritableStream()
+  }
+
   return new Log({
     name: 'root',
-    streams: inTestMode ? [] : [
+    streams: inTestMode ? [
+      {
+        level: 'debug',
+        stream: str,
+      }
+    ] : [
       {
         level: config.LOG,
         stream: process.stdout,
@@ -56,5 +67,6 @@ module.exports = config => {
     },
     appMode: config.APP_MODE,
     ethereumNetwork: config.NETWORK,
+    ...(inTestMode ? { stream: str } : null)
   })
 }
