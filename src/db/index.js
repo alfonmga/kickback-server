@@ -10,7 +10,7 @@ const {
   hasAcceptedLegalAgreements,
   stringsMatchIgnoreCase,
   updateParticipantListFromMaps,
-  PARTICIPANT_STATUS,
+  PARTICIPANT_STATUS
 } = require('@noblocknoparty/shared')
 
 const setupFirestoreDb = require('./firestore')
@@ -19,16 +19,15 @@ const { SESSION_VALIDITY_SECONDS } = require('../constants/session')
 const { VERIFY_EMAIL } = require('../constants/notifications')
 const { removeUndefinedValuesFromObject } = require('../utils/validators')
 
-
 class Db extends EventEmitter {
-  constructor ({ nativeDb, log, blockChain }) {
+  constructor({ nativeDb, log, blockChain }) {
     super()
     this._nativeDb = nativeDb
     this._log = log
     this._blockChain = blockChain
   }
 
-  async notifyUser (userAddress, type, data) {
+  async notifyUser(userAddress, type, data) {
     assertEthereumAddress(userAddress)
 
     const id = uuid()
@@ -40,7 +39,7 @@ class Db extends EventEmitter {
       type,
       data,
       email_sent: false, // if system has processed it by sending an email to user
-      seen: false,
+      seen: false
     })
 
     this.emit(NOTIFICATION, id)
@@ -48,7 +47,7 @@ class Db extends EventEmitter {
     return id
   }
 
-  async loginUser (userAddress) {
+  async loginUser(userAddress) {
     assertEthereumAddress(userAddress)
 
     const doc = await this._getUser(userAddress, { mustExist: true })
@@ -62,7 +61,7 @@ class Db extends EventEmitter {
     return this.getUserProfile(userAddress, true)
   }
 
-  async updateUserProfile (userAddress, profile) {
+  async updateUserProfile(userAddress, profile) {
     const { realName, username, email: newEmail, social, legal } = profile
 
     assertEthereumAddress(userAddress)
@@ -81,21 +80,28 @@ class Db extends EventEmitter {
 
     const doc = await this._getUser(userAddress, { mustExist: true })
 
-    const { username: existingUsername, realName: existingRealName, email = {} } = doc.data
+    const {
+      username: existingUsername,
+      realName: existingRealName,
+      email = {}
+    } = doc.data
 
     // cannot change username
     if (existingUsername) {
       if (username && username !== existingUsername) {
-        throw new Error(`Cannot change username once set for user ${userAddress}`)
+        throw new Error(
+          `Cannot change username once set for user ${userAddress}`
+        )
       }
-    }
-    else {
+    } else {
       // eslint-disable-next-line no-lonely-if
       if (!username) {
         // need username
         throw new Error(`Username must be provided for user ${userAddress}`)
       } else if (await this._isUsernameTaken(username)) {
-        throw new Error(`Username ${username} already taken, cannot use for user ${userAddress}`)
+        throw new Error(
+          `Username ${username} already taken, cannot use for user ${userAddress}`
+        )
       }
     }
 
@@ -112,7 +118,10 @@ class Db extends EventEmitter {
     }
 
     // legal agreements are a must have
-    if (!hasAcceptedLegalAgreements(doc.data.legal) && !hasAcceptedLegalAgreements(legal)) {
+    if (
+      !hasAcceptedLegalAgreements(doc.data.legal) &&
+      !hasAcceptedLegalAgreements(legal)
+    ) {
       throw new Error('Legal agreements must be accepted')
     }
 
@@ -132,14 +141,23 @@ class Db extends EventEmitter {
     return this.getUserProfile(userAddress, true)
   }
 
-  async getUserProfile (userAddress, canViewPrivateFields = false) {
+  async getUserProfile(userAddress, canViewPrivateFields = false) {
     const doc = await this._getUser(userAddress)
 
     if (!doc.exists) {
       return {}
     }
 
-    const { address, social, legal, created, lastLogin, email, realName, username } = doc.data
+    const {
+      address,
+      social,
+      legal,
+      created,
+      lastLogin,
+      email,
+      realName,
+      username
+    } = doc.data
 
     return {
       address,
@@ -158,20 +176,20 @@ class Db extends EventEmitter {
     }
   }
 
-  async getLoginChallenge (userAddress) {
+  async getLoginChallenge(userAddress) {
     const doc = await this._getUser(userAddress, { mustExist: true })
 
-    const { challenge, created = 0 } = (doc.data.login || {})
+    const { challenge, created = 0 } = doc.data.login || {}
 
     // check login session validity
-    if (created < (Date.now() - SESSION_VALIDITY_SECONDS * 1000)) {
+    if (created < Date.now() - SESSION_VALIDITY_SECONDS * 1000) {
       throw new Error(`User login session has expired: ${userAddress}`)
     }
 
     return challenge
   }
 
-  async createLoginChallenge (userAddress) {
+  async createLoginChallenge(userAddress) {
     assertEthereumAddress(userAddress)
 
     const newProps = {
@@ -179,7 +197,7 @@ class Db extends EventEmitter {
       login: {
         challenge: `Hello! please sign this friendly message using your private key to start using KickBack (timestamp: ${Date.now()})`,
         created: Date.now()
-      },
+      }
     }
 
     const doc = await this._getUser(userAddress)
@@ -193,13 +211,13 @@ class Db extends EventEmitter {
     return newProps.login.challenge
   }
 
-  async getParty (address) {
+  async getParty(address) {
     const doc = await this._getParty(address)
 
     return doc.exists ? doc.data : null
   }
 
-  async createPendingParty (owner, data) {
+  async createPendingParty(owner, data) {
     const id = uuid()
 
     if (!data.name) {
@@ -214,13 +232,13 @@ class Db extends EventEmitter {
 
     await doc.set({
       ...meta,
-      owner: owner.toLowerCase(),
+      owner: owner.toLowerCase()
     })
 
     return id
   }
 
-  async updatePartyMeta (address, data) {
+  async updatePartyMeta(address, data) {
     const doc = await this._getParty(address)
 
     if (!doc.exists) {
@@ -236,7 +254,7 @@ class Db extends EventEmitter {
     await doc.update(meta)
   }
 
-  async addPartyFromContract (partyInstance) {
+  async addPartyFromContract(partyInstance) {
     const { address } = partyInstance
 
     const doc = await this._getParty(address)
@@ -256,14 +274,14 @@ class Db extends EventEmitter {
       name,
       deposit,
       limitOfParticipants,
-      coolingPeriod,
+      coolingPeriod
     ] = await Promise.all([
       partyInstance.owner(),
       partyInstance.getAdmins(),
       partyInstance.name(),
       partyInstance.deposit(),
       partyInstance.limitOfParticipants(),
-      partyInstance.coolingPeriod(),
+      partyInstance.coolingPeriod()
     ])
 
     // fetch pending party
@@ -273,7 +291,9 @@ class Db extends EventEmitter {
     const pendingParty = await this._getPendingParty(name)
 
     if (!pendingParty.exists) {
-      this._log.warn(`Party ${address} does not have a matching pending party entry.`)
+      this._log.warn(
+        `Party ${address} does not have a matching pending party entry.`
+      )
 
       return
     }
@@ -291,14 +311,14 @@ class Db extends EventEmitter {
       cancelled: false,
       owner: owner.toLowerCase(),
       admins: admins.map(a => a.toLowerCase()),
-      created: Date.now(),
+      created: Date.now()
     })
 
     // delete pending party
     await pendingParty.delete()
   }
 
-  async updatePartyFromContract (partyInstance) {
+  async updatePartyFromContract(partyInstance) {
     const { address } = partyInstance
 
     const doc = await this._getParty(address)
@@ -323,13 +343,13 @@ class Db extends EventEmitter {
       admins,
       deposit,
       limitOfParticipants,
-      coolingPeriod,
+      coolingPeriod
     ] = await Promise.all([
       partyInstance.owner(),
       partyInstance.getAdmins(),
       partyInstance.deposit(),
       partyInstance.limitOfParticipants(),
-      partyInstance.coolingPeriod(),
+      partyInstance.coolingPeriod()
     ])
 
     await doc.update({
@@ -337,12 +357,17 @@ class Db extends EventEmitter {
       participantLimit: hexToNumber(toHex(limitOfParticipants)),
       coolingPeriod: toHex(coolingPeriod),
       owner: owner.toLowerCase(),
-      admins: admins.map(a => a.toLowerCase()),
+      admins: admins.map(a => a.toLowerCase())
     })
   }
 
-  async getParties ({ stalestFirst = false, limit = undefined, onlyActive = false } = {}) {
-    let query = this._nativeDb.collection('party')
+  async getParties({
+    stalestFirst = false,
+    limit = undefined,
+    onlyActive = false
+  } = {}) {
+    let query = this._nativeDb
+      .collection('party')
       .where('network', '==', this._blockChain.networkId)
 
     if (onlyActive) {
@@ -362,13 +387,13 @@ class Db extends EventEmitter {
     return (await query.get()).docs.map(doc => doc.data())
   }
 
-  async getParticipants (partyAddress) {
+  async getParticipants(partyAddress) {
     const list = await this._getParticipantList(partyAddress)
 
     return list.exists ? list.data.participants : []
   }
 
-  async finalize (partyAddress, maps) {
+  async finalize(partyAddress, maps) {
     partyAddress = partyAddress.toLowerCase()
 
     const party = await this._getParty(partyAddress)
@@ -378,7 +403,9 @@ class Db extends EventEmitter {
 
       return
     } else if (party.data.ended || party.data.cancelled) {
-      this._log.warn(`Party ${partyAddress} already ended/cancelled, so cannot finalize`)
+      this._log.warn(
+        `Party ${partyAddress} already ended/cancelled, so cannot finalize`
+      )
 
       return
     }
@@ -406,16 +433,20 @@ class Db extends EventEmitter {
     await Promise.all([
       participantList.set({
         address: partyAddress,
-        participants: [ ...participants ],
-        finalized: true,
+        participants: [...participants],
+        finalized: true
       }),
       party.update({
-        ended: true,
-      }),
+        ended: true
+      })
     ])
   }
 
-  async updateParticipantStatus (partyAddress, participantAddress, { status, index } = {}) {
+  async updateParticipantStatus(
+    partyAddress,
+    participantAddress,
+    { status, index } = {}
+  ) {
     partyAddress = partyAddress.toLowerCase()
 
     const party = await this._getParty(partyAddress)
@@ -424,16 +455,30 @@ class Db extends EventEmitter {
       this._log.warn(`Party not found: ${partyAddress}`)
 
       return {}
-    } else if (party.data.ended && PARTICIPANT_STATUS.WITHDRAWN_PAYOUT !== status) {
-      this._log.warn(`Party ${partyAddress} already ended, so can only update status of participant ${participantAddress} to ${PARTICIPANT_STATUS.WITHDRAWN_PAYOUT}`)
+    } else if (
+      party.data.ended &&
+      PARTICIPANT_STATUS.WITHDRAWN_PAYOUT !== status
+    ) {
+      this._log.warn(
+        `Party ${partyAddress} already ended, so can only update status of participant ${participantAddress} to ${
+          PARTICIPANT_STATUS.WITHDRAWN_PAYOUT
+        }`
+      )
 
       return {}
     }
 
     const participantList = await this._getParticipantList(partyAddress)
 
-    if (safeGet(participantList, 'data.finalized') && PARTICIPANT_STATUS.WITHDRAWN_PAYOUT !== status) {
-      this._log.warn(`Party ${partyAddress} already finalized, so can only update status of participant ${participantAddress} to ${PARTICIPANT_STATUS.WITHDRAWN_PAYOUT}`)
+    if (
+      safeGet(participantList, 'data.finalized') &&
+      PARTICIPANT_STATUS.WITHDRAWN_PAYOUT !== status
+    ) {
+      this._log.warn(
+        `Party ${partyAddress} already finalized, so can only update status of participant ${participantAddress} to ${
+          PARTICIPANT_STATUS.WITHDRAWN_PAYOUT
+        }`
+      )
 
       return {}
     }
@@ -448,32 +493,39 @@ class Db extends EventEmitter {
       status,
       ...(userProfile.social ? { social: userProfile.social } : null),
       ...(userProfile.username ? { username: userProfile.username } : null),
-      ...(userProfile.realName ? { realName: userProfile.realName } : null),
+      ...(userProfile.realName ? { realName: userProfile.realName } : null)
     }
 
     if (0 <= index) {
       newEntry.index = index
     }
 
-    this._log.info(`Update status of participant ${participantAddress} at party ${partyAddress} to ${JSON.stringify(newEntry)}`)
+    this._log.info(
+      `Update status of participant ${participantAddress} at party ${partyAddress} to ${JSON.stringify(
+        newEntry
+      )}`
+    )
 
     // no participant list exists yet, so create one
     if (!participantList.exists) {
       await participantList.set({
         address: partyAddress,
-        participants: [ newEntry ],
+        participants: [newEntry]
       })
     } else {
       const list = participantList.data.participants
-      const listIndex = list.findIndex(
-        ({ address: a }) => stringsMatchIgnoreCase(a, participantAddress)
+      const listIndex = list.findIndex(({ address: a }) =>
+        stringsMatchIgnoreCase(a, participantAddress)
       )
 
       // if participant found
       if (0 <= listIndex) {
         // don't overwrite existing metadata unless we have new values
-        [ 'index', 'social', 'realName', 'username' ].forEach(key => {
-          if (undefined === newEntry[key] && undefined !== list[listIndex][key]) {
+        ;['index', 'social', 'realName', 'username'].forEach(key => {
+          if (
+            undefined === newEntry[key] &&
+            undefined !== list[listIndex][key]
+          ) {
             newEntry[key] = list[listIndex][key]
           }
         })
@@ -481,13 +533,13 @@ class Db extends EventEmitter {
         list.splice(listIndex, 1, newEntry)
 
         await participantList.update({
-          participants: [ ...list ],
+          participants: [...list]
         })
       }
       // if participant not found
       else {
         await participantList.update({
-          participants: [ ...list, newEntry ],
+          participants: [...list, newEntry]
         })
       }
     }
@@ -495,7 +547,7 @@ class Db extends EventEmitter {
     return newEntry
   }
 
-  async setNewPartyOwner (address, newOwnerAddress) {
+  async setNewPartyOwner(address, newOwnerAddress) {
     address = address.toLowerCase()
 
     const doc = await this._getParty(address)
@@ -508,12 +560,12 @@ class Db extends EventEmitter {
       this._log.info(`Party ${address} has new owner: ${newOwnerAddress}`)
 
       await doc.update({
-        owner: newOwnerAddress,
+        owner: newOwnerAddress
       })
     }
   }
 
-  async addPartyAdmin (address, adminAddress) {
+  async addPartyAdmin(address, adminAddress) {
     address = address.toLowerCase()
 
     const doc = await this._getParty(address)
@@ -529,13 +581,13 @@ class Db extends EventEmitter {
         this._log.info(`Party ${address} adds admin: ${adminAddress}`)
 
         await doc.update({
-          admins: [ ...admins, adminAddress ]
+          admins: [...admins, adminAddress]
         })
       }
     }
   }
 
-  async removePartyAdmin (address, adminAddress) {
+  async removePartyAdmin(address, adminAddress) {
     address = address.toLowerCase()
 
     const doc = await this._getParty(address)
@@ -555,13 +607,13 @@ class Db extends EventEmitter {
         admins.splice(pos, 1)
 
         await doc.update({
-          admins: [ ...admins ]
+          admins: [...admins]
         })
       }
     }
   }
 
-  async markPartyCancelled (address) {
+  async markPartyCancelled(address) {
     address = address.toLowerCase()
 
     const doc = await this._getParty(address)
@@ -571,32 +623,33 @@ class Db extends EventEmitter {
 
       await doc.update({
         cancelled: true,
-        ended: true,
+        ended: true
       })
     }
   }
 
-  async getKey (key) {
+  async getKey(key) {
     const doc = await this._get(`setting/${this._id(key)}`)
 
     return doc.exists ? doc.data.value : undefined
   }
 
-  async _isUsernameTaken (username) {
-    const query = this._nativeDb.collection('user')
+  async _isUsernameTaken(username) {
+    const query = this._nativeDb
+      .collection('user')
       .where('username', '==', username.toLowerCase())
       .limit(1)
 
-    return !!((await query.get()).docs.length)
+    return !!(await query.get()).docs.length
   }
 
-  async setKey (key, value) {
+  async setKey(key, value) {
     const doc = await this._get(`setting/${this._id(key)}`)
 
     await doc.set({ value })
   }
 
-  async _getUser (address, { mustExist = false } = {}) {
+  async _getUser(address, { mustExist = false } = {}) {
     const ref = await this._get(`user/${address.toLowerCase()}`)
 
     if (mustExist && !ref.exists) {
@@ -606,19 +659,19 @@ class Db extends EventEmitter {
     return ref
   }
 
-  async _getParty (address) {
+  async _getParty(address) {
     return this._get(`party/${this._id(address.toLowerCase())}`)
   }
 
-  async _getPendingParty (id) {
+  async _getPendingParty(id) {
     return this._get(`pendingParty/${this._id(id)}`)
   }
 
-  async _getParticipantList (address) {
+  async _getParticipantList(address) {
     return this._get(`participantList/${this._id(address.toLowerCase())}`)
   }
 
-  async _get (refPath) {
+  async _get(refPath) {
     const ref = this._nativeDb.doc(refPath)
     const doc = await ref.get()
 
@@ -650,17 +703,20 @@ class Db extends EventEmitter {
     return ref
   }
 
-  _id (str) {
+  _id(str) {
     return `${str}-${this._blockChain.networkId}`
   }
 
-  _extractPartyMeta (doc) {
-    return [ 'name', 'description', 'date', 'location', 'image' ].reduce((m, k) => {
-      if (undefined !== doc[k]) {
-        m[k] = doc[k]
-      }
-      return m
-    }, {})
+  _extractPartyMeta(doc) {
+    return ['name', 'description', 'date', 'location', 'image'].reduce(
+      (m, k) => {
+        if (undefined !== doc[k]) {
+          m[k] = doc[k]
+        }
+        return m
+      },
+      {}
+    )
   }
 }
 

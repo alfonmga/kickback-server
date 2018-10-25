@@ -1,5 +1,9 @@
 const safeGet = require('lodash.get')
-const { addressesMatch, trimOrEmpty, PARTICIPANT_STATUS } = require('@noblocknoparty/shared')
+const {
+  addressesMatch,
+  trimOrEmpty,
+  PARTICIPANT_STATUS
+} = require('@noblocknoparty/shared')
 
 const { ADMIN, OWNER } = require('../constants/roles')
 
@@ -9,9 +13,8 @@ const assertUser = async user => {
   }
 }
 
-const participantStatusToInternalStatus = status => (
+const participantStatusToInternalStatus = status =>
   PARTICIPANT_STATUS[status] || PARTICIPANT_STATUS.UNKNOWN
-)
 
 const internalStatusToParticipantStatus = status => {
   // eslint-disable-next-line no-restricted-syntax
@@ -87,12 +90,23 @@ module.exports = ({ config, db, blockChain }) => {
       allParties: async () => db.getParties(),
       activeParties: async () => db.getParties({ onlyActive: true }),
       party: async (_, { address }) => db.getParty(address),
-      userProfile: async (_, { address }, { user }) => (
+      partyVerbose: async (_, { address }, context) => {
+        const party = await db.getParty(address)
+        context.isPartyAdmin = hasPartyRole(party, context.user, ADMIN)
+        if (!context.isPartyAdmin) {
+          throw new Error(`Access denied, not admin of party ${address}`)
+        }
+        return {
+          ...party,
+          partyVerbose: true
+        }
+      },
+      userProfile: async (_, { address }, { user }) =>
         loadProfileOrJustReturnAddress(address, user)
-      ),
     },
     Mutation: {
-      createLoginChallenge: async (_, { address }) => db.createLoginChallenge(address),
+      createLoginChallenge: async (_, { address }) =>
+        db.createLoginChallenge(address),
       loginUser: async (_, __, { user }) => {
         await assertUser(user)
 
@@ -117,43 +131,65 @@ module.exports = ({ config, db, blockChain }) => {
 
         return db.createPendingParty(user.address, meta)
       },
-      updateParticipantStatus: async (_, {
-        address: partyAddress,
-        participant: { address, status }
-      }, context) => {
+      updateParticipantStatus: async (
+        _,
+        { address: partyAddress, participant: { address, status } },
+        context
+      ) => {
         await assertPartyRole(partyAddress, context.user, ADMIN)
         context.isPartyAdmin = true
-        return db.updateParticipantStatus(
-          partyAddress, address, { status: participantStatusToInternalStatus(status) }
-        )
-      },
+        return db.updateParticipantStatus(partyAddress, address, {
+          status: participantStatusToInternalStatus(status)
+        })
+      }
     },
     Party: {
-      owner: async ({ owner }, _, { user }) => (
-        loadProfileOrJustReturnAddress(owner, user)
-      ),
-      admins: async ({ admins }, _, { user }) => (
-        (admins || []).map(admin => (
+      owner: async ({ owner }, _, { user }) =>
+        loadProfileOrJustReturnAddress(owner, user),
+      admins: async ({ admins }, _, { user }) =>
+        (admins || []).map(admin =>
           loadProfileOrJustReturnAddress(admin, user)
-        ))
-      ),
+        ),
       participants: async (party, _, context) => {
-        context.isPartyAdmin = hasPartyRole(party, context.user, ADMIN)
-        return db.getParticipants(party.address)
-      },
+        const participants = await db.getParticipants(party.address)
+
+        if (party.partyVerbose) {
+          return participants.map(p => ({ ...p, privateFields: true }))
+        } else {
+          return participants
+        }
+      }
     },
     LoginChallenge: {
       str: s => s
     },
     Participant: {
       status: ({ status }) => internalStatusToParticipantStatus(status),
-      user: ({ address, social, username, realName }, _, { isPartyAdmin }) => ({
-        address,
-        social,
-        username,
-        realName: isPartyAdmin ? realName : null,
-      }),
-      index: ({ index }) => parseInt(index, 10),
-    },
+      user: async (user, _, context) => {
+        const { address, social, username, realName, privateFields } = user
+        const { isPartyAdmin } = context
+
+        if (privateFields) {
+          const userProfile = await db.getUserProfile(address, true)
+          const { email, legal, social, username, realName } = userProfile
+          return {
+            email,
+            legal,
+            address: userProfile.address,
+            social,
+            username,
+            realName
+          }
+        }
+
+        return {
+          address,
+          social,
+          username,
+          realName: isPartyAdmin ? realName : null
+        }
+      },
+      index: ({ index }) => parseInt(index, 10)
+    }
   }
 }
