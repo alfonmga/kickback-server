@@ -9,9 +9,13 @@ const assertUser = async user => {
   }
 }
 
-const participantStatusToInternalStatus = status => (
-  PARTICIPANT_STATUS[status] || throw new Error(`Unrecognized status: ${status}`)
-)
+const participantStatusToInternalStatus = status => {
+  if (!PARTICIPANT_STATUS[status]) {
+    throw new Error(`Unrecognized status: ${status}`)
+  }
+
+  return status
+}
 
 const internalStatusToParticipantStatus = status => {
   // eslint-disable-next-line no-restricted-syntax
