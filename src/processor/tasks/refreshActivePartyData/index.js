@@ -2,7 +2,7 @@ const { PARTICIPANT_STATUS, addressesMatch } = require('@noblocknoparty/shared')
 const { toBN } = require('web3-utils')
 
 module.exports = ({ config, log: parentLog, db, blockChain, eventQueue }) => {
-  const log = parentLog.create('syncDbWithChain')
+  const log = parentLog.create('refreshActivePartyData')
 
   return () => (
     eventQueue.add(async () => {
@@ -46,6 +46,13 @@ module.exports = ({ config, log: parentLog, db, blockChain, eventQueue }) => {
                     status: PARTICIPANT_STATUS.REGISTERED,
                     index: toBN(p.index).toString(10)
                   })
+                } else {
+                  // even if found, let's update so that we fetch user's latest profile details
+                  // and store them in their participant entry
+                  await db.updateParticipantStatus(party.address, pAddress.toLowerCase(), {
+                    status: found.status,
+                    index: found.index,
+                  })
                 }
               })
             }
@@ -56,6 +63,6 @@ module.exports = ({ config, log: parentLog, db, blockChain, eventQueue }) => {
       } catch (err) {
         log.error('Failed', err)
       }
-    }, { name: 'syncDbWithChain' })
+    }, { name: 'refreshActivePartyData' })
   )
 }

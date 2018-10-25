@@ -8,7 +8,7 @@ import { getContract } from '../../../utils/contracts'
 import createLog from '../../../log'
 import createProcessor from './'
 
-describe('sync db with chain', () => {
+describe('refresh active party data', () => {
   let log
   let web3
   let accounts
@@ -86,14 +86,14 @@ describe('sync db with chain', () => {
       getParties: jest.fn(async () => parties),
       getParticipants: jest.fn(async addr => (
         (!addressesMatch(deployed[1].address, addr)) ? [
-          // accounts[2] deliberately missing for parties 1 and 3
-          { address: accounts[3] }
+          // accounts[2] deliberately missing for parties 0 and 2
+          { address: accounts[3], status: PARTICIPANT_STATUS.SHOWED_UP, index: '7' }
         ] : [
-          { address: accounts[2] },
-          { address: accounts[3] }
+          { address: accounts[2], status: PARTICIPANT_STATUS.SHOWED_UP, index: '4' },
+          { address: accounts[3], status: PARTICIPANT_STATUS.SHOWED_UP, index: '5' }
         ]
       )),
-      updateParticipantStatus: jest.fn(async () => {})
+      updateParticipantStatus: jest.fn(async () => {}),
     }
 
     config = {
@@ -107,7 +107,7 @@ describe('sync db with chain', () => {
     await processor()
 
     expect(eventQueue.add.mock.calls.length).toEqual(1)
-    expect(eventQueue.add.mock.calls[0][1]).toEqual({ name: 'syncDbWithChain' })
+    expect(eventQueue.add.mock.calls[0][1]).toEqual({ name: 'refreshActivePartyData' })
 
     expect(db.getParties).toHaveBeenCalledWith({
       stalestFirst: true,
@@ -120,14 +120,35 @@ describe('sync db with chain', () => {
     expect(db.updatePartyFromContract).toHaveBeenCalledWith(deployed[2])
 
     // for first party expect to have added new participant
-    expect(db.updateParticipantStatus).toHaveBeenCalledTimes(1)
-    expect(db.updateParticipantStatus).toHaveBeenCalledWith(
+    expect(db.updateParticipantStatus).toHaveBeenCalledTimes(4)
+    expect(db.updateParticipantStatus.mock.calls[0]).toEqual([
       deployed[0].address,
       accounts[2].toLowerCase(), {
         status: PARTICIPANT_STATUS.REGISTERED,
         index: '1'
       }
-    )
+    ])
+    expect(db.updateParticipantStatus.mock.calls[1]).toEqual([
+      deployed[0].address,
+      accounts[3].toLowerCase(), {
+        status: PARTICIPANT_STATUS.SHOWED_UP,
+        index: '7'
+      }
+    ])
+    expect(db.updateParticipantStatus.mock.calls[2]).toEqual([
+      deployed[1].address,
+      accounts[2].toLowerCase(), {
+        status: PARTICIPANT_STATUS.SHOWED_UP,
+        index: '4'
+      }
+    ])
+    expect(db.updateParticipantStatus.mock.calls[3]).toEqual([
+      deployed[1].address,
+      accounts[3].toLowerCase(), {
+        status: PARTICIPANT_STATUS.SHOWED_UP,
+        index: '5'
+      }
+    ])
   })
 
   it('gracefully handles errors', async () => {
@@ -138,7 +159,7 @@ describe('sync db with chain', () => {
     await processor()
 
     expect(eventQueue.add.mock.calls.length).toEqual(1)
-    expect(eventQueue.add.mock.calls[0][1]).toEqual({ name: 'syncDbWithChain' })
+    expect(eventQueue.add.mock.calls[0][1]).toEqual({ name: 'refreshActivePartyData' })
 
     expect(db.getParties).toHaveBeenCalled()
   })
