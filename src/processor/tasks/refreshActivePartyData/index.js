@@ -1,6 +1,8 @@
 const { PARTICIPANT_STATUS, addressesMatch } = require('@noblocknoparty/shared')
 const { toBN } = require('web3-utils')
 
+const { promiseFnSequence } = require('../../../utils/promise')
+
 module.exports = ({ config, log: parentLog, db, blockChain, eventQueue }) => {
   const log = parentLog.create('refreshActivePartyData')
 
@@ -57,7 +59,7 @@ module.exports = ({ config, log: parentLog, db, blockChain, eventQueue }) => {
               })
             }
 
-            await Promise.all(fns.map(fn => fn()))
+            await promiseFnSequence(fns)
           }
         }))
       } catch (err) {
