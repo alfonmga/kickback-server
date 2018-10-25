@@ -416,6 +416,10 @@ class Db extends EventEmitter {
   }
 
   async updateParticipantStatus (partyAddress, participantAddress, { status, index } = {}) {
+    if (!PARTICIPANT_STATUS[status]) {
+      throw new Error(`Invalid status: ${status}`)
+    }
+
     partyAddress = partyAddress.toLowerCase()
 
     const party = await this._getParty(partyAddress)

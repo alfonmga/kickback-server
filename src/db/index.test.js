@@ -1231,6 +1231,19 @@ describe('db', () => {
       await saveParty(partyAddress, {})
     })
 
+    it('throws if invalid status supplied', async () => {
+      const invalidPartyAddress = newAddr()
+
+      try {
+        await db.updateParticipantStatus(invalidPartyAddress, newAddr(), {
+          status: 'registered',
+          index: 5
+        })
+      } catch (err) {
+        expect(err.message.toLowerCase()).toEqual(expect.stringContaining('invalid status'))
+      }
+    })
+
     it('does nothing if party not found', async () => {
       const invalidPartyAddress = newAddr()
 
