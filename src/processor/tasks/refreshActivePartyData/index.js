@@ -50,7 +50,7 @@ module.exports = ({ config, log: parentLog, db, blockChain, eventQueue }) => {
                   // even if found, let's update so that we fetch user's latest profile details
                   // and store them in their participant entry
                   await db.updateParticipantStatus(party.address, pAddress.toLowerCase(), {
-                    status: found.status,
+                    status: PARTICIPANT_STATUS.REGISTERED,
                     index: found.index,
                   })
                 }

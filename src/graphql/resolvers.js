@@ -10,7 +10,7 @@ const assertUser = async user => {
 }
 
 const participantStatusToInternalStatus = status => (
-  PARTICIPANT_STATUS[status] || PARTICIPANT_STATUS.UNKNOWN
+  PARTICIPANT_STATUS[status] || throw new Error(`Unrecognized status: ${status}`)
 )
 
 const internalStatusToParticipantStatus = status => {
