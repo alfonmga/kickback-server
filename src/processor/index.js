@@ -5,7 +5,7 @@ module.exports = async ({ config, log: parentLog, scheduler, eventQueue, db, blo
 
   const sendNotificationEmail = require('./tasks/sendNotificationEmail')({ log, db, blockChain, eventQueue })
   const processBlockLogs = require('./tasks/processBlockLogs')({ config, log, db, blockChain, eventQueue })
-  const syncDbWithChain = require('./tasks/syncDbWithChain')({ config, log, db, blockChain, eventQueue })
+  const refreshActivePartyData = require('./tasks/refreshActivePartyData')({ config, log, db, blockChain, eventQueue })
 
   // start processing blocks from where we last got to!
   let lastBlockNumber = await db.getKey('lastBlockNumber')
@@ -60,5 +60,5 @@ module.exports = async ({ config, log: parentLog, scheduler, eventQueue, db, blo
   processBlockLogs(blocksToProcess)
 
   // schedule other jobs
-  scheduler.schedule('syncDbWithChain', config.SYNC_DB_DELAY_SECONDS, syncDbWithChain)
+  scheduler.schedule('refreshActivePartyData', config.SYNC_DB_DELAY_SECONDS, refreshActivePartyData)
 }

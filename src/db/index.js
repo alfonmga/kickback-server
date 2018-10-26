@@ -1,7 +1,7 @@
 const safeGet = require('lodash.get')
 const EventEmitter = require('eventemitter3')
 const uuid = require('uuid')
-const { toHex, hexToNumber } = require('web3-utils')
+const { toBN, toHex, hexToNumber } = require('web3-utils')
 const {
   assertRealName,
   assertUsername,
@@ -10,7 +10,12 @@ const {
   hasAcceptedLegalAgreements,
   stringsMatchIgnoreCase,
   updateParticipantListFromMaps,
+<<<<<<< HEAD
   PARTICIPANT_STATUS
+=======
+  addressesMatch,
+  PARTICIPANT_STATUS,
+>>>>>>> aa2403517bbbe2ace5239b2221e15ecc93d3eb90
 } = require('@noblocknoparty/shared')
 
 const setupFirestoreDb = require('./firestore')
@@ -442,11 +447,80 @@ class Db extends EventEmitter {
     ])
   }
 
+<<<<<<< HEAD
   async updateParticipantStatus(
     partyAddress,
     participantAddress,
     { status, index } = {}
   ) {
+=======
+  async updateParticipantListFromContract (partyInstance) {
+    const partyAddress = partyInstance.address.toLowerCase()
+
+    const party = await this._getParty(partyAddress)
+
+    if (!party.exists) {
+      this._log.warn(`Party not found: ${partyAddress}`)
+
+      return {}
+    } else if (party.data.ended) {
+      this._log.warn(`Party ${partyAddress} already ended, so cannot update participant list`)
+
+      return {}
+    }
+
+    const participantList = await this._getParticipantList(partyAddress)
+
+    if (safeGet(participantList, 'data.finalized')) {
+      this._log.warn(`Party ${partyAddress} already finalized, so cannot update participant list`)
+
+      return {}
+    }
+
+    this._log.info(`Update participant list for party ${partyAddress} from contract ...`)
+
+    const { participants = [] } = participantList.data
+
+    const registered = await partyInstance.registered()
+
+    for (let i = 1; registered >= i; i += 1) {
+      /* eslint-disable no-await-in-loop */
+      const pAddress = await partyInstance.participantsIndex(i)
+      const entryIndex = participants.findIndex(({ address }) => addressesMatch(address, pAddress))
+
+      // if not found
+      if (0 > entryIndex) {
+        const p = await partyInstance.participants(pAddress)
+
+        const entry = await this._createParticipantEntry(pAddress, null, {
+          status: PARTICIPANT_STATUS.REGISTERED,
+          index: toBN(p.index).toString(10),
+        })
+
+        participants.push(entry)
+      }
+      // if found
+      else {
+        const entry = await this._createParticipantEntry(pAddress, participants[entryIndex])
+
+        participants.splice(entryIndex, 1, entry)
+      }
+      /* eslint-enable no-await-in-loop */
+    }
+
+    await participantList.update({
+      participants: [ ...participants ],
+    })
+
+    return {}
+  }
+
+  async updateParticipantStatus (partyAddress, participantAddress, { status, index } = {}) {
+    if (!PARTICIPANT_STATUS[status]) {
+      throw new Error(`Invalid status: ${status}`)
+    }
+
+>>>>>>> aa2403517bbbe2ace5239b2221e15ecc93d3eb90
     partyAddress = partyAddress.toLowerCase()
 
     const party = await this._getParty(partyAddress)
@@ -485,12 +559,15 @@ class Db extends EventEmitter {
 
     participantAddress = participantAddress.toLowerCase()
 
-    // get their profile (with all fields visible as we will extract only some)
-    const userProfile = await this.getUserProfile(participantAddress, true)
+    const list = participantList.exists ? participantList.data.participants : []
+    const listIndex = list.findIndex(
+      ({ address: a }) => addressesMatch(a, participantAddress)
+    )
+    const existingEntry = (0 <= listIndex) ? list[listIndex] : null
 
-    const newEntry = {
-      address: participantAddress,
+    const newEntry = await this._createParticipantEntry(participantAddress, existingEntry, {
       status,
+<<<<<<< HEAD
       ...(userProfile.social ? { social: userProfile.social } : null),
       ...(userProfile.username ? { username: userProfile.username } : null),
       ...(userProfile.realName ? { realName: userProfile.realName } : null)
@@ -499,6 +576,10 @@ class Db extends EventEmitter {
     if (0 <= index) {
       newEntry.index = index
     }
+=======
+      ...(0 <= parseInt(index, 10) ? { index: `${index}` } : null)
+    })
+>>>>>>> aa2403517bbbe2ace5239b2221e15ecc93d3eb90
 
     this._log.info(
       `Update status of participant ${participantAddress} at party ${partyAddress} to ${JSON.stringify(
@@ -507,11 +588,12 @@ class Db extends EventEmitter {
     )
 
     // no participant list exists yet, so create one
-    if (!participantList.exists) {
+    if (!list.length) {
       await participantList.set({
         address: partyAddress,
         participants: [newEntry]
       })
+<<<<<<< HEAD
     } else {
       const list = participantList.data.participants
       const listIndex = list.findIndex(({ address: a }) =>
@@ -542,6 +624,22 @@ class Db extends EventEmitter {
           participants: [...list, newEntry]
         })
       }
+=======
+    }
+    // if participant found
+    else if (existingEntry) {
+      list.splice(listIndex, 1, newEntry)
+
+      await participantList.update({
+        participants: [ ...list ],
+      })
+    }
+    // if participant not found
+    else {
+      await participantList.update({
+        participants: [ ...list, newEntry ],
+      })
+>>>>>>> aa2403517bbbe2ace5239b2221e15ecc93d3eb90
     }
 
     return newEntry
@@ -634,9 +732,40 @@ class Db extends EventEmitter {
     return doc.exists ? doc.data.value : undefined
   }
 
+<<<<<<< HEAD
   async _isUsernameTaken(username) {
     const query = this._nativeDb
       .collection('user')
+=======
+  async _createParticipantEntry (address, existingEntry, { status, index } = {}) {
+    const userProfile = await this.getUserProfile(address, true)
+
+    const newEntry = {
+      address: address.toLowerCase(),
+      status,
+      index,
+      ...(userProfile.social ? { social: userProfile.social } : null),
+      ...(userProfile.username ? { username: userProfile.username } : null),
+      ...(userProfile.realName ? { realName: userProfile.realName } : null),
+    }
+
+    // don't overwrite existing entry data unless we have new values
+    ;[ 'index', 'status', 'social', 'realName', 'username' ].forEach(key => {
+      if (undefined === newEntry[key]) {
+        if (undefined !== safeGet(existingEntry, key)) {
+          newEntry[key] = existingEntry[key]
+        } else if ('index' === key || 'status' === key) {
+          throw new Error(`Undefined value for ${key} for participant ${address}`)
+        }
+      }
+    })
+
+    return newEntry
+  }
+
+  async _isUsernameTaken (username) {
+    const query = this._nativeDb.collection('user')
+>>>>>>> aa2403517bbbe2ace5239b2221e15ecc93d3eb90
       .where('username', '==', username.toLowerCase())
       .limit(1)
 
