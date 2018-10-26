@@ -67,6 +67,6 @@ module.exports = config => {
     },
     appMode: config.APP_MODE,
     ethereumNetwork: config.NETWORK,
-    ...(inTestMode ? { stream: str } : null)
+    ...(inTestMode ? { testModeStream: str } : null)
   })
 }

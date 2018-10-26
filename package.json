@@ -26,16 +26,14 @@
     "release:pr": "echo 'PR, so no release'",
     "release": "/bin/sh -c 'if [ \"$TRAVIS_PULL_REQUEST\" = \"false\" ]; then yarn release:branch; else yarn release:pr; fi'",
     "now": "now --team noblocknoparty --token $NOW_TOKEN",
-    "test": "jest --no-cache",
-    "test:coverage": "yarn test --coverage"
+    "test": "jest --no-cache --testMatch **/*.test.js",
+    "test:coverage": "yarn test --coverage",
+    "test:integration": "jest --no-cache --testMatch **/*.int-test.js"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/noblocknoparty/server.git"
   },
-  "keywords": [
-    "meth"
-  ],
   "author": "Ramesh Nair <ram@hiddentao.com>",
   "license": "AGPL-3.0-or-later",
   "bugs": {
@@ -78,9 +76,6 @@
   },
   "jest": {
     "testEnvironment": "node",
-    "testMatch": [
-      "**/*.test.js"
-    ],
     "collectCoverageFrom": [
       "src/**/*.js"
     ],
@@ -91,6 +86,11 @@
     "setupTestFrameworkScriptFile": "<rootDir>/.jest/setupTestFrameworkScriptFile.js"
   },
   "devDependencies": {
+    "apollo-cache-inmemory": "^1.3.6",
+    "apollo-client": "^2.4.3",
+    "apollo-link": "^1.2.3",
+    "apollo-link-error": "^1.1.1",
+    "apollo-link-http": "^1.5.5",
     "babel-core": "^6.26.3",
     "babel-eslint": "^8.2.6",
     "babel-jest": "^23.4.2",
@@ -110,11 +110,14 @@
     "firebase-tools": "^4.2.1",
     "ganache-core": "^2.2.1",
     "geth-private": "^3.0.0",
+    "graphql-tag": "^2.10.0",
     "http-server": "^0.11.1",
     "jest": "^23.6.0",
     "mkdirp": "^0.5.1",
+    "node-fetch": "^2.2.0",
     "now": "^11.4.6",
     "rimraf": "^2.6.2",
+    "shelljs": "^0.8.2",
     "truffle": "^5.0.0-beta.0"
   }
 }

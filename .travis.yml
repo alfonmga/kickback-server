@@ -10,6 +10,7 @@ before_script:
   - yarn global add ganache-cli
   - ganache-cli --accounts 500 >ganache.log 2>&1 &
   - yarn test:coverage && cat test-coverage/lcov.info | node_modules/.bin/coveralls
+  - yarn test:integration
 script:
   - yarn build
   - yarn release
