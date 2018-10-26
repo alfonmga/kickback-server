@@ -90,15 +90,15 @@ module.exports = ({ config, db, blockChain }) => {
       allParties: async () => db.getParties(),
       activeParties: async () => db.getParties({ onlyActive: true }),
       party: async (_, { address }) => db.getParty(address),
-      partyVerbose: async (_, { address }, context) => {
+      partyAdminView: async (_, { address }, context) => {
         const party = await db.getParty(address)
         context.isPartyAdmin = hasPartyRole(party, context.user, ADMIN)
+        context.isPartyAdminView = true
         if (!context.isPartyAdmin) {
           throw new Error(`Access denied, not admin of party ${address}`)
         }
         return {
-          ...party,
-          partyVerbose: true
+          ...party
         }
       },
       userProfile: async (_, { address }, { user }) =>
@@ -150,15 +150,7 @@ module.exports = ({ config, db, blockChain }) => {
         (admins || []).map(admin =>
           loadProfileOrJustReturnAddress(admin, user)
         ),
-      participants: async (party, _, context) => {
-        const participants = await db.getParticipants(party.address)
-
-        if (party.partyVerbose) {
-          return participants.map(p => ({ ...p, privateFields: true }))
-        } else {
-          return participants
-        }
-      }
+      participants: async party => db.getParticipants(party.address)
     },
     LoginChallenge: {
       str: s => s
@@ -166,16 +158,23 @@ module.exports = ({ config, db, blockChain }) => {
     Participant: {
       status: ({ status }) => internalStatusToParticipantStatus(status),
       user: async (user, _, context) => {
-        const { address, social, username, realName, privateFields } = user
-        const { isPartyAdmin } = context
+        const { address, social, username, realName } = user
+        const { isPartyAdmin, isPartyAdminView } = context
 
-        if (privateFields) {
+        if (isPartyAdminView) {
           const userProfile = await db.getUserProfile(address, true)
-          const { email, legal, social, username, realName } = userProfile
+          const {
+            email,
+            legal,
+            social,
+            username,
+            realName,
+            address
+          } = userProfile
           return {
             email,
             legal,
-            address: userProfile.address,
+            address: address.toLowerCase(),
             social,
             username,
             realName

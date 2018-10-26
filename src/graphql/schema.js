@@ -109,7 +109,7 @@ module.exports = gql`
     allParties: [Party]
     activeParties: [Party]
     party(address: String!): Party
-    partyVerbose(address: String!): Party
+    partyAdminView(address: String!): Party
     userProfile(address: String!): UserProfile
   }
 
