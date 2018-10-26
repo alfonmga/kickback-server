@@ -2,7 +2,6 @@ import Ganache from 'ganache-core'
 import Web3 from 'web3'
 import { toWei } from 'web3-utils'
 import { Conference } from '@noblocknoparty/contracts'
-import { addressesMatch, PARTICIPANT_STATUS } from '@noblocknoparty/shared'
 
 import { getContract } from '../../../utils/contracts'
 import createLog from '../../../log'
@@ -52,14 +51,6 @@ describe('refresh active party data', () => {
       await Contract.new('c3', deposit, 10, 3, accounts[2], { from: accounts[2] }),
     ]
 
-    await deployed[0].register({ from: accounts[2], value: deposit })
-    await deployed[0].register({ from: accounts[3], value: deposit })
-
-    await deployed[1].register({ from: accounts[2], value: deposit })
-    await deployed[1].register({ from: accounts[3], value: deposit })
-
-    await deployed[2].register({ from: accounts[2], value: deposit })
-    await deployed[2].register({ from: accounts[3], value: deposit })
     // end it so that sync does not try to sync participant list
     await deployed[2].cancel({ from: accounts[2] })
 
@@ -81,29 +72,10 @@ describe('refresh active party data', () => {
       }
     ]
 
-    let updateParticipantStatusCall = 0
-
     db = {
-      updateProcessingOrder: [],
       updatePartyFromContract: jest.fn(async () => {}),
       getParties: jest.fn(async () => parties),
-      getParticipants: jest.fn(async addr => (
-        (!addressesMatch(deployed[1].address, addr)) ? [
-          // accounts[2] deliberately missing for parties 0 and 2
-          { address: accounts[3], status: PARTICIPANT_STATUS.SHOWED_UP, index: '7' }
-        ] : [
-          { address: accounts[2], status: PARTICIPANT_STATUS.SHOWED_UP, index: '4' },
-          { address: accounts[3], status: PARTICIPANT_STATUS.SHOWED_UP, index: '5' }
-        ]
-      )),
-      updateParticipantStatus: jest.fn((pa, a) => new Promise(resolve => {
-        // resolves faster with every new call
-        updateParticipantStatusCall += 1
-        setTimeout(() => {
-          db.updateProcessingOrder.push(a)
-          resolve()
-        }, (1000 - updateParticipantStatusCall * 200))
-      })),
+      updateParticipantListFromContract: jest.fn(async () => {})
     }
 
     config = {
@@ -124,48 +96,9 @@ describe('refresh active party data', () => {
       onlyActive: true,
       limit: 23,
     })
-    expect(db.updatePartyFromContract).toHaveBeenCalledTimes(3)
-    expect(db.updatePartyFromContract).toHaveBeenCalledWith(deployed[0])
-    expect(db.updatePartyFromContract).toHaveBeenCalledWith(deployed[1])
-    expect(db.updatePartyFromContract).toHaveBeenCalledWith(deployed[2])
-
-    // for first party expect to have added new participant
-    expect(db.updateParticipantStatus).toHaveBeenCalledTimes(4)
-    expect(db.updateParticipantStatus).toHaveBeenCalledWith(
-      deployed[0].address,
-      accounts[2].toLowerCase(), {
-        status: PARTICIPANT_STATUS.REGISTERED,
-        index: '1'
-      }
-    )
-    expect(db.updateParticipantStatus).toHaveBeenCalledWith(
-      deployed[0].address,
-      accounts[3].toLowerCase(), {
-        status: PARTICIPANT_STATUS.REGISTERED,
-        index: '7'
-      }
-    )
-    expect(db.updateParticipantStatus).toHaveBeenCalledWith(
-      deployed[1].address,
-      accounts[2].toLowerCase(), {
-        status: PARTICIPANT_STATUS.REGISTERED,
-        index: '4'
-      }
-    )
-    expect(db.updateParticipantStatus).toHaveBeenCalledWith(
-      deployed[1].address,
-      accounts[3].toLowerCase(), {
-        status: PARTICIPANT_STATUS.REGISTERED,
-        index: '5'
-      }
-    )
-
-    expect(db.updateProcessingOrder).toEqual([
-      accounts[2].toLowerCase(),
-      accounts[2].toLowerCase(),
-      accounts[3].toLowerCase(),
-      accounts[3].toLowerCase(),
-    ])
+    expect(db.updateParticipantListFromContract).toHaveBeenCalledTimes(2)
+    expect(db.updateParticipantListFromContract).toHaveBeenCalledWith(deployed[0])
+    expect(db.updateParticipantListFromContract).toHaveBeenCalledWith(deployed[1])
   })
 
   it('gracefully handles errors', async () => {
