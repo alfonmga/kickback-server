@@ -164,8 +164,6 @@ module.exports = ({ config, db, blockChain }) => {
         const { address, social, username, realName } = user
         const { isPartyAdmin, isPartyAdminView } = context
 
-        console.log(address)
-
         if (isPartyAdminView) {
           const userProfile = await db.getUserProfile(address, true)
           const { email, legal, social, username, realName } = userProfile
