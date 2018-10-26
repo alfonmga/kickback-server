@@ -97,7 +97,7 @@ module.exports = ({ config, db, blockChain }) => {
       party: async (_, { address }) => db.getParty(address),
       partyAdminView: async (_, { address }, context) => {
         const party = await db.getParty(address)
-        await assertPartyRole(partyAddress, context.user, ADMIN)
+        await assertPartyRole(address, context.user, ADMIN)
         context.isPartyAdmin = true
         context.isPartyAdminView = true
         return {
@@ -164,16 +164,11 @@ module.exports = ({ config, db, blockChain }) => {
         const { address, social, username, realName } = user
         const { isPartyAdmin, isPartyAdminView } = context
 
+        console.log(address)
+
         if (isPartyAdminView) {
           const userProfile = await db.getUserProfile(address, true)
-          const {
-            email,
-            legal,
-            social,
-            username,
-            realName,
-            address
-          } = userProfile
+          const { email, legal, social, username, realName } = userProfile
           return {
             email,
             legal,
