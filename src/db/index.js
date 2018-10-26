@@ -10,12 +10,8 @@ const {
   hasAcceptedLegalAgreements,
   stringsMatchIgnoreCase,
   updateParticipantListFromMaps,
-<<<<<<< HEAD
-  PARTICIPANT_STATUS
-=======
   addressesMatch,
-  PARTICIPANT_STATUS,
->>>>>>> aa2403517bbbe2ace5239b2221e15ecc93d3eb90
+  PARTICIPANT_STATUS
 } = require('@noblocknoparty/shared')
 
 const setupFirestoreDb = require('./firestore')
@@ -447,14 +443,7 @@ class Db extends EventEmitter {
     ])
   }
 
-<<<<<<< HEAD
-  async updateParticipantStatus(
-    partyAddress,
-    participantAddress,
-    { status, index } = {}
-  ) {
-=======
-  async updateParticipantListFromContract (partyInstance) {
+  async updateParticipantListFromContract(partyInstance) {
     const partyAddress = partyInstance.address.toLowerCase()
 
     const party = await this._getParty(partyAddress)
@@ -464,7 +453,9 @@ class Db extends EventEmitter {
 
       return {}
     } else if (party.data.ended) {
-      this._log.warn(`Party ${partyAddress} already ended, so cannot update participant list`)
+      this._log.warn(
+        `Party ${partyAddress} already ended, so cannot update participant list`
+      )
 
       return {}
     }
@@ -472,12 +463,16 @@ class Db extends EventEmitter {
     const participantList = await this._getParticipantList(partyAddress)
 
     if (safeGet(participantList, 'data.finalized')) {
-      this._log.warn(`Party ${partyAddress} already finalized, so cannot update participant list`)
+      this._log.warn(
+        `Party ${partyAddress} already finalized, so cannot update participant list`
+      )
 
       return {}
     }
 
-    this._log.info(`Update participant list for party ${partyAddress} from contract ...`)
+    this._log.info(
+      `Update participant list for party ${partyAddress} from contract ...`
+    )
 
     const { participants = [] } = participantList.data
 
@@ -486,7 +481,9 @@ class Db extends EventEmitter {
     for (let i = 1; registered >= i; i += 1) {
       /* eslint-disable no-await-in-loop */
       const pAddress = await partyInstance.participantsIndex(i)
-      const entryIndex = participants.findIndex(({ address }) => addressesMatch(address, pAddress))
+      const entryIndex = participants.findIndex(({ address }) =>
+        addressesMatch(address, pAddress)
+      )
 
       // if not found
       if (0 > entryIndex) {
@@ -494,14 +491,17 @@ class Db extends EventEmitter {
 
         const entry = await this._createParticipantEntry(pAddress, null, {
           status: PARTICIPANT_STATUS.REGISTERED,
-          index: toBN(p.index).toString(10),
+          index: toBN(p.index).toString(10)
         })
 
         participants.push(entry)
       }
       // if found
       else {
-        const entry = await this._createParticipantEntry(pAddress, participants[entryIndex])
+        const entry = await this._createParticipantEntry(
+          pAddress,
+          participants[entryIndex]
+        )
 
         participants.splice(entryIndex, 1, entry)
       }
@@ -509,18 +509,21 @@ class Db extends EventEmitter {
     }
 
     await participantList.update({
-      participants: [ ...participants ],
+      participants: [...participants]
     })
 
     return {}
   }
 
-  async updateParticipantStatus (partyAddress, participantAddress, { status, index } = {}) {
+  async updateParticipantStatus(
+    partyAddress,
+    participantAddress,
+    { status, index } = {}
+  ) {
     if (!PARTICIPANT_STATUS[status]) {
       throw new Error(`Invalid status: ${status}`)
     }
 
->>>>>>> aa2403517bbbe2ace5239b2221e15ecc93d3eb90
     partyAddress = partyAddress.toLowerCase()
 
     const party = await this._getParty(partyAddress)
@@ -560,26 +563,19 @@ class Db extends EventEmitter {
     participantAddress = participantAddress.toLowerCase()
 
     const list = participantList.exists ? participantList.data.participants : []
-    const listIndex = list.findIndex(
-      ({ address: a }) => addressesMatch(a, participantAddress)
+    const listIndex = list.findIndex(({ address: a }) =>
+      addressesMatch(a, participantAddress)
     )
-    const existingEntry = (0 <= listIndex) ? list[listIndex] : null
+    const existingEntry = 0 <= listIndex ? list[listIndex] : null
 
-    const newEntry = await this._createParticipantEntry(participantAddress, existingEntry, {
-      status,
-<<<<<<< HEAD
-      ...(userProfile.social ? { social: userProfile.social } : null),
-      ...(userProfile.username ? { username: userProfile.username } : null),
-      ...(userProfile.realName ? { realName: userProfile.realName } : null)
-    }
-
-    if (0 <= index) {
-      newEntry.index = index
-    }
-=======
-      ...(0 <= parseInt(index, 10) ? { index: `${index}` } : null)
-    })
->>>>>>> aa2403517bbbe2ace5239b2221e15ecc93d3eb90
+    const newEntry = await this._createParticipantEntry(
+      participantAddress,
+      existingEntry,
+      {
+        status,
+        ...(0 <= parseInt(index, 10) ? { index: `${index}` } : null)
+      }
+    )
 
     this._log.info(
       `Update status of participant ${participantAddress} at party ${partyAddress} to ${JSON.stringify(
@@ -593,53 +589,20 @@ class Db extends EventEmitter {
         address: partyAddress,
         participants: [newEntry]
       })
-<<<<<<< HEAD
-    } else {
-      const list = participantList.data.participants
-      const listIndex = list.findIndex(({ address: a }) =>
-        stringsMatchIgnoreCase(a, participantAddress)
-      )
-
-      // if participant found
-      if (0 <= listIndex) {
-        // don't overwrite existing metadata unless we have new values
-        ;['index', 'social', 'realName', 'username'].forEach(key => {
-          if (
-            undefined === newEntry[key] &&
-            undefined !== list[listIndex][key]
-          ) {
-            newEntry[key] = list[listIndex][key]
-          }
-        })
-
-        list.splice(listIndex, 1, newEntry)
-
-        await participantList.update({
-          participants: [...list]
-        })
-      }
-      // if participant not found
-      else {
-        await participantList.update({
-          participants: [...list, newEntry]
-        })
-      }
-=======
     }
     // if participant found
     else if (existingEntry) {
       list.splice(listIndex, 1, newEntry)
 
       await participantList.update({
-        participants: [ ...list ],
+        participants: [...list]
       })
     }
     // if participant not found
     else {
       await participantList.update({
-        participants: [ ...list, newEntry ],
+        participants: [...list, newEntry]
       })
->>>>>>> aa2403517bbbe2ace5239b2221e15ecc93d3eb90
     }
 
     return newEntry
@@ -732,12 +695,11 @@ class Db extends EventEmitter {
     return doc.exists ? doc.data.value : undefined
   }
 
-<<<<<<< HEAD
-  async _isUsernameTaken(username) {
-    const query = this._nativeDb
-      .collection('user')
-=======
-  async _createParticipantEntry (address, existingEntry, { status, index } = {}) {
+  async _createParticipantEntry(
+    address,
+    existingEntry,
+    { status, index } = {}
+  ) {
     const userProfile = await this.getUserProfile(address, true)
 
     const newEntry = {
@@ -746,16 +708,18 @@ class Db extends EventEmitter {
       index,
       ...(userProfile.social ? { social: userProfile.social } : null),
       ...(userProfile.username ? { username: userProfile.username } : null),
-      ...(userProfile.realName ? { realName: userProfile.realName } : null),
+      ...(userProfile.realName ? { realName: userProfile.realName } : null)
     }
 
     // don't overwrite existing entry data unless we have new values
-    ;[ 'index', 'status', 'social', 'realName', 'username' ].forEach(key => {
+    ;['index', 'status', 'social', 'realName', 'username'].forEach(key => {
       if (undefined === newEntry[key]) {
         if (undefined !== safeGet(existingEntry, key)) {
           newEntry[key] = existingEntry[key]
         } else if ('index' === key || 'status' === key) {
-          throw new Error(`Undefined value for ${key} for participant ${address}`)
+          throw new Error(
+            `Undefined value for ${key} for participant ${address}`
+          )
         }
       }
     })
@@ -763,9 +727,9 @@ class Db extends EventEmitter {
     return newEntry
   }
 
-  async _isUsernameTaken (username) {
-    const query = this._nativeDb.collection('user')
->>>>>>> aa2403517bbbe2ace5239b2221e15ecc93d3eb90
+  async _isUsernameTaken(username) {
+    const query = this._nativeDb
+      .collection('user')
       .where('username', '==', username.toLowerCase())
       .limit(1)
 

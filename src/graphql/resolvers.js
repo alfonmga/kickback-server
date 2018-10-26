@@ -13,10 +13,6 @@ const assertUser = async user => {
   }
 }
 
-<<<<<<< HEAD
-const participantStatusToInternalStatus = status =>
-  PARTICIPANT_STATUS[status] || PARTICIPANT_STATUS.UNKNOWN
-=======
 const participantStatusToInternalStatus = status => {
   if (!PARTICIPANT_STATUS[status]) {
     throw new Error(`Unrecognized status: ${status}`)
@@ -24,7 +20,6 @@ const participantStatusToInternalStatus = status => {
 
   return status
 }
->>>>>>> aa2403517bbbe2ace5239b2221e15ecc93d3eb90
 
 const internalStatusToParticipantStatus = status => {
   // eslint-disable-next-line no-restricted-syntax
