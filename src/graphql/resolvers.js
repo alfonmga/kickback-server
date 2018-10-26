@@ -92,11 +92,9 @@ module.exports = ({ config, db, blockChain }) => {
       party: async (_, { address }) => db.getParty(address),
       partyAdminView: async (_, { address }, context) => {
         const party = await db.getParty(address)
-        context.isPartyAdmin = hasPartyRole(party, context.user, ADMIN)
+        await assertPartyRole(partyAddress, context.user, ADMIN)
+        context.isPartyAdmin = true
         context.isPartyAdminView = true
-        if (!context.isPartyAdmin) {
-          throw new Error(`Access denied, not admin of party ${address}`)
-        }
         return {
           ...party
         }
