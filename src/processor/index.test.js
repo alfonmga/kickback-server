@@ -9,9 +9,9 @@ import { BLOCK, NOTIFICATION } from '../constants/events'
 import createProcessor from './'
 import { getNotificationSetupArgs, getNotificationArgs } from './tasks/sendNotificationEmail'
 import { getBPSetupArgs, getBPArgs } from './tasks/processBlockLogs'
-import { getSyncSetupArgs, getSyncArgs } from './tasks/syncDbWithChain'
+import { getSyncSetupArgs, getSyncArgs } from './tasks/refreshActivePartyData'
 
-jest.mock('./tasks/syncDbWithChain', () => {
+jest.mock('./tasks/refreshActivePartyData', () => {
   let setupArgs
   let syncArgs
 
@@ -137,7 +137,7 @@ describe('blockchain processor', () => {
     expect(setupArgs.eventQueue).toEqual(eventQueue)
 
     expect(scheduler.schedule).toHaveBeenCalledTimes(1)
-    expect(scheduler.schedule.mock.calls[0].slice(0, 2)).toEqual([ 'syncDbWithChain', 1200 ])
+    expect(scheduler.schedule.mock.calls[0].slice(0, 2)).toEqual([ 'refreshActivePartyData', 1200 ])
 
     const fn = scheduler.schedule.mock.calls[0][2]
 

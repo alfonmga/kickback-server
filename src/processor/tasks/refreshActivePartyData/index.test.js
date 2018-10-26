@@ -2,13 +2,12 @@ import Ganache from 'ganache-core'
 import Web3 from 'web3'
 import { toWei } from 'web3-utils'
 import { Conference } from '@noblocknoparty/contracts'
-import { addressesMatch, PARTICIPANT_STATUS } from '@noblocknoparty/shared'
 
 import { getContract } from '../../../utils/contracts'
 import createLog from '../../../log'
 import createProcessor from './'
 
-describe('sync db with chain', () => {
+describe('refresh active party data', () => {
   let log
   let web3
   let accounts
@@ -52,14 +51,6 @@ describe('sync db with chain', () => {
       await Contract.new('c3', deposit, 10, 3, accounts[2], { from: accounts[2] }),
     ]
 
-    await deployed[0].register({ from: accounts[2], value: deposit })
-    await deployed[0].register({ from: accounts[3], value: deposit })
-
-    await deployed[1].register({ from: accounts[2], value: deposit })
-    await deployed[1].register({ from: accounts[3], value: deposit })
-
-    await deployed[2].register({ from: accounts[2], value: deposit })
-    await deployed[2].register({ from: accounts[3], value: deposit })
     // end it so that sync does not try to sync participant list
     await deployed[2].cancel({ from: accounts[2] })
 
@@ -84,16 +75,7 @@ describe('sync db with chain', () => {
     db = {
       updatePartyFromContract: jest.fn(async () => {}),
       getParties: jest.fn(async () => parties),
-      getParticipants: jest.fn(async addr => (
-        (!addressesMatch(deployed[1].address, addr)) ? [
-          // accounts[2] deliberately missing for parties 1 and 3
-          { address: accounts[3] }
-        ] : [
-          { address: accounts[2] },
-          { address: accounts[3] }
-        ]
-      )),
-      updateParticipantStatus: jest.fn(async () => {})
+      updateParticipantListFromContract: jest.fn(async () => {})
     }
 
     config = {
@@ -107,27 +89,16 @@ describe('sync db with chain', () => {
     await processor()
 
     expect(eventQueue.add.mock.calls.length).toEqual(1)
-    expect(eventQueue.add.mock.calls[0][1]).toEqual({ name: 'syncDbWithChain' })
+    expect(eventQueue.add.mock.calls[0][1]).toEqual({ name: 'refreshActivePartyData' })
 
     expect(db.getParties).toHaveBeenCalledWith({
       stalestFirst: true,
       onlyActive: true,
       limit: 23,
     })
-    expect(db.updatePartyFromContract).toHaveBeenCalledTimes(3)
-    expect(db.updatePartyFromContract).toHaveBeenCalledWith(deployed[0])
-    expect(db.updatePartyFromContract).toHaveBeenCalledWith(deployed[1])
-    expect(db.updatePartyFromContract).toHaveBeenCalledWith(deployed[2])
-
-    // for first party expect to have added new participant
-    expect(db.updateParticipantStatus).toHaveBeenCalledTimes(1)
-    expect(db.updateParticipantStatus).toHaveBeenCalledWith(
-      deployed[0].address,
-      accounts[2].toLowerCase(), {
-        status: PARTICIPANT_STATUS.REGISTERED,
-        index: '1'
-      }
-    )
+    expect(db.updateParticipantListFromContract).toHaveBeenCalledTimes(2)
+    expect(db.updateParticipantListFromContract).toHaveBeenCalledWith(deployed[0])
+    expect(db.updateParticipantListFromContract).toHaveBeenCalledWith(deployed[1])
   })
 
   it('gracefully handles errors', async () => {
@@ -138,7 +109,7 @@ describe('sync db with chain', () => {
     await processor()
 
     expect(eventQueue.add.mock.calls.length).toEqual(1)
-    expect(eventQueue.add.mock.calls[0][1]).toEqual({ name: 'syncDbWithChain' })
+    expect(eventQueue.add.mock.calls[0][1]).toEqual({ name: 'refreshActivePartyData' })
 
     expect(db.getParties).toHaveBeenCalled()
   })

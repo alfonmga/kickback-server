@@ -1222,6 +1222,144 @@ describe('db', () => {
     })
   })
 
+  describe('updateParticipantListFromContract', () => {
+    let id
+    let party
+
+    beforeEach(async () => {
+      id = uuid()
+
+      const deposit = toWei('0.2', 'ether')
+
+      party = await getContract(Conference, web3, { from: accounts[0] }).new(
+        id, toHex(deposit), 100, 2, accounts[0]
+      )
+
+      await Promise.all([
+        party.register({ from: accounts[0], value: deposit }),
+        party.register({ from: accounts[1], value: deposit }),
+        party.register({ from: accounts[2], value: deposit }),
+      ])
+    })
+
+    it('does nothing if party does not exist in db', async () => {
+      await saveParticipantList(party.address, 123)
+
+      await db.updateParticipantListFromContract(party)
+
+      const data = await loadParticipantList(party.address)
+      expect(data.participants).toEqual(123)
+    })
+
+    it('does nothing if party ended', async () => {
+      await saveParty(party.address, { ended: true })
+      await saveParticipantList(party.address, 123)
+
+      await db.updateParticipantListFromContract(party)
+
+      const data = await loadParticipantList(party.address)
+      expect(data.participants).toEqual(123)
+    })
+
+    it('does nothing if participant list finalized', async () => {
+      await saveParty(party.address, {})
+      await saveParticipantList(party.address, 123, { finalized: true })
+
+      await db.updateParticipantListFromContract(party)
+
+      const data = await loadParticipantList(party.address)
+      expect(data.participants).toEqual(123)
+    })
+
+    it('creates entries for missing participants', async () => {
+      await saveParty(party.address, {})
+      await saveParticipantList(party.address, [
+        {
+          address: accounts[1].toLowerCase(),
+          index: '2',
+          status: PARTICIPANT_STATUS.SHOWED_UP,
+        }
+      ])
+
+      await db.updateParticipantListFromContract(party)
+
+      const data = await loadParticipantList(party.address)
+      expect(data.participants).toEqual([
+        {
+          address: accounts[1].toLowerCase(),
+          index: '2',
+          status: PARTICIPANT_STATUS.SHOWED_UP,
+        },
+        {
+          address: accounts[0].toLowerCase(),
+          index: '1',
+          status: PARTICIPANT_STATUS.REGISTERED,
+        },
+        {
+          address: accounts[2].toLowerCase(),
+          index: '3',
+          status: PARTICIPANT_STATUS.REGISTERED,
+        },
+      ])
+    })
+
+    it('updates entries for existing participants', async () => {
+      await saveParty(party.address, {})
+      await saveParticipantList(party.address, [
+        {
+          address: accounts[1].toLowerCase(),
+          index: '2',
+          status: PARTICIPANT_STATUS.SHOWED_UP,
+        },
+        {
+          address: accounts[2].toLowerCase(),
+          index: '3',
+          status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
+        },
+      ])
+      await saveUser(accounts[1].toLowerCase(), {
+        username: 'rambo',
+        realName: 'carlos matos',
+        social: {
+          twitter: 'carlosmatos'
+        }
+      })
+      await saveUser(accounts[2].toLowerCase(), {
+        username: 'rambo2',
+      })
+
+      await db.updateParticipantListFromContract(party)
+
+      const data = await loadParticipantList(party.address)
+      expect(data.participants.length).toEqual(3)
+      expect(data.participants[0]).toEqual({
+        address: accounts[1].toLowerCase(),
+        index: '2',
+        status: PARTICIPANT_STATUS.SHOWED_UP,
+        username: 'rambo',
+        realName: 'carlos matos',
+        social: [
+          {
+            type: 'twitter',
+            value: 'carlosmatos'
+          }
+        ]
+      })
+      expect(data.participants[1]).toEqual({
+        address: accounts[2].toLowerCase(),
+        index: '3',
+        status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
+        username: 'rambo2',
+        social: [],
+      })
+      expect(data.participants[2]).toEqual({
+        address: accounts[0].toLowerCase(),
+        index: '1',
+        status: PARTICIPANT_STATUS.REGISTERED,
+      })
+    })
+  })
+
   describe('updateParticipantStatus', () => {
     let partyAddress
 
@@ -1229,6 +1367,19 @@ describe('db', () => {
       partyAddress = newAddr()
 
       await saveParty(partyAddress, {})
+    })
+
+    it('throws if invalid status supplied', async () => {
+      const invalidPartyAddress = newAddr()
+
+      try {
+        await db.updateParticipantStatus(invalidPartyAddress, newAddr(), {
+          status: 'registered',
+          index: 5
+        })
+      } catch (err) {
+        expect(err.message.toLowerCase()).toEqual(expect.stringContaining('invalid status'))
+      }
     })
 
     it('does nothing if party not found', async () => {
@@ -1270,7 +1421,7 @@ describe('db', () => {
       const addr1 = newAddr()
       const ret = await db.updateParticipantStatus(partyAddress, addr1, {
         status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
-        index: 5
+        index: '5'
       })
 
       expect(ret).not.toEqual({})
@@ -1281,7 +1432,7 @@ describe('db', () => {
         {
           address: addr1,
           status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
-          index: 5,
+          index: '5',
         }
       ])
     })
@@ -1316,8 +1467,8 @@ describe('db', () => {
       const addr2 = newAddr()
 
       const originalList = [
-        { address: addr1, status: PARTICIPANT_STATUS.SHOWED_UP, index: 1, },
-        { address: addr2, status: PARTICIPANT_STATUS.REGISTERED, index: 2, },
+        { address: addr1, status: PARTICIPANT_STATUS.SHOWED_UP, index: '1', },
+        { address: addr2, status: PARTICIPANT_STATUS.REGISTERED, index: '2', },
       ]
 
       await saveParticipantList(partyAddress, originalList, {
@@ -1326,7 +1477,7 @@ describe('db', () => {
 
       const ret = await db.updateParticipantStatus(partyAddress, addr1, {
         status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
-        index: 5
+        index: '5'
       })
 
       expect(ret).not.toEqual({})
@@ -1334,8 +1485,8 @@ describe('db', () => {
       const doc = await loadParticipantList(partyAddress)
 
       expect(doc.participants).toEqual([
-        { address: addr1, status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT, index: 5 },
-        { address: addr2, status: PARTICIPANT_STATUS.REGISTERED, index: 2, },
+        { address: addr1, status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT, index: '5' },
+        { address: addr2, status: PARTICIPANT_STATUS.REGISTERED, index: '2', },
       ])
     })
 
@@ -1344,13 +1495,13 @@ describe('db', () => {
 
       const ret = await db.updateParticipantStatus(partyAddress, participantAddress, {
         status: PARTICIPANT_STATUS.REGISTERED,
-        index: 5
+        index: '5'
       })
 
       expect(ret).toEqual({
         address: participantAddress,
         status: PARTICIPANT_STATUS.REGISTERED,
-        index: 5,
+        index: '5',
       })
 
       const doc = await loadParticipantList(partyAddress)
@@ -1359,7 +1510,7 @@ describe('db', () => {
         {
           address: participantAddress,
           status: PARTICIPANT_STATUS.REGISTERED,
-          index: 5,
+          index: '5',
         }
       ])
       expect(doc.address).toEqual(partyAddress)
@@ -1371,19 +1522,21 @@ describe('db', () => {
 
       const ret = await db.updateParticipantStatus(
         partyAddress.toUpperCase(), participantAddress.toUpperCase(), {
-          status: PARTICIPANT_STATUS.REGISTERED
+          status: PARTICIPANT_STATUS.REGISTERED,
+          index: '5'
         }
       )
 
       expect(ret).toEqual({
         address: participantAddress.toLowerCase(),
         status: PARTICIPANT_STATUS.REGISTERED,
+        index: '5',
       })
 
       const doc = await loadParticipantList(partyAddress)
 
       expect(doc.participants).toEqual([
-        { address: participantAddress, status: PARTICIPANT_STATUS.REGISTERED }
+        { address: participantAddress, status: PARTICIPANT_STATUS.REGISTERED, index: '5' }
       ])
       expect(doc.address).toEqual(partyAddress)
       expect(doc.lastUpdated).toBeDefined()
@@ -1400,13 +1553,13 @@ describe('db', () => {
 
       const ret = await db.updateParticipantStatus(partyAddress, participantAddress, {
         status: PARTICIPANT_STATUS.REGISTERED,
-        index: 3,
+        index: '3',
       })
 
       expect(ret).toEqual({
         address: participantAddress,
         status: PARTICIPANT_STATUS.REGISTERED,
-        index: 3,
+        index: '3',
       })
 
       const doc = await loadParticipantList(partyAddress)
@@ -1416,7 +1569,7 @@ describe('db', () => {
         {
           address: participantAddress,
           status: PARTICIPANT_STATUS.REGISTERED,
-          index: 3,
+          index: '3',
         },
       ])
     })
@@ -1425,8 +1578,8 @@ describe('db', () => {
       const participantAddress = newAddr()
 
       const originalList = [
-        { address: participantAddress, status: PARTICIPANT_STATUS.SHOWED_UP },
-        { address: newAddr(), status: PARTICIPANT_STATUS.REGISTERED }
+        { address: participantAddress, status: PARTICIPANT_STATUS.SHOWED_UP, index: '1' },
+        { address: newAddr(), status: PARTICIPANT_STATUS.REGISTERED, index: '2' }
       ]
 
       await saveParticipantList(partyAddress, originalList)
@@ -1438,12 +1591,13 @@ describe('db', () => {
       expect(ret).toEqual({
         address: participantAddress,
         status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
+        index: '1',
       })
 
       const doc = await loadParticipantList(partyAddress)
 
       expect(doc.participants).toEqual([
-        { address: participantAddress, status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT },
+        { address: participantAddress, status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT, index: '1' },
         originalList[1],
       ])
     })
@@ -1452,7 +1606,7 @@ describe('db', () => {
       const participantAddress = newAddr()
 
       const originalList = [
-        { address: participantAddress, status: PARTICIPANT_STATUS.SHOWED_UP, index: 6 },
+        { address: participantAddress, status: PARTICIPANT_STATUS.SHOWED_UP, index: '6' },
       ]
 
       await saveParticipantList(partyAddress, originalList)
@@ -1465,7 +1619,7 @@ describe('db', () => {
       expect(ret).toEqual({
         address: participantAddress,
         status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
-        index: 6,
+        index: '6',
       })
 
       const doc = await loadParticipantList(partyAddress)
@@ -1474,19 +1628,19 @@ describe('db', () => {
         {
           address: participantAddress,
           status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
-          index: 6,
+          index: '6',
         },
       ])
 
       const ret2 = await db.updateParticipantStatus(partyAddress, participantAddress, {
         status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
-        index: 8
+        index: '8'
       })
 
       expect(ret2).toEqual({
         address: participantAddress,
         status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
-        index: 8,
+        index: '8',
       })
 
       const doc2 = await loadParticipantList(partyAddress)
@@ -1495,7 +1649,7 @@ describe('db', () => {
         {
           address: participantAddress,
           status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
-          index: 8,
+          index: '8',
         },
       ])
     })
@@ -1507,7 +1661,7 @@ describe('db', () => {
         {
           address: participantAddress,
           status: PARTICIPANT_STATUS.SHOWED_UP,
-          index: 6,
+          index: '6',
           social: 123,
           username: 'me',
           realName: 'carlos matos',
@@ -1524,7 +1678,7 @@ describe('db', () => {
       expect(ret).toEqual({
         address: participantAddress,
         status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
-        index: 6,
+        index: '6',
         social: 123,
         username: 'me',
         realName: 'carlos matos',
@@ -1536,7 +1690,7 @@ describe('db', () => {
         {
           address: participantAddress,
           status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
-          index: 6,
+          index: '6',
           social: 123,
           username: 'me',
           realName: 'carlos matos',
@@ -1551,13 +1705,13 @@ describe('db', () => {
 
       const ret2 = await db.updateParticipantStatus(partyAddress, participantAddress, {
         status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
-        index: 8
+        index: '8'
       })
 
       expect(ret2).toEqual({
         address: participantAddress,
         status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
-        index: 8,
+        index: '8',
         social: 456,
         realName: 'march',
         username: 'march234'
@@ -1569,7 +1723,7 @@ describe('db', () => {
         {
           address: participantAddress,
           status: PARTICIPANT_STATUS.WITHDRAWN_PAYOUT,
-          index: 8,
+          index: '8',
           social: 456,
           realName: 'march',
           username: 'march234'
