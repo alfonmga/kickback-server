@@ -474,7 +474,7 @@ class Db extends EventEmitter {
       `Update participant list for party ${partyAddress} from contract ...`
     )
 
-    const { participants = [] } = participantList.data
+    const { participants = [] } = safeGet(participantList, 'data', {})
 
     const registered = await partyInstance.registered()
 
