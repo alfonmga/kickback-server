@@ -1,5 +1,9 @@
 const safeGet = require('lodash.get')
-const { addressesMatch, trimOrEmpty, PARTICIPANT_STATUS } = require('@noblocknoparty/shared')
+const {
+  addressesMatch,
+  trimOrEmpty,
+  PARTICIPANT_STATUS
+} = require('@noblocknoparty/shared')
 
 const { ADMIN, OWNER } = require('../constants/roles')
 
@@ -91,12 +95,21 @@ module.exports = ({ config, db, blockChain }) => {
       allParties: async () => db.getParties(),
       activeParties: async () => db.getParties({ onlyActive: true }),
       party: async (_, { address }) => db.getParty(address),
-      userProfile: async (_, { address }, { user }) => (
+      partyAdminView: async (_, { address }, context) => {
+        const party = await db.getParty(address)
+        await assertPartyRole(address, context.user, ADMIN)
+        context.isPartyAdmin = true
+        context.isPartyAdminView = true
+        return {
+          ...party
+        }
+      },
+      userProfile: async (_, { address }, { user }) =>
         loadProfileOrJustReturnAddress(address, user)
-      ),
     },
     Mutation: {
-      createLoginChallenge: async (_, { address }) => db.createLoginChallenge(address),
+      createLoginChallenge: async (_, { address }) =>
+        db.createLoginChallenge(address),
       loginUser: async (_, __, { user }) => {
         await assertUser(user)
 
@@ -121,43 +134,57 @@ module.exports = ({ config, db, blockChain }) => {
 
         return db.createPendingParty(user.address, meta)
       },
-      updateParticipantStatus: async (_, {
-        address: partyAddress,
-        participant: { address, status }
-      }, context) => {
+      updateParticipantStatus: async (
+        _,
+        { address: partyAddress, participant: { address, status } },
+        context
+      ) => {
         await assertPartyRole(partyAddress, context.user, ADMIN)
         context.isPartyAdmin = true
-        return db.updateParticipantStatus(
-          partyAddress, address, { status: participantStatusToInternalStatus(status) }
-        )
-      },
+        return db.updateParticipantStatus(partyAddress, address, {
+          status: participantStatusToInternalStatus(status)
+        })
+      }
     },
     Party: {
-      owner: async ({ owner }, _, { user }) => (
-        loadProfileOrJustReturnAddress(owner, user)
-      ),
-      admins: async ({ admins }, _, { user }) => (
-        (admins || []).map(admin => (
+      owner: async ({ owner }, _, { user }) =>
+        loadProfileOrJustReturnAddress(owner, user),
+      admins: async ({ admins }, _, { user }) =>
+        (admins || []).map(admin =>
           loadProfileOrJustReturnAddress(admin, user)
-        ))
-      ),
-      participants: async (party, _, context) => {
-        context.isPartyAdmin = hasPartyRole(party, context.user, ADMIN)
-        return db.getParticipants(party.address)
-      },
+        ),
+      participants: async party => db.getParticipants(party.address)
     },
     LoginChallenge: {
       str: s => s
     },
     Participant: {
       status: ({ status }) => internalStatusToParticipantStatus(status),
-      user: ({ address, social, username, realName }, _, { isPartyAdmin }) => ({
-        address,
-        social,
-        username,
-        realName: isPartyAdmin ? realName : null,
-      }),
-      index: ({ index }) => parseInt(index, 10),
-    },
+      user: async (user, _, context) => {
+        const { address, social, username, realName } = user
+        const { isPartyAdmin, isPartyAdminView } = context
+
+        if (isPartyAdminView) {
+          const userProfile = await db.getUserProfile(address, true)
+          const { email, legal, social, username, realName } = userProfile
+          return {
+            email,
+            legal,
+            address: address.toLowerCase(),
+            social,
+            username,
+            realName
+          }
+        }
+
+        return {
+          address,
+          social,
+          username,
+          realName: isPartyAdmin ? realName : null
+        }
+      },
+      index: ({ index }) => parseInt(index, 10)
+    }
   }
 }
