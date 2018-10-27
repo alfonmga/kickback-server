@@ -96,13 +96,9 @@ module.exports = ({ config, db, blockChain }) => {
       activeParties: async () => db.getParties({ onlyActive: true }),
       party: async (_, { address }) => db.getParty(address),
       partyAdminView: async (_, { address }, context) => {
-        const party = await db.getParty(address)
         await assertPartyRole(address, context.user, ADMIN)
-        context.isPartyAdmin = true
         context.isPartyAdminView = true
-        return {
-          ...party
-        }
+        return db.getParty(address)
       },
       userProfile: async (_, { address }, { user }) =>
         loadProfileOrJustReturnAddress(address, user)
@@ -153,7 +149,10 @@ module.exports = ({ config, db, blockChain }) => {
         (admins || []).map(admin =>
           loadProfileOrJustReturnAddress(admin, user)
         ),
-      participants: async party => db.getParticipants(party.address)
+      participants: async (party, _, context) => {
+        context.isPartyAdmin = hasPartyRole(party, context.user, ADMIN)
+        return db.getParticipants(party.address)
+      }
     },
     LoginChallenge: {
       str: s => s
@@ -161,21 +160,25 @@ module.exports = ({ config, db, blockChain }) => {
     Participant: {
       status: ({ status }) => internalStatusToParticipantStatus(status),
       user: async (user, _, context) => {
-        const { address, social, username, realName } = user
+        const { address } = user
         const { isPartyAdmin, isPartyAdminView } = context
 
         if (isPartyAdminView) {
           const userProfile = await db.getUserProfile(address, true)
+
           const { email, legal, social, username, realName } = userProfile
+
           return {
             email,
             legal,
-            address: address.toLowerCase(),
+            address,
             social,
             username,
             realName
           }
         }
+
+        const { social, username, realName } = user
 
         return {
           address,
