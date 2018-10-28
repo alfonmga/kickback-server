@@ -17,6 +17,8 @@ const env = envalid.cleanEnv(process.env, {
   DEPLOYER_CONTRACT_ADDRESS: str({ default: '' }),
   DEPLOYER_TRANSACTION: str({ default: '' }),
   LOGDNA_API_KEY: str({ default: '' }),
+  MAILGUN_API_URL: str({ default: 'https://api.mailgun.net/v3/kickback.events' }),
+  MAILGUN_API_KEY: str(),
   SUPERADMIN_PASSWORD: str({ default: '' }),
   CONFIG_ENCRYPTION_IV: str(),
   CONFIG_ENCRYPTION_KEY: str()

@@ -3,7 +3,7 @@ const { BLOCK, NOTIFICATION } = require('../constants/events')
 module.exports = async ({ config, log: parentLog, scheduler, eventQueue, db, blockChain }) => {
   const log = parentLog.create('processor')
 
-  const sendNotificationEmail = require('./tasks/sendNotificationEmail')({ log, db, blockChain, eventQueue })
+  const sendNotificationEmail = require('./tasks/sendNotificationEmail')({ config, log, db, blockChain, eventQueue })
   const processBlockLogs = require('./tasks/processBlockLogs')({ config, log, db, blockChain, eventQueue })
   const refreshActivePartyData = require('./tasks/refreshActivePartyData')({ config, log, db, blockChain, eventQueue })
 

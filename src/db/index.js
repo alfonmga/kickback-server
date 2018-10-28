@@ -35,15 +35,19 @@ class Db extends EventEmitter {
 
     const doc = await this._get(`notification/${id}`)
 
-    await doc.set({
+    const notification = {
       user: userAddress.toLowerCase(),
       type,
       data,
+    }
+
+    await doc.set({
+      ...notification,
       email_sent: false, // if system has processed it by sending an email to user
       seen: false
     })
 
-    this.emit(NOTIFICATION, id)
+    this.emit(NOTIFICATION, id, notification)
 
     return id
   }

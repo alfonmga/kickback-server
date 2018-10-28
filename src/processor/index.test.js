@@ -34,7 +34,7 @@ jest.mock('./tasks/sendNotificationEmail', () => {
 
   const fn = args => {
     setupArgs = args
-    return na => {
+    return (...na) => {
       notificationArgs = na
     }
   }
@@ -114,17 +114,18 @@ describe('blockchain processor', () => {
     eventQueue = {}
   })
 
-  it('handles db notification events', async () => {
+  it.only('handles db notification events', async () => {
     await createProcessor({ config, log, eventQueue, db, blockChain, scheduler })
 
     const setupArgs = getNotificationSetupArgs()
+    expect(setupArgs.config).toEqual(config)
     expect(setupArgs.db).toEqual(db)
     expect(setupArgs.blockChain).toEqual(blockChain)
     expect(setupArgs.eventQueue).toEqual(eventQueue)
 
-    db.emit(NOTIFICATION, 123)
+    db.emit(NOTIFICATION, 123, 234)
 
-    expect(getNotificationArgs()).toEqual(123)
+    expect(getNotificationArgs()).toEqual([ 123, 234 ])
   })
 
   it('schedules sync task', async () => {
