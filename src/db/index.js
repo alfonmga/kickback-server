@@ -28,28 +28,30 @@ class Db extends EventEmitter {
     this._blockChain = blockChain
   }
 
-  async notifyUser(userAddress, type, data) {
-    assertEthereumAddress(userAddress)
+  async notifyUsers(userAddresses, type, data) {
+    const ids = {}
 
-    const id = uuid()
+    await Promise.all(userAddresses.map(async userAddress => {
+      assertEthereumAddress(userAddress)
 
-    const doc = await this._get(`notification/${id}`)
+      const id = uuid()
 
-    const notification = {
-      user: userAddress.toLowerCase(),
-      type,
-      data,
-    }
+      const doc = await this._get(`notification/${id}`)
 
-    await doc.set({
-      ...notification,
-      email_sent: false, // if system has processed it by sending an email to user
-      seen: false
-    })
+      await doc.set({
+        user: userAddress.toLowerCase(),
+        type,
+        data,
+        email_sent: false, // if system has processed it by sending an email to user
+        seen: false
+      })
 
-    this.emit(NOTIFICATION, id, notification)
+      ids[id] = userAddress.toLowerCase()
+    }))
 
-    return id
+    this.emit(NOTIFICATION, { ids, type, data })
+
+    return ids
   }
 
   async loginUser(userAddress) {
@@ -119,7 +121,7 @@ class Db extends EventEmitter {
     if (newEmail && !stringsMatchIgnoreCase(email.verified, newEmail)) {
       email.pending = newEmail
 
-      this.notifyUser(userAddress, VERIFY_EMAIL, { email: newEmail })
+      this.notifyUsers([ userAddress ], VERIFY_EMAIL, { email: newEmail })
     }
 
     // legal agreements are a must have

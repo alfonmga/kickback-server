@@ -114,7 +114,7 @@ describe('blockchain processor', () => {
     eventQueue = {}
   })
 
-  it.only('handles db notification events', async () => {
+  it('handles db notification events', async () => {
     await createProcessor({ config, log, eventQueue, db, blockChain, scheduler })
 
     const setupArgs = getNotificationSetupArgs()

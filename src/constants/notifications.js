@@ -1,9 +1,15 @@
 module.exports = [
+  /* ask user to verify their email address */
   'VERIFY_EMAIL',
-  'REGISTERED_AS_ATTENDEE',
+  /* once user has registered for an event */
+  'RSVP_CONFIRMED',
+  /* once payouts are ready for an event */
   'PAYOUT_READY',
-  'PAYOUT_PENDING',
-  'ATTENDEE_FEEDBACK',
+  /* if user not yet withdrawn payout */
+  'PAYOUT_STILL_PENDING',
+  /* asking participant for feedback */
+  'PARTICIPANT_FEEDBACK',
+  /* asking event host for feedback */
   'HOST_FEEDBACK'
 ].reduce((m, a) => {
   m[a] = a

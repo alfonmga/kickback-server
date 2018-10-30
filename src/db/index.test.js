@@ -170,10 +170,10 @@ describe('db', () => {
     })
   })
 
-  describe('notifyUser', () => {
+  describe('notifyUsers', () => {
     it('throws if address is invalid', async () => {
       try {
-        await db.notifyUser('invalid')
+        await db.notifyUsers([ 'invalid' ])
       } catch (err) {
         expect(err.message.toLowerCase()).toEqual(expect.stringContaining('invalid ethereum address'))
       }
@@ -185,17 +185,21 @@ describe('db', () => {
       const spy = jest.fn()
       db.on(NOTIFICATION, spy)
 
-      const id = await db.notifyUser(userAddress, 'type1', 'data1')
+      const ids = await db.notifyUsers([ userAddress ], 'type1', 'data1')
 
-      expect(spy).toHaveBeenCalledWith(id)
+      expect(spy).toHaveBeenCalledWith({
+        ids,
+        type: 'type1',
+        data: 'data1',
+      })
     })
 
     it('creates an entry', async () => {
       const userAddress = newAddr()
 
-      const id = await db.notifyUser(userAddress, 'type1', 'data1')
+      const ids = await db.notifyUsers([ userAddress ], 'type1', 'data1')
 
-      const notification = await loadNotification(id)
+      const notification = await loadNotification(Object.keys(ids)[0])
 
       expect(notification).toMatchObject({
         user: userAddress,
@@ -211,9 +215,9 @@ describe('db', () => {
     it('lowercases the user address', async () => {
       const userAddress = newAddr().toUpperCase()
 
-      const id = await db.notifyUser(userAddress, 'type1', 'data1')
+      const ids = await db.notifyUsers([ userAddress ], 'type1', 'data1')
 
-      const notification = await loadNotification(id)
+      const notification = await loadNotification(Object.keys(ids)[0])
 
       expect(notification).toMatchObject({
         user: userAddress.toLowerCase(),
@@ -1176,7 +1180,7 @@ describe('db', () => {
     })
 
     it('creates notification when new email given', async () => {
-      db.notifyUser = jest.fn(() => Promise.resolve())
+      db.notifyUsers = jest.fn(() => Promise.resolve())
 
       await db.updateUserProfile(userAddress, {
         username: userAddress.substr(0, 15),
@@ -1184,7 +1188,7 @@ describe('db', () => {
         legal,
       })
 
-      expect(db.notifyUser).toHaveBeenCalledWith(userAddress, VERIFY_EMAIL, {
+      expect(db.notifyUsers).toHaveBeenCalledWith([ userAddress ], VERIFY_EMAIL, {
         email: 'test-newemail@kickback.events'
       })
     })
